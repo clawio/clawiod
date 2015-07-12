@@ -24,6 +24,7 @@ func main() {
 	}{}
 	flag.StringVar(&flags.pidFile, "pidfile", fmt.Sprintf("/var/run/%s.pid", PRODUCTNAME), "PID file location")
 	flag.StringVar(&flags.cfg, "config", fmt.Sprintf("/etc/sysconfig/%s.conf", PRODUCTNAME), "Configuration file location")
+	flag.Parse()
 
 	/*********************************************
 	 *** 2. Create PID file   ********************
