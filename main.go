@@ -1,3 +1,12 @@
+// ClawIO - Scalable Distributed High-Performance Synchronisation and Sharing Service
+//
+// Copyright (C) 2015  Hugo González Labrador <clawio@hugo.labkode.com>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version. See file COPYNG.
+
 package main
 
 import (
@@ -26,12 +35,23 @@ func main() {
 	 *********************************************/
 	flags := struct {
 		pidFile string // the pidfile that will be used by the daemon
-		cfg     string
+		cfg     string // the config that will be used by the daemon
+		pc      bool   // if true prints the default config file
 	}{}
 	flag.StringVar(&flags.pidFile, "p", "", "PID file")
 	flag.StringVar(&flags.cfg, "c", "", "Configuration file")
+	flag.BoolVar(&flags.pc, "pc", false, "Prints the default configuration file")
 	flag.Parse()
 
+	if flags.pc == true {
+		cfg, err := config.Default()
+		if err != nil {
+			fmt.Printf("Cannot print default configuration: ", err)
+			os.Exit(1)
+		}
+		fmt.Println(cfg)
+		os.Exit(0)
+	}
 	/*********************************************
 	 *** 2. Create PID file   ********************
 	 *********************************************/
