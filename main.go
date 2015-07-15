@@ -46,7 +46,7 @@ func main() {
 	if flags.pc == true {
 		cfg, err := config.Default()
 		if err != nil {
-			fmt.Printf("Cannot print default configuration: ", err)
+			fmt.Println("Cannot print default configuration: ", err)
 			os.Exit(1)
 		}
 		fmt.Println(cfg)
