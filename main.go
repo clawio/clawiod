@@ -16,16 +16,20 @@ import (
 
 	apidisp "github.com/clawio/lib/api/dispatcher"
 	apiauth "github.com/clawio/lib/api/providers/auth"
+	apifile "github.com/clawio/lib/api/providers/file"
 	apiwebdav "github.com/clawio/lib/api/providers/webdav"
 	"github.com/clawio/lib/apiserver"
+
 	authdisp "github.com/clawio/lib/auth/dispatcher"
-	"github.com/clawio/lib/auth/providers/file"
+	authfile "github.com/clawio/lib/auth/providers/file"
+
+	storagedisp "github.com/clawio/lib/storage/dispatcher"
+	storagelocal "github.com/clawio/lib/storage/providers/local"
+
 	"github.com/clawio/lib/config"
 	"github.com/clawio/lib/logger"
 	"github.com/clawio/lib/pidfile"
 	"github.com/clawio/lib/signaler"
-	storagedisp "github.com/clawio/lib/storage/dispatcher"
-	"github.com/clawio/lib/storage/providers/local"
 )
 
 func main() {
@@ -91,7 +95,7 @@ func main() {
 	 ** 5. Create auth dispatcher       *******
 	 ******************************************/
 	fileAuthLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "FILEAUTH")
-	fauth, err := file.New("fileauth", cfg, fileAuthLog)
+	fauth, err := authfile.New("fileauth", cfg, fileAuthLog)
 	if err != nil {
 		fmt.Println("Cannot create file auth provider: ", err)
 		os.Exit(1)
@@ -108,7 +112,7 @@ func main() {
 	 ** 6. Create storage dispatcher      *****
 	 ******************************************/
 	localStorageLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "LOCALSTORAGE")
-	localStorage := local.New("local", cfg, localStorageLog)
+	localStorage := storagelocal.New("local", cfg, localStorageLog)
 
 	sdispLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "STORAGEDISP")
 	sdisp := storagedisp.New(cfg, sdispLog)
@@ -121,18 +125,34 @@ func main() {
 	/******************************************
 	 ** 7. Create API dispatcher aka router  **
 	 ******************************************/
-	authAPI := apiauth.New("auth", cfg, adisp, sdisp)
-	webdavAPI := apiwebdav.New("webdav", cfg, adisp, sdisp)
 	apdisp := apidisp.New(cfg)
-	err = apdisp.AddAPI(authAPI)
-	if err != nil {
-		fmt.Println("Cannot add auth API to API dispatcher: ", err)
-		os.Exit(1)
+
+	if cfg.GetDirectives().AuthAPIEnabled == true {
+		authAPI := apiauth.New(cfg.GetDirectives().AuthAPIID, cfg, adisp, sdisp)
+		err = apdisp.AddAPI(authAPI)
+		if err != nil {
+			fmt.Println("Cannot add auth API to API dispatcher: ", err)
+			os.Exit(1)
+		}
 	}
-	err = apdisp.AddAPI(webdavAPI)
-	if err != nil {
-		fmt.Println("Cannot add WebDAV API to API dispatcher: ", err)
-		os.Exit(1)
+
+	if cfg.GetDirectives().WebDAVAPIEnabled {
+		webdavAPI := apiwebdav.New(cfg.GetDirectives().WebDAVAPIID, cfg, adisp, sdisp)
+
+		err = apdisp.AddAPI(webdavAPI)
+		if err != nil {
+			fmt.Println("Cannot add WebDAV API to API dispatcher: ", err)
+			os.Exit(1)
+		}
+	}
+
+	if cfg.GetDirectives().FileAPIEnabled == true {
+		fileAPI := apifile.New(cfg.GetDirectives().FileAPIID, cfg, adisp, sdisp)
+		err = apdisp.AddAPI(fileAPI)
+		if err != nil {
+			fmt.Println("Cannot add File API to API dispatcher: ", err)
+			os.Exit(1)
+		}
 	}
 
 	/***************************************************
