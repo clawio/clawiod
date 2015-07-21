@@ -1,4 +1,4 @@
-// ClawIO - Scalable Distributed High-Performance Synchronisation and Sharing Service
+// ClawIO - Scalable Sync and Share
 //
 // Copyright (C) 2015  Hugo González Labrador <clawio@hugo.labkode.com>
 //
@@ -17,7 +17,9 @@ import (
 	apidisp "github.com/clawio/lib/api/dispatcher"
 	apiauth "github.com/clawio/lib/api/providers/auth"
 	apifile "github.com/clawio/lib/api/providers/file"
+	apistatic "github.com/clawio/lib/api/providers/static"
 	apiwebdav "github.com/clawio/lib/api/providers/webdav"
+
 	"github.com/clawio/lib/apiserver"
 
 	authdisp "github.com/clawio/lib/auth/dispatcher"
@@ -155,6 +157,14 @@ func main() {
 		}
 	}
 
+	if cfg.GetDirectives().StaticAPIEnabled == true {
+		staticAPI := apistatic.New(cfg.GetDirectives().StaticAPIID, cfg, adisp, sdisp)
+		err = apdisp.AddAPI(staticAPI)
+		if err != nil {
+			fmt.Println("Cannot add Static API to API dispatcher: ", err)
+			os.Exit(1)
+		}
+	}
 	/***************************************************
 	 *** 8. Start HTTP/HTTPS Server ********************
 	 ***************************************************/
