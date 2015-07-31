@@ -17,6 +17,7 @@ import (
 	apidisp "github.com/clawio/lib/api/dispatcher"
 	apiauth "github.com/clawio/lib/api/providers/auth"
 	apifile "github.com/clawio/lib/api/providers/file"
+	apilink "github.com/clawio/lib/api/providers/link"
 	apistatic "github.com/clawio/lib/api/providers/static"
 	apiwebdav "github.com/clawio/lib/api/providers/webdav"
 
@@ -26,7 +27,10 @@ import (
 	authfile "github.com/clawio/lib/auth/providers/file"
 
 	storagedisp "github.com/clawio/lib/storage/dispatcher"
+	storageeos "github.com/clawio/lib/storage/providers/eos"
 	storagelocal "github.com/clawio/lib/storage/providers/local"
+
+	sqlitelinker "github.com/clawio/lib/linker/providers/sql"
 
 	"github.com/clawio/lib/config"
 	"github.com/clawio/lib/logger"
@@ -114,14 +118,34 @@ func main() {
 	 ** 6. Create storage dispatcher      *****
 	 ******************************************/
 	localStorageLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "LOCALSTORAGE")
-	localStorage := storagelocal.New("local", cfg, localStorageLog)
-
+	localStorage := storagelocal.New(cfg.GetDirectives().LocalStorageScheme, cfg, localStorageLog)
 	sdispLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "STORAGEDISP")
 	sdisp := storagedisp.New(cfg, sdispLog)
 	err = sdisp.AddStorage(localStorage)
 	if err != nil {
 		fmt.Println("Cannot add local storage to storage dispatcher: ", err)
 		os.Exit(1)
+	}
+
+	eosStorageLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "EOSSTORAGE")
+	eosStorage, err := storageeos.New(cfg.GetDirectives().EosStorageScheme, cfg, eosStorageLog)
+	if err != nil {
+		fmt.Println("Cannot create eos storage: ", err)
+		os.Exit(1)
+	}
+	err = sdisp.AddStorage(eosStorage)
+	if err != nil {
+		fmt.Println("Cannot add eos storage to storage dispatcher: ", err)
+		os.Exit(1)
+	}
+
+	/******************************************
+	 ** 6.2 Create link provider          *****
+	 ******************************************/
+	linkerLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "SQLITELINKER")
+	linker, err := sqlitelinker.New(cfg, sdisp, linkerLog)
+	if err != nil {
+
 	}
 
 	/******************************************
@@ -164,6 +188,13 @@ func main() {
 			fmt.Println("Cannot add Static API to API dispatcher: ", err)
 			os.Exit(1)
 		}
+	}
+
+	linkerAPI := apilink.New("link", cfg, linker, adisp, sdisp)
+	err = apdisp.AddAPI(linkerAPI)
+	if err != nil {
+		fmt.Println("Cannot add Linker API to API dispatcher: ", err)
+		os.Exit(1)
 	}
 	/***************************************************
 	 *** 8. Start HTTP/HTTPS Server ********************
