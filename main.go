@@ -17,7 +17,6 @@ import (
 	apidisp "github.com/clawio/lib/api/dispatcher"
 	apiauth "github.com/clawio/lib/api/providers/auth"
 	apifile "github.com/clawio/lib/api/providers/file"
-	apilink "github.com/clawio/lib/api/providers/link"
 	apistatic "github.com/clawio/lib/api/providers/static"
 	apiwebdav "github.com/clawio/lib/api/providers/webdav"
 
@@ -30,7 +29,6 @@ import (
 	storageeos "github.com/clawio/lib/storage/providers/eos"
 	storagelocal "github.com/clawio/lib/storage/providers/local"
 
-	sqlitelinker "github.com/clawio/lib/linker/providers/sql"
 
 	"github.com/clawio/lib/config"
 	"github.com/clawio/lib/logger"
@@ -140,15 +138,6 @@ func main() {
 	}
 
 	/******************************************
-	 ** 6.2 Create link provider          *****
-	 ******************************************/
-	linkerLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "SQLITELINKER")
-	linker, err := sqlitelinker.New(cfg, sdisp, linkerLog)
-	if err != nil {
-
-	}
-
-	/******************************************
 	 ** 7. Create API dispatcher aka router  **
 	 ******************************************/
 	apdisp := apidisp.New(cfg)
@@ -190,12 +179,6 @@ func main() {
 		}
 	}
 
-	linkerAPI := apilink.New("link", cfg, linker, adisp, sdisp)
-	err = apdisp.AddAPI(linkerAPI)
-	if err != nil {
-		fmt.Println("Cannot add Linker API to API dispatcher: ", err)
-		os.Exit(1)
-	}
 	/***************************************************
 	 *** 8. Start HTTP/HTTPS Server ********************
 	 ***************************************************/
