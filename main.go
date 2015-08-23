@@ -17,7 +17,9 @@ import (
 	apidisp "github.com/clawio/lib/api/dispatcher"
 	apiauth "github.com/clawio/lib/api/providers/auth"
 	apifile "github.com/clawio/lib/api/providers/file"
+	apilink "github.com/clawio/lib/api/providers/link"
 	apistatic "github.com/clawio/lib/api/providers/static"
+
 	apiwebdav "github.com/clawio/lib/api/providers/webdav"
 
 	"github.com/clawio/lib/apiserver"
@@ -27,6 +29,8 @@ import (
 
 	storagedisp "github.com/clawio/lib/storage/dispatcher"
 	storagelocal "github.com/clawio/lib/storage/providers/local"
+
+	sqllinker "github.com/clawio/lib/linker/providers/sql"
 
 	"github.com/clawio/lib/config"
 	"github.com/clawio/lib/logger"
@@ -124,6 +128,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	linkerLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "LINKER")
+	linker, err := sqllinker.New(cfg, sdisp, linkerLog)
+	if err != nil {
+		fmt.Println("Cannot create linker: ", err)
+		os.Exit(1)
+	}
+
 	/******************************************
 	 ** 7. Create API dispatcher aka router  **
 	 ******************************************/
@@ -162,6 +173,15 @@ func main() {
 		err = apdisp.AddAPI(staticAPI)
 		if err != nil {
 			fmt.Println("Cannot add Static API to API dispatcher: ", err)
+			os.Exit(1)
+		}
+	}
+
+	if cfg.GetDirectives().LinkAPIEnabled == true {
+		linkAPI := apilink.New(cfg.GetDirectives().LinkAPIID, cfg, linker, adisp, sdisp)
+		err = apdisp.AddAPI(linkAPI)
+		if err != nil {
+			fmt.Println("Cannot add Link API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
