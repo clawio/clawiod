@@ -1,1 +1,1 @@
-daemon: clawiod
+daemon: ./bin/clawiod
