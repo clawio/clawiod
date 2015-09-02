@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/clawio/clawiod.svg?branch=develop)](https://travis-ci.org/clawio/clawiod)
+
 # ClawIO Daemon
 The ClawIO Daemon is the core part of the ClawIO project.
 
