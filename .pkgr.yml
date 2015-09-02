@@ -11,6 +11,6 @@ targets:
 user: clawiod
 group: clawiod
 
-cli: false
+cli: clawiod
 
 
