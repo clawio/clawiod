@@ -8,4 +8,9 @@ targets:
   fedora-20:
   sles-12:
 
+user: clawiod
+group: clawiod
+
+cli: false
+
 
