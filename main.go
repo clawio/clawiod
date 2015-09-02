@@ -14,24 +14,24 @@ import (
 	"fmt"
 	"os"
 
-	apidisp "github.com/clawio/clawiod/lib/api/dispatcher"
-	apiauth "github.com/clawio/clawiod/lib/api/providers/auth"
-	apifile "github.com/clawio/clawiod/lib/api/providers/file"
-	apistatic "github.com/clawio/clawiod/lib/api/providers/static"
-	apiwebdav "github.com/clawio/clawiod/lib/api/providers/webdav"
+	apidisp "github.com/clawio/clawiod/pkg/api/dispatcher"
+	apiauth "github.com/clawio/clawiod/pkg/api/providers/auth"
+	apifile "github.com/clawio/clawiod/pkg/api/providers/file"
+	apistatic "github.com/clawio/clawiod/pkg/api/providers/static"
+	apiwebdav "github.com/clawio/clawiod/pkg/api/providers/webdav"
 
-	"github.com/clawio/clawiod/lib/apiserver"
+	"github.com/clawio/clawiod/pkg/apiserver"
 
-	authdisp "github.com/clawio/clawiod/lib/auth/dispatcher"
-	authfile "github.com/clawio/clawiod/lib/auth/providers/file"
+	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
+	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
 
-	storagedisp "github.com/clawio/clawiod/lib/storage/dispatcher"
-	storagelocal "github.com/clawio/clawiod/lib/storage/providers/local"
+	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
+	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
 
-	"github.com/clawio/clawiod/lib/config"
-	"github.com/clawio/clawiod/lib/logger"
-	"github.com/clawio/clawiod/lib/pidfile"
-	"github.com/clawio/clawiod/lib/signaler"
+	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/logger"
+	"github.com/clawio/clawiod/pkg/pidfile"
+	"github.com/clawio/clawiod/pkg/signaler"
 )
 
 func main() {
