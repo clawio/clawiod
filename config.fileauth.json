@@ -1,0 +1,3 @@
+[
+        {"eppn":"demo", "password": "demo", "idp": "localhost", "displayname": "Demo User", "email": "demo@localhost"}
+]
