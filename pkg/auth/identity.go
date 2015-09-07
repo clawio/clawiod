@@ -11,9 +11,10 @@ package auth
 
 // Identity represents the details of an authenticated user.
 type Identity struct {
-	ID          string      `json:"id"`           // the ID for the user.
-	DisplayName string      `json:"display_name"` // the user-friendly name.
-	Email       string      `json:"email"`        // the email of the user.
-	AuthID      string      `json:"auth_id"`      // the ID of the authentication provider which authenticated this user.
-	Extra       interface{} `json:"extra"`
+	EPPN        string      `json:"eppn"`        // the ID for the user.
+	IdP         string      `json:"idp"`         // the Identity Provider
+	DisplayName string      `json:"displayname"` // the user-friendly name.
+	Email       string      `json:"email"`       // the email of the user.
+	AuthID      string      `json:"authid"`      // the ID of the authentication backend used to authenticate the user
+	Extra       interface{} `json:"extra"`       // extra information returned by authentication backends
 }

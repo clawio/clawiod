@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package file
+package storage
 
 import (
 	"encoding/json"
@@ -16,36 +16,30 @@ import (
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
 	"net/http"
-	"path/filepath"
+	"strconv"
+	"strings"
 )
 
-func (a *File) move(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) stat(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "stat/"}, "/"))
 
-	from := filepath.Clean(r.URL.Query().Get("from"))
-	to := filepath.Clean(r.URL.Query().Get("to"))
-
-	err := a.sdisp.Rename(identity, from, to)
-	if err != nil {
-		switch err.(type) {
-		case *storage.NotExistError:
-			log.Debug(err.Error())
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-			return
-		default:
-			log.Errf("Cannot rename resource: %+v", map[string]interface{}{"err": err})
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+	var children bool
+	queryChildren := r.URL.Query().Get("children")
+	if queryChildren != "" {
+		ch, err := strconv.ParseBool(queryChildren)
+		if err != nil {
+			children = false
 		}
+		children = ch
 	}
 
-	meta, err := a.sdisp.Stat(identity, to, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, children)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			log.Debug(err.Error())
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		default:
 			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})

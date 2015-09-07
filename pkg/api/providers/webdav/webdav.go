@@ -47,25 +47,25 @@ func (a *WebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	path := r.URL.Path
 
 	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "GET" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.get)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.get)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "PUT" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.put)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.put)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "MKCOL" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.mkcol)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.mkcol)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "OPTIONS" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.options)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.options)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "PROPFIND" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.propfind)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.propfind)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "LOCK" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.lock)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.lock)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "UNLOCK" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.unlock)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.unlock)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "DELETE" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.delete)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.delete)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "MOVE" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.move)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.move)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "COPY" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.copy)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.copy)
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return

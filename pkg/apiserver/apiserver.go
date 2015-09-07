@@ -15,8 +15,8 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/gorilla/handlers"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/config"
+	"io"
 
-	"log/syslog"
 	"net/http"
 	"time"
 
@@ -38,8 +38,9 @@ type APIServer interface {
 }
 
 type apiServer struct {
-	cfg          *config.Config
-	syslogWriter *syslog.Writer
+	cfg       *config.Config
+	logWriter io.Writer
+	reqWriter io.Writer
 
 	apidisp apidisp.Dispatcher
 	adisp   authdisp.Dispatcher
@@ -49,7 +50,7 @@ type apiServer struct {
 }
 
 // New returns a new APIServer
-func New(cfg *config.Config, w *syslog.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher) APIServer {
+func New(cfg *config.Config, w io.Writer, rw io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher) APIServer {
 	srv := &graceful.Server{
 		NoSignalHandling: true,
 		Timeout:          10 * time.Second,
@@ -57,7 +58,7 @@ func New(cfg *config.Config, w *syslog.Writer, apidisp apidisp.Dispatcher, adisp
 			Addr: fmt.Sprintf(":%d", cfg.GetDirectives().Port),
 		},
 	}
-	return &apiServer{cfg: cfg, syslogWriter: w, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv}
+	return &apiServer{cfg: cfg, logWriter: w, reqWriter: rw, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv}
 }
 
 func (s *apiServer) Start() error {
@@ -79,7 +80,7 @@ func (s *apiServer) handleRequest() http.Handler {
 		/******************************************
 		 ** 1. Create logger for request    *******
 		 ******************************************/
-		log := logger.New(s.syslogWriter, s.cfg.GetDirectives().LogLevel, uuid.New())
+		log := logger.New(s.logWriter, uuid.New())
 		log.Infof("Request started: %+v", map[string]interface{}{"URL": r.RequestURI})
 		defer func() {
 			log.Info("Request finished")
@@ -96,7 +97,7 @@ func (s *apiServer) handleRequest() http.Handler {
 	}
 
 	if s.cfg.GetDirectives().LogRequests == true {
-		return handlers.CombinedLoggingHandler(s.syslogWriter, http.HandlerFunc(fn))
+		return handlers.CombinedLoggingHandler(s.reqWriter, http.HandlerFunc(fn))
 	}
 	return http.HandlerFunc(fn)
 }

@@ -21,7 +21,7 @@ import (
 func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
 	// MKCOL with weird body must fail with 415 (RFC2518:8.3.1)
 	if r.ContentLength > 0 {
@@ -30,14 +30,14 @@ func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err := a.sdisp.CreateCol(identity, rawURI, false)
+	err := a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
 			log.Debug(err.Error())
 			http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 			return
-		case *storage.ExistError:
+		case *storage.AlreadyExistError:
 			log.Debug(err.Error())
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return

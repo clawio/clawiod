@@ -19,6 +19,6 @@ import (
 // API is the interface that APIs should implement to be served from the daemon.
 // An API is defined by an ID, so for example the APIFiles will have the ID 'files'.
 type API interface {
-	GetID() string                                                     // returns the ID of the API.
-	HandleRequest(context.Context, http.ResponseWriter, *http.Request) // handle the requestd.
+	GetID() string
+	HandleRequest(context.Context, http.ResponseWriter, *http.Request)
 }

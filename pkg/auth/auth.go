@@ -11,12 +11,11 @@
 // defines the authentication resource.
 package auth
 
-// Auth is the interface that all the authentication providers must implement
-// to be used by the authentication multiplexer.
-// An authentication provider is defined by an ID.
-// The extra parameter is useful to pass extra auth information to the underlying auth provider.
-type Auth interface {
+// AuthenticationStrategy is the interface that all the authentication backends must implement
+// to be used by the authentication dispatcher.
+// An authentication backend has a unique identifier, the Auth ID.
+// The extra parameter is useful to pass extra auth information to the underlying auth backend.
+type AuthenticationStrategy interface {
 	GetID() string
-	Authenticate(username, password string, extra interface{}) (*Identity, error)
-	Reload() error
+	Authenticate(eppn, password, idp string, extra interface{}) (*Identity, error)
 }

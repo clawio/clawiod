@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package file
+package storage
 
 import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
@@ -20,12 +20,12 @@ import (
 	"strings"
 )
 
-func (a *File) get(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) get(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "get/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "get/"}, "/"))
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -39,14 +39,14 @@ func (a *File) get(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	if meta.IsCol {
+	if meta.IsContainer {
 		// TODO: here we could do the zip based download for folders
-		log.Warning("Download of collections is not implemented")
+		log.Warning("Download of containers is not implemented")
 		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 		return
 	}
 
-	reader, err := a.sdisp.GetFile(identity, rawURI)
+	reader, err := a.sdisp.DispatchGetObject(identity, resourcePath)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

@@ -12,29 +12,31 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	apidisp "github.com/clawio/clawiod/pkg/api/dispatcher"
 	apiauth "github.com/clawio/clawiod/pkg/api/providers/auth"
-	apifile "github.com/clawio/clawiod/pkg/api/providers/file"
 	apistatic "github.com/clawio/clawiod/pkg/api/providers/static"
+	apistorage "github.com/clawio/clawiod/pkg/api/providers/storage"
 	apiwebdav "github.com/clawio/clawiod/pkg/api/providers/webdav"
-
 	"github.com/clawio/clawiod/pkg/apiserver"
-
 	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
-
-	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
-	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
-
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/pidfile"
 	"github.com/clawio/clawiod/pkg/signaler"
+	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
+	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
+	"os"
 )
 
 func main() {
+
+	// The daemon MUST run as non-root user to avoid security holes.
+	// Linux threads are not POSIX compliant so the setuid sycall just apply to the actual thread. This
+	// makes setuid not safe. See https://github.com/golang/go/issues/1435
+	// There are two options to listen in a port < 1024 (privileged ports)
+	// I) Use Linux capabilities: sudo setcap cap_net_bind_service=+ep clawiod
+	// II) Use a reverse proxy like NGINX or lighthttpd that listen on 80 and forwards to daemon on port > 1024
 
 	/*********************************************
 	 *** 1. Parse CLI flags   ********************
@@ -42,27 +44,20 @@ func main() {
 	flags := struct {
 		pidFile string // the pidfile that will be used by the daemon
 		cfg     string // the config that will be used by the daemon
-		pc      bool   // if true prints the default config file
 	}{}
-	flag.StringVar(&flags.pidFile, "p", "", "PID file")
-	flag.StringVar(&flags.cfg, "c", "", "Configuration file")
-	flag.BoolVar(&flags.pc, "pc", false, "Prints the default configuration file")
+	flag.StringVar(&flags.pidFile, "pid", "", "The pid file")
+	flag.StringVar(&flags.cfg, "config", "", "the configuration file")
 	flag.Parse()
-
-	if flags.pc == true {
-		cfg, err := config.Default()
-		if err != nil {
-			fmt.Println("Cannot print default configuration: ", err)
-			os.Exit(1)
-		}
-		fmt.Println(cfg)
-		os.Exit(0)
+	if flags.cfg == "" && flags.pidFile == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
+
 	/*********************************************
 	 *** 2. Create PID file   ********************
 	 *********************************************/
 	if flags.pidFile == "" {
-		fmt.Println("Set pidfile with -p flag")
+		fmt.Println("Set pidfile with -pid flag")
 		os.Exit(1)
 	}
 	_, err := pidfile.New(flags.pidFile)
@@ -75,7 +70,7 @@ func main() {
 	 *** 3. Load configuration   ********************
 	 ************************************************/
 	if flags.cfg == "" {
-		fmt.Println("Set configuration with -c flag")
+		fmt.Println("Set configuration file with -config flag")
 		os.Exit(1)
 	}
 	cfg, err := config.New(flags.cfg)
@@ -87,24 +82,36 @@ func main() {
 	/******************************************
 	 ** 4. Connect to the syslog daemon *******
 	 ******************************************/
-	syslogWriter, err := logger.NewSyslogWriter("", "", cfg.GetDirectives().LogLevel)
+	/*syslogWriter, err := logger.NewSyslogWriter("", "", cfg.GetDirectives().LogLevel)
 	if err != nil {
 		fmt.Println("Cannot connect to syslog: ", err)
+		os.Exit(1)
+	}*/
+
+	appLogWriter, err := os.OpenFile(cfg.GetDirectives().LogAppFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Println("Cannot open app log file: ", err)
+		os.Exit(1)
+	}
+
+	reqLogWriter, err := os.OpenFile(cfg.GetDirectives().LogReqFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Println("Cannot open req log file: ", err)
 		os.Exit(1)
 	}
 
 	/******************************************
 	 ** 5. Create auth dispatcher       *******
 	 ******************************************/
-	fileAuthLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "FILEAUTH")
+	fileAuthLog := logger.New(appLogWriter, "FILEAUTH")
 	fauth, err := authfile.New("fileauth", cfg, fileAuthLog)
 	if err != nil {
 		fmt.Println("Cannot create file auth provider: ", err)
 		os.Exit(1)
 	}
-	adispLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "AUTHDISP")
+	adispLog := logger.New(appLogWriter, "AUTHDISP")
 	adisp := authdisp.New(cfg, adispLog)
-	err = adisp.AddAuth(fauth) // add file auth strategy
+	err = adisp.AddAuthenticationstrategy(fauth) // add file auth strategy
 	if err != nil {
 		fmt.Println("Cannot add file auth provider to auth dispatcher: ", err)
 		os.Exit(1)
@@ -113,10 +120,10 @@ func main() {
 	/******************************************
 	 ** 6. Create storage dispatcher      *****
 	 ******************************************/
-	localStorageLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "LOCALSTORAGE")
+	localStorageLog := logger.New(appLogWriter, "LOCALSTORAGE")
 	localStorage := storagelocal.New("local", cfg, localStorageLog)
 
-	sdispLog := logger.New(syslogWriter, cfg.GetDirectives().LogLevel, "STORAGEDISP")
+	sdispLog := logger.New(appLogWriter, "STORAGEDISP")
 	sdisp := storagedisp.New(cfg, sdispLog)
 	err = sdisp.AddStorage(localStorage)
 	if err != nil {
@@ -125,7 +132,7 @@ func main() {
 	}
 
 	/******************************************
-	 ** 7. Create API dispatcher aka router  **
+	 ** 7. Create API dispatcher             **
 	 ******************************************/
 	apdisp := apidisp.New(cfg)
 
@@ -148,11 +155,11 @@ func main() {
 		}
 	}
 
-	if cfg.GetDirectives().FileAPIEnabled == true {
-		fileAPI := apifile.New(cfg.GetDirectives().FileAPIID, cfg, adisp, sdisp)
-		err = apdisp.AddAPI(fileAPI)
+	if cfg.GetDirectives().StorageAPIEnabled == true {
+		storageAPI := apistorage.New(cfg.GetDirectives().StorageAPIID, cfg, adisp, sdisp)
+		err = apdisp.AddAPI(storageAPI)
 		if err != nil {
-			fmt.Println("Cannot add File API to API dispatcher: ", err)
+			fmt.Println("Cannot add Storage API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
@@ -168,7 +175,7 @@ func main() {
 	/***************************************************
 	 *** 8. Start HTTP/HTTPS Server ********************
 	 ***************************************************/
-	srv := apiserver.New(cfg, syslogWriter, apdisp, adisp, sdisp)
+	srv := apiserver.New(cfg, appLogWriter, reqLogWriter, apdisp, adisp, sdisp)
 	go func() {
 		err = srv.Start()
 		if err != nil {

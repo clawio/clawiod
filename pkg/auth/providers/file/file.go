@@ -21,9 +21,10 @@ import (
 
 // user reprents a user saved in the JSON authentication file.
 type user struct {
-	ID          string      `json:"id"`
+	EPPN        string      `json:"eppn"`
 	Password    string      `json:"password"`
-	DisplayName string      `json:"display_name"`
+	IdP         string      `json:"idp"`
+	DisplayName string      `json:"displayname"`
 	Email       string      `json:"email"`
 	Extra       interface{} `json:"extra"`
 }
@@ -52,7 +53,7 @@ func getUsersFromFile(path string) ([]*user, error) {
 }
 
 // New returns an file object or an error.
-func New(id string, cfg *config.Config, log logger.Logger) (auth.Auth, error) {
+func New(id string, cfg *config.Config, log logger.Logger) (auth.AuthenticationStrategy, error) {
 	users, err := getUsersFromFile(cfg.GetDirectives().FileAuthFilename)
 	if err != nil {
 		return nil, err
@@ -62,29 +63,30 @@ func New(id string, cfg *config.Config, log logger.Logger) (auth.Auth, error) {
 	return &file{id: id, cfg: cfg, log: log, val: v}, nil
 }
 
-// GetID returns the ID of the JSON auth provider.
+// GetID returns the ID of the JSON-based authentication strategy
 func (f *file) GetID() string {
 	return f.id
 }
 
 // Authenticate authenticates a user agains the JSON json.
 // User credentials in the JSON file are kept in plain text, so the password is not encrypted.
-func (f *file) Authenticate(username, password string, extra interface{}) (*auth.Identity, error) {
+func (f *file) Authenticate(eppn, password, idp string, extra interface{}) (*auth.Identity, error) {
 	x := f.val.Load()
 	users, _ := x.([]*user)
 	for _, user := range users {
-		if user.ID == username && user.Password == password {
-			authRes := auth.Identity{
-				ID:          user.ID,
+		if user.EPPN == eppn && user.Password == password {
+			identity := auth.Identity{
+				EPPN:        user.EPPN,
+				IdP:         user.IdP,
+				AuthID:      f.GetID(),
 				DisplayName: user.DisplayName,
 				Email:       user.Email,
-				AuthID:      f.GetID(),
 				Extra:       user.Extra,
 			}
-			return &authRes, nil
+			return &identity, nil
 		}
 	}
-	return nil, &auth.IdentityNotFoundError{ID: username, AuthID: f.GetID()}
+	return nil, &auth.IdentityNotFoundError{EPPN: eppn, IdP: idp, AuthID: f.GetID()}
 }
 
 // Reload reloads the configuration from the file so new request will be the new configuration

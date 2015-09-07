@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package file
+package storage
 
 import (
 	"encoding/json"
@@ -16,33 +16,31 @@ import (
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
 	"net/http"
-	"strings"
+	"path/filepath"
 )
 
-func (a *File) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) mv(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "mkcol/"}, "/"))
 
-	err := a.sdisp.CreateCol(identity, rawURI, false)
+	from := filepath.Clean(r.URL.Query().Get("from"))
+	to := filepath.Clean(r.URL.Query().Get("to"))
+
+	err := a.sdisp.DispatchRename(identity, from, to)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
 			log.Debug(err.Error())
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
-		case *storage.ExistError:
-			log.Debug(err.Error())
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
 		default:
-			log.Errf("Cannot create col: %+v", map[string]interface{}{"err": err})
+			log.Errf("Cannot rename resource: %+v", map[string]interface{}{"err": err})
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 	}
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, to, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -63,9 +61,10 @@ func (a *File) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(metaJSON)
 	if err != nil {
 		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
 	}
+	return
 }

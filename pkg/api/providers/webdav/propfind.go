@@ -24,7 +24,7 @@ import (
 func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
 	var children bool
 	depth := r.Header.Get("Depth")
@@ -32,7 +32,7 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter, r *http.Re
 		children = true
 	}
 
-	meta, err := a.sdisp.Stat(identity, rawURI, children)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, children)
 
 	if err != nil {
 		switch err.(type) {
@@ -82,9 +82,9 @@ func getResponseFromMeta(a *WebDAV, meta *storage.MetaData) responseXML {
 	getLastModified := propertyXML{xml.Name{Space: "", Local: "d:getlastmodified"}, "", []byte(lasModifiedString)}
 	getETag := propertyXML{xml.Name{Space: "", Local: "d:getetag"}, "", []byte(meta.ETag)}
 	getContentType := propertyXML{xml.Name{Space: "", Local: "d:getcontenttype"}, "", []byte(meta.MimeType)}
-	if meta.IsCol {
+	if meta.IsContainer {
 		getResourceType := propertyXML{xml.Name{Space: "", Local: "d:resourcetype"}, "", []byte("<d:collection/>")}
-		getContentType.InnerXML = []byte("inode/directory")
+		getContentType.InnerXML = []byte("inode/container")
 		propList = append(propList, getResourceType)
 	}
 	propList = append(propList, getContentLegnth, getLastModified, getETag, getContentType)

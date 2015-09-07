@@ -22,7 +22,7 @@ import (
 func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
 	/*
 	   Content-Range is dangerous for PUT requests:  PUT per definition
@@ -108,23 +108,23 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 
 	checksumType, checksum := a.getChecksumInfo(ctx, r)
+	verifyChecksum := false
+	if checksumType != "" {
+		verifyChecksum = true
+	}
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		// stat will fail if the file does not exists
 		// in our case this is ok and we create a new file
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.sdisp.PutFile(identity, rawURI, r.Body, r.ContentLength, checksumType, checksum)
+			err = a.sdisp.DispatchPutObject(identity, resourcePath, r.Body, r.ContentLength, verifyChecksum, checksumType, checksum)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
 					log.Debug(err.Error())
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-					return
-				case *storage.UnsupportedChecksumTypeError:
-					log.Debug(err.Error())
-					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 					return
 				case *storage.BadChecksumError:
 					log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
@@ -136,7 +136,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 					return
 				}
 			}
-			meta, err = a.sdisp.Stat(identity, rawURI, false)
+			meta, err = a.sdisp.DispatchStat(identity, resourcePath, false)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -161,23 +161,19 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if meta.IsCol {
+	if meta.IsContainer {
 		log.Errf("Cannot put a file where there is a directory: %+v", map[string]interface{}{"err": err})
 		http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 		return
 	}
 
-	err = a.sdisp.PutFile(identity, rawURI, r.Body, r.ContentLength, checksum, checksumType)
+	err = a.sdisp.DispatchPutObject(identity, resourcePath, r.Body, r.ContentLength, verifyChecksum, checksum, checksumType)
 	if err != nil {
 		if err != nil {
 			switch err.(type) {
 			case *storage.NotExistError:
 				log.Debug(err.Error())
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-				return
-			case *storage.UnsupportedChecksumTypeError:
-				log.Debug(err.Error())
-				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			case *storage.BadChecksumError:
 				log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
@@ -191,7 +187,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	meta, err = a.sdisp.Stat(identity, rawURI, false)
+	meta, err = a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

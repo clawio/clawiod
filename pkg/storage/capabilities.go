@@ -10,63 +10,71 @@
 package storage
 
 // Capabilities reprents the capabilities of a storage
+// Clients should ask for the capabilities of a storage before doing any operation.
 type Capabilities struct {
-	// Allowed to upload files.
-	PutFile bool `json:put`
+	// Can upload a full object.
+	PutObject bool `json:putobject`
 
-	// Allowed to upload files in chunks
-	PutFileChunked bool `json:"put_chunked"`
+	// Can upload an object in chunks
+	PutObjectInChunks bool `json:"putobjectinchunks"`
 
-	// Allowed to download resources.
-	GetFile bool `json:"get"`
+	// Can download a full object.
+	GetObject bool `json:"getobject"`
 
-	// Allowed to Seek (for Byte Range Requests)
-	GetFileByteRange bool `json:"get_byte_range"`
+	// Can download parts of an object
+	GetObjectByByteRange bool `json:"getobjectbybyterange"`
 
-	// Allowed to get metadata information.
+	// Can get resource metadata.
 	Stat bool `json:"stat"`
 
-	// Allowed to remove resources.
+	// Can remove resources.
 	Remove bool `json:"remove"`
 
-	// Allowed to create collections.
-	Mkcol bool `json:"mkcol"`
+	// Can create container.
+	CreateContainer bool `json:"createcontainer"`
 
-	// Allowed to copy resources inside the same storage.
+	// Can copy resources inside the same storage.
 	Copy bool `json:"copy"`
 
-	// Allowed to rename resources inside the same storage.
+	// Can rename resources inside the same storage.
 	Rename bool `json:"rename"`
 
-	// Allowed to do third party copies (src and dst storage have different schemes).
-	ThirdPartyCopy bool `json:"3rd_party_copy"`
+	// Can do third party copies.
+	ThirdPartyCopy bool `json:"thirdpartycopy"`
 
-	// Allowed to do third party renames (src and dst storage have different schemes).
-	ThirdPartyRename bool `json:"3rd_party_rename"`
+	// Can do third party renames.
+	ThirdPartyRename bool `json:"thirdpartyrename"`
 
-	// Allowed to list the versions of a resource.
-	ListVersions bool `json:"list_versions"`
+	// Can list the versions of a resource.
+	ListVersions bool `json:"listversions"`
 
-	// Allowed to download a version.
-	GetVersion bool `json:"get_version"`
+	// Can download a version.
+	GetVersion bool `json:"getversion"`
 
-	// Allow the user to trigger the creation of a version.
-	// The storage is reponsible to create new versions but the user can have the permission
-	// to trigger on-demand version.
-	CreateVersion bool `json:"create_version"`
+	// Can create versions.
+	CreateVersion bool `json:"createversion"`
 
-	// Allowed to rollback to a previous version.
-	RollbackVersion bool `json:"rollback_version"`
+	// Can rollback to a previous version.
+	RollbackVersion bool `json:"rollbackversion"`
 
-	// Allowed to list the resources in the junk.
-	ListJunkFiles bool `json:"list_junk_files"`
+	// Can list deleted resources.
+	ListDeletedResources bool `json:"listdeletedresources"`
 
-	// Allowed to download a resource in the junk.
-	GetJunkFile bool `json:"get_junk_file"`
+	// Can restore a resource from the junk.
+	RestoreDeletedResource bool `json:"restoredeletedresource"`
 
-	// Allowed to restore a resource from the junk.
-	RestoreJunkFile bool `json:"restore_junk_file"`
+	// Can purge a resource.
+	PurgeDeletedResource bool `json:"purgedeletedresource"`
 
-	// Allowed to purge a resource from the junk. Remove completely.
-	PurgeJunkFile bool `purge_junk_file`
+	// Can verify client checksums
+	VerifyClientChecksum bool `json:"verifycientchecksum"`
+
+	// Can send checksums to the client
+	SendChecksum bool `json:"sendchecksum"`
+
+	// The checksum supported on the server.
+	SupportedChecksum string `json:"supportedchecksum"`
+
+	// Create user home directory on login
+	CreateUserHomeDirectory bool `json:"createuserhomedirectory"`
 }

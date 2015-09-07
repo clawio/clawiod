@@ -7,39 +7,42 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package dispatcher defines the storage multiplexer to route storage operations against
-// the registered storage providers.
+// Package dispatcher defines the storage dispatcher to route data and metadata operations
+// to the corresponding storage implementation.
 package dispatcher
 
 import (
 	"fmt"
+	"github.com/clawio/clawiod/pkg/logger"
 	"io"
-	"net/url"
+	"strings"
 
 	"github.com/clawio/clawiod/pkg/auth"
 	"github.com/clawio/clawiod/pkg/config"
-	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
 )
 
 // Dispatcher is the interface storage dispatchers must implement.
 type Dispatcher interface {
 	AddStorage(s storage.Storage) error
-	GetStorage(storageScheme string) (storage.Storage, bool)
+	GetStorage(path string) (storage.Storage, bool)
 	GetAllStorages() []storage.Storage
-	GetStoragesInfo() []*storage.Info
-	IsUserHomeCreated(identity *auth.Identity, storageScheme string) (bool, error)
-	CreateUserHome(identity *auth.Identity, storageScheme string) error
-	PutFile(identity *auth.Identity, rawURI string, r io.Reader, size int64, checksumType, checksum string) error
-	GetFile(identity *auth.Identity, rawURI string) (io.Reader, error)
-	Stat(identity *auth.Identity, rawURI string, children bool) (*storage.MetaData, error)
-	Remove(identity *auth.Identity, rawURI string, recursive bool) error
-	CreateCol(identity *auth.Identity, rawURI string, recursive bool) error
-	Copy(identity *auth.Identity, fromRawURI, toRawURI string) error
-	Rename(identity *auth.Identity, fromRawURI, toRawURI string) error
+
+	DispatchGetCapabilities(path string) (*storage.Capabilities, error)
+	DispatchCreateUserHomeDirectory(identity *auth.Identity, path string) error
+	DispatchPutObject(identity *auth.Identity, path string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error
+	DispatchStartChunkedUpload(path string) (string, error)
+	DispatchPutChunkedObject(identity *auth.Identity, r io.Reader, size int64, start int64, storagePrefix, chunkID string) error
+	DispatchCommitChunkedUpload(path, chunkID string, verifyChecksum bool, checksum, checksumType string) error
+	DispatchGetObject(identity *auth.Identity, path string) (io.Reader, error)
+	DispatchStat(identity *auth.Identity, path string, children bool) (*storage.MetaData, error)
+	DispatchRemove(identity *auth.Identity, path string, recursive bool) error
+	DispatchCreateContainer(identity *auth.Identity, path string, recursive bool) error
+	DispatchRename(identity *auth.Identity, fromPath, toPath string) error
+	DispatchCopy(identity *auth.Identity, fromPath, toPath string) error
 }
 
-// dispatcher dispatch storage operations to the correct storage
+// dispatcher dispatchs storage operations to the correct storage
 type dispatcher struct {
 	storages map[string]storage.Storage
 	cfg      *config.Config
@@ -54,10 +57,10 @@ func New(cfg *config.Config, log logger.Logger) Dispatcher {
 
 // AddStorage adds a storage
 func (disp *dispatcher) AddStorage(s storage.Storage) error {
-	if _, ok := disp.storages[s.GetScheme()]; ok {
-		return fmt.Errorf("storage %s already registered", s.GetScheme())
+	if _, ok := disp.storages[s.GetStoragePrefix()]; ok {
+		return fmt.Errorf("storage:%s is already registered", s.GetStoragePrefix())
 	}
-	disp.storages[s.GetScheme()] = s
+	disp.storages[s.GetStoragePrefix()] = s
 	return nil
 }
 
@@ -67,7 +70,7 @@ func (disp *dispatcher) GetStorage(storageScheme string) (storage.Storage, bool)
 	return sp, ok
 }
 
-// GetAllStorages() []storage.Storage
+// GetAllStorages returns all the storages registered.
 func (disp *dispatcher) GetAllStorages() []storage.Storage {
 	var storages []storage.Storage
 	for _, s := range disp.storages {
@@ -76,133 +79,113 @@ func (disp *dispatcher) GetAllStorages() []storage.Storage {
 	return storages
 }
 
-// GetAllStorages() []storage.Storage
-func (disp *dispatcher) GetStoragesInfo() []*storage.Info {
-	var infos []*storage.Info
-	storages := disp.GetAllStorages()
-	for _, s := range storages {
-		i := &storage.Info{
-			Scheme:       s.GetScheme(),
-			Capabilities: s.GetCapabilities(),
-		}
-		infos = append(infos, i)
-	}
-	return infos
-}
-
-// IsUserHomeCreated checks if the user home directory has been created in the specified storage.
-func (disp *dispatcher) IsUserHomeCreated(identity *auth.Identity, storageScheme string) (bool, error) {
-	strg, ok := disp.GetStorage(storageScheme)
-	if !ok {
-		return false, &storage.NotExistError{Err: fmt.Sprintf("storage '%s' not registered", storageScheme)}
-	}
-	ok, err := strg.IsUserHomeCreated(identity)
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		return false, nil
-	}
-	return true, nil
-}
-
-// CreateUserHome routes the creation of the user home directory to the correct storage provider implementation.
-// If the storageScheme is empty, the creation of the home directory will be propagated to all storages.
-func (disp *dispatcher) CreateUserHome(identity *auth.Identity, storageScheme string) error {
-	strg, ok := disp.GetStorage(storageScheme)
-	if !ok {
-		return &storage.NotExistError{Err: fmt.Sprintf("strg '%s' not registered", storageScheme)}
-	}
-	return strg.CreateUserHome(identity)
-}
-
-// PutFile routes the put operation to the correct storage provider implementation.
-func (disp *dispatcher) PutFile(identity *auth.Identity, rawURI string, r io.Reader, size int64, checksumType, checksum string) error {
-	s, uri, err := disp.getStorageAndURIFromPath(rawURI)
-	if err != nil {
-		return err
-	}
-	return s.PutFile(identity, uri, r, size, disp.cfg.GetDirectives().VerifyClientChecksum, checksum, checksumType)
-}
-
-// GetFile routes the get operation to the correct storage provider implementation.
-func (disp *dispatcher) GetFile(identity *auth.Identity, rawURI string) (io.Reader, error) {
-	s, uri, err := disp.getStorageAndURIFromPath(rawURI)
+func (disp *dispatcher) DispatchGetCapabilities(path string) (*storage.Capabilities, error) {
+	s, err := disp.getStorageFromPath(path)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetFile(identity, uri)
+	return s.GetCapabilities(), nil
 }
-
-// Stat routes the stat operation to the correct storage provider implementation.
-func (disp *dispatcher) Stat(identity *auth.Identity, rawURI string, children bool) (*storage.MetaData, error) {
-	s, uri, err := disp.getStorageAndURIFromPath(rawURI)
+func (disp *dispatcher) DispatchCreateUserHomeDirectory(identity *auth.Identity, path string) error {
+	s, err := disp.getStorageFromPath(path)
+	if err != nil {
+		return err
+	}
+	return s.CreateUserHomeDirectory(identity)
+}
+func (disp *dispatcher) DispatchPutObject(identity *auth.Identity, path string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error {
+	s, err := disp.getStorageFromPath(path)
+	if err != nil {
+		return err
+	}
+	return s.PutObject(identity, path, r, size, verifyChecksum, checksum, checksumType)
+}
+func (disp *dispatcher) DispatchStartChunkedUpload(storagePrefix string) (string, error) {
+	s, err := disp.getStorageFromPath(storagePrefix)
+	if err != nil {
+		return "", err
+	}
+	return s.StartChunkedUpload()
+}
+func (disp *dispatcher) DispatchPutChunkedObject(identity *auth.Identity, r io.Reader, size int64, start int64, storagePrefix, chunkID string) error {
+	s, err := disp.getStorageFromPath(storagePrefix)
+	if err != nil {
+		return err
+	}
+	return s.PutChunkedObject(identity, r, size, start, chunkID)
+}
+func (disp *dispatcher) DispatchCommitChunkedUpload(path, chunkID string, verifyChecksum bool, checksum, checksumType string) error {
+	s, err := disp.getStorageFromPath(path)
+	if err != nil {
+		return err
+	}
+	return s.CommitChunkedUpload(chunkID, verifyChecksum, checksum, checksumType)
+}
+func (disp *dispatcher) DispatchGetObject(identity *auth.Identity, path string) (io.Reader, error) {
+	s, err := disp.getStorageFromPath(path)
 	if err != nil {
 		return nil, err
 	}
-	return s.Stat(identity, uri, children)
+	return s.GetObject(identity, path)
 }
-
-// Remove routes the remove operation to the correct storage provider implementation.
-func (disp *dispatcher) Remove(identity *auth.Identity, rawURI string, recursive bool) error {
-	s, uri, err := disp.getStorageAndURIFromPath(rawURI)
+func (disp *dispatcher) DispatchStat(identity *auth.Identity, path string, children bool) (*storage.MetaData, error) {
+	s, err := disp.getStorageFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return s.Stat(identity, path, children)
+}
+func (disp *dispatcher) DispatchRemove(identity *auth.Identity, path string, recursive bool) error {
+	s, err := disp.getStorageFromPath(path)
 	if err != nil {
 		return err
 	}
-	return s.Remove(identity, uri, recursive)
+	return s.Remove(identity, path, recursive)
 }
-
-// CreateCol routes the create collection operation to the correct storage provider implementation.
-func (disp *dispatcher) CreateCol(identity *auth.Identity, rawURI string, recursive bool) error {
-	s, uri, err := disp.getStorageAndURIFromPath(rawURI)
+func (disp *dispatcher) DispatchCreateContainer(identity *auth.Identity, path string, recursive bool) error {
+	s, err := disp.getStorageFromPath(path)
 	if err != nil {
 		return err
 	}
-	return s.CreateCol(identity, uri, recursive)
+	return s.CreateContainer(identity, path, recursive)
 }
-
-func (disp *dispatcher) doCopyOrRename(op string, identity *auth.Identity, fromRawURI, toRawURI string) error {
-	fromStorage, fromURI, err := disp.getStorageAndURIFromPath(fromRawURI)
+func (disp *dispatcher) DispatchRename(identity *auth.Identity, fromPath, toPath string) error {
+	fromStorage, err := disp.getStorageFromPath(fromPath)
 	if err != nil {
 		return err
 	}
-	toStorage, toURI, err := disp.getStorageAndURIFromPath(toRawURI)
+	toStorage, err := disp.getStorageFromPath(toPath)
 	if err != nil {
 		return err
 	}
-	if fromStorage.GetScheme() != toStorage.GetScheme() {
-		return &storage.ThirdPartyCopyNotEnabled{}
+	if fromStorage.GetStoragePrefix() != toStorage.GetStoragePrefix() {
+		return fmt.Errorf("third party rename from %s to %s not enabled yet", fromStorage.GetStoragePrefix(), toStorage.GetStoragePrefix())
 	}
-	if op == "copy" {
-		return fromStorage.Copy(identity, fromURI, toURI)
-	}
-	return fromStorage.Rename(identity, fromURI, toURI)
+	return fromStorage.Rename(identity, fromPath, toPath)
 }
 
-// Copy routes the copy operation to the correct storage provider implementation.
-func (disp *dispatcher) Copy(identity *auth.Identity, fromRawURI, toRawURI string) error {
-	return disp.doCopyOrRename("copy", identity, fromRawURI, toRawURI)
-}
-
-// Rename routes the rename operation to the correct storage provider implementation.
-func (disp *dispatcher) Rename(identity *auth.Identity, fromRawURI, toRawURI string) error {
-	return disp.doCopyOrRename("rename", identity, fromRawURI, toRawURI)
-}
-
-// getStorageFromPath returns the storage provider adn the URI associated with the resourceURL passsed or an error.
-// the resourceURL must be a well-formed URI like local://photos/beach.png or eos://data/big.dat
-func (disp *dispatcher) getStorageAndURIFromPath(resourceURL string) (storage.Storage, *url.URL, error) {
-	uri, err := url.Parse(resourceURL)
+func (disp *dispatcher) DispatchCopy(identity *auth.Identity, fromPath, toPath string) error {
+	fromStorage, err := disp.getStorageFromPath(fromPath)
 	if err != nil {
-		return nil, nil, &storage.NotExistError{Err: err.Error()}
+		return err
 	}
+	toStorage, err := disp.getStorageFromPath(toPath)
+	if err != nil {
+		return err
+	}
+	if fromStorage.GetStoragePrefix() != toStorage.GetStoragePrefix() {
+		return fmt.Errorf("third party copy from %s to %s not enabled yet", fromStorage.GetStoragePrefix(), toStorage.GetStoragePrefix())
+	}
+	return fromStorage.Rename(identity, fromPath, toPath)
+}
 
-	disp.log.Debugf("URI: %+v", map[string]interface{}{"url": resourceURL, "uri": fmt.Sprintf("%+v", *uri)})
-
-	s, ok := disp.GetStorage(uri.Scheme)
+// getStorageFromPath returns the storage implementation with the storage prefix used in path.
+func (disp *dispatcher) getStorageFromPath(path string) (storage.Storage, error) {
+	path = strings.TrimPrefix(path, "/")
+	parts := strings.Split(path, "/")
+	s, ok := disp.GetStorage(parts[0])
 	if !ok {
-		return nil, nil, &storage.NotExistError{Err: fmt.Sprintf("storage '%s' not registered", uri.Scheme)}
+		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered", parts[0])}
 	}
-	uri.Opaque = ""
-	return s, uri, nil
+	return s, nil
 }

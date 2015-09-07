@@ -23,9 +23,9 @@ func (a *WebDAV) head(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -39,7 +39,7 @@ func (a *WebDAV) head(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if meta.IsCol {
+	if meta.IsContainer {
 		log.Warning("Download of collections is not implemented")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

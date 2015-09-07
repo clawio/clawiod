@@ -43,8 +43,8 @@ func (a *auth) GetID() string { return a.id }
 
 func (a *auth) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "login"}, "/")) && r.Method == "POST" {
-		a.login(ctx, w, r)
+	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "gettoken"}, "/")) && r.Method == "POST" {
+		a.gettoken(ctx, w, r)
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return

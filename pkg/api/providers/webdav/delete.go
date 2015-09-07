@@ -22,9 +22,9 @@ func (a *WebDAV) delete(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
-	_, err := a.sdisp.Stat(identity, rawURI, false)
+	_, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -37,7 +37,7 @@ func (a *WebDAV) delete(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	err = a.sdisp.Remove(identity, rawURI, true)
+	err = a.sdisp.DispatchRemove(identity, resourcePath, true)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

@@ -9,7 +9,7 @@
 
 // Package file defines the file API to manage the resources using
 // HTTP REST style calls instead of WebDAV.
-package file
+package storage
 
 import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
@@ -20,17 +20,17 @@ import (
 	"strings"
 )
 
-// File is the implementation of the API interface to manage resources
-type File struct {
+// Storage is the implementation of the API interface to manage resources
+type Storage struct {
 	id    string
 	cfg   *config.Config
 	adisp adisp.Dispatcher
 	sdisp sdisp.Dispatcher
 }
 
-// New creates a File API.
-func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) *File {
-	fa := File{
+// New creates a Storage API.
+func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) *Storage {
+	fa := Storage{
 		id:    id,
 		cfg:   cfg,
 		adisp: adisp,
@@ -39,27 +39,27 @@ func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Disp
 	return &fa
 }
 
-//GetID returns the ID of the File API
-func (a *File) GetID() string { return a.id }
+//GetID returns the ID of the Storage API
+func (a *Storage) GetID() string { return a.id }
 
 // HandleRequest handles the request
-func (a *File) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "get"}, "/")) && r.Method == "GET" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.get)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.get)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "rm"}, "/")) && r.Method == "DELETE" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.delete)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "mkcol"}, "/")) && r.Method == "POST" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.mkcol)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.rm)
+	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "createcontainer"}, "/")) && r.Method == "POST" {
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.createcontainer)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "mv"}, "/")) && r.Method == "POST" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.move)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.mv)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "put"}, "/")) && r.Method == "PUT" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.put)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.put)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "stat"}, "/")) && r.Method == "GET" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.stat)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.stat)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "info"}, "/")) && r.Method == "GET" {
-		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, a.info)
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.info)
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
@@ -71,7 +71,7 @@ func (a *File) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http
 // <checksumtype>:<checksum>.
 // If the info is sent in the URL the name of the query param is checksum and thas the same format
 // as in the header.
-func (a *File) getChecksumInfo(ctx context.Context, r *http.Request) (string, string) {
+func (a *Storage) getChecksumInfo(ctx context.Context, r *http.Request) (string, string) {
 	var checksumInfo string
 	var checksumType string
 	var checksum string

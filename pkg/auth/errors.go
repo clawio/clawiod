@@ -13,12 +13,13 @@ import (
 	"fmt"
 )
 
-// IdentityNotFoundError represents a missing user in the authentication provider.
+// IdentityNotFoundError represents a missing user in the authentication backend.
 type IdentityNotFoundError struct {
-	ID     string
+	EPPN   string
+	IdP    string
 	AuthID string
 }
 
 func (e *IdentityNotFoundError) Error() string {
-	return fmt.Sprintf("user: %s not found in auth provider: %s", e.ID, e.AuthID)
+	return fmt.Sprintf("identity (eppn:%s idp:%s authid:%s) not found", e.EPPN, e.IdP, e.AuthID)
 }

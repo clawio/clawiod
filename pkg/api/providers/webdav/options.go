@@ -21,9 +21,9 @@ import (
 func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -37,7 +37,7 @@ func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 
 	allow := "OPTIONS, LOCK, GET, HEAD, POST, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND"
-	if !meta.IsCol {
+	if !meta.IsContainer {
 		allow += ", PUT"
 	}
 

@@ -10,12 +10,13 @@
 package storage
 
 // Permissions represents the permissions over a resource.
-// These permissions are based on Unix like permissions.
 type Permissions struct {
-	ReadCol     bool // Hability to read the name of the resources inside the collection
-	WriteCol    bool // Hability to write, remove and rename resources inside the collection
-	ExecuteCol  bool // Like read + metada about resources inside the collection
-	ReadFile    bool // Hability to read a file
-	WriteFile   bool // Hability to write to a file. Most of the storages implementations follow object store principle anddo not open files
-	ExecuteFile bool // Hability to execute a file
+	Stat           bool `json:"stat"`           // Grants getting metadata from a resource.
+	List           bool `json:"list"`           // Grants listing of resources inside a container.
+	Add            bool `json:"add"`            // Grants adding resources to the container.
+	Get            bool `json:"get"`            // Grants downloading an object.
+	Remove         bool `json:"remove"`         // Grants removing a resource.
+	Link           bool `json:"link"`           // Grants creating links from a resource.
+	Share          bool `json:"share"`          // Grants internal sharing for the container.
+	FederatedShare bool `json:"federatedshare"` // Grants federated sharing for the container
 }

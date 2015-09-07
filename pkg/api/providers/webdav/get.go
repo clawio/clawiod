@@ -23,9 +23,9 @@ func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter, r *http.Request
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -39,14 +39,14 @@ func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if meta.IsCol {
+	if meta.IsContainer {
 		// TODO: here we could do the zip based download for folders
 		log.Warning("Download of collections is not implemented")
 		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 		return
 	}
 
-	reader, err := a.sdisp.GetFile(identity, rawURI)
+	reader, err := a.sdisp.DispatchGetObject(identity, resourcePath)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

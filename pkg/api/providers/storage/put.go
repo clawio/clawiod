@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package file
+package storage
 
 import (
 	"encoding/json"
@@ -19,35 +19,29 @@ import (
 	"strings"
 )
 
-func (a *File) put(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "put/"}, "/"))
-
-	if r.Header.Get("Content-Range") != "" {
-		log.Warning("Content-Range header not accepted on PUTs")
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-		return
-	}
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "put/"}, "/"))
 
 	checksumType, checksum := a.getChecksumInfo(ctx, r)
+	verifyChecksum := false
+	if checksumType != "" {
+		verifyChecksum = true
+	}
 
-	meta, err := a.sdisp.Stat(identity, rawURI, false)
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		// stat will fail if the file does not exists
 		// in our case this is ok and we create a new file
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.sdisp.PutFile(identity, rawURI, r.Body, r.ContentLength, checksumType, checksum)
+			err = a.sdisp.DispatchPutObject(identity, resourcePath, r.Body, r.ContentLength, verifyChecksum, checksumType, checksum)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
 					log.Debug(err.Error())
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-					return
-				case *storage.UnsupportedChecksumTypeError:
-					log.Debug(err.Error())
-					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 					return
 				case *storage.BadChecksumError:
 					log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
@@ -59,7 +53,7 @@ func (a *File) put(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 					return
 				}
 			}
-			meta, err = a.sdisp.Stat(identity, rawURI, false)
+			meta, err = a.sdisp.DispatchStat(identity, resourcePath, false)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -94,23 +88,19 @@ func (a *File) put(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	if meta.IsCol {
+	if meta.IsContainer {
 		log.Errf("Cannot put a file where there is a directory: %+v", map[string]interface{}{"err": err})
 		http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 		return
 	}
 
-	err = a.sdisp.PutFile(identity, rawURI, r.Body, r.ContentLength, checksum, checksumType)
+	err = a.sdisp.DispatchPutObject(identity, resourcePath, r.Body, r.ContentLength, verifyChecksum, checksum, checksumType)
 	if err != nil {
 		if err != nil {
 			switch err.(type) {
 			case *storage.NotExistError:
 				log.Debug(err.Error())
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-				return
-			case *storage.UnsupportedChecksumTypeError:
-				log.Debug(err.Error())
-				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			case *storage.BadChecksumError:
 				log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
@@ -124,7 +114,7 @@ func (a *File) put(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	meta, err = a.sdisp.Stat(identity, rawURI, false)
+	meta, err = a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

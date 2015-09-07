@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package file
+package storage
 
 import (
 	"encoding/json"
@@ -16,30 +16,38 @@ import (
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
-func (a *File) stat(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.RequestURI(), strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "stat/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "mkcol/"}, "/"))
 
-	var children bool
-	queryChildren := r.URL.Query().Get("children")
-	if queryChildren != "" {
-		ch, err := strconv.ParseBool(queryChildren)
-		if err != nil {
-			children = false
-		}
-		children = ch
-	}
-
-	meta, err := a.sdisp.Stat(identity, rawURI, children)
+	err := a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			http.Error(w, err.Error(), http.StatusNotFound)
+			log.Debug(err.Error())
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		case *storage.AlreadyExistError:
+			log.Debug(err.Error())
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		default:
+			log.Errf("Cannot create col: %+v", map[string]interface{}{"err": err})
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
+	if err != nil {
+		switch err.(type) {
+		case *storage.NotExistError:
+			log.Debug(err.Error())
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
 			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
@@ -55,10 +63,9 @@ func (a *File) stat(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(metaJSON)
 	if err != nil {
 		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
 	}
-	return
 }

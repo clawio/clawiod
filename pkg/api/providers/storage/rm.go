@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package file
+package storage
 
 import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
@@ -18,12 +18,12 @@ import (
 	"strings"
 )
 
-func (a *File) delete(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func (a *Storage) rm(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "rm/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "rm/"}, "/"))
 
-	err := a.sdisp.Remove(identity, rawURI, true)
+	err := a.sdisp.DispatchRemove(identity, resourcePath, true)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

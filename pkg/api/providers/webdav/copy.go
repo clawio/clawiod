@@ -23,7 +23,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	rawURI := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "/"}, "/"))
 
 	destination := r.Header.Get("Destination")
 	overwrite := r.Header.Get("Overwrite")
@@ -49,11 +49,11 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	_, err = a.sdisp.Stat(identity, destination, false)
+	_, err = a.sdisp.DispatchStat(identity, destination, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.sdisp.Copy(identity, rawURI, destination)
+			err = a.sdisp.DispatchCopy(identity, resourcePath, destination)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -80,7 +80,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = a.sdisp.Copy(identity, rawURI, destination)
+	err = a.sdisp.DispatchCopy(identity, resourcePath, destination)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

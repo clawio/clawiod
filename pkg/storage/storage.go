@@ -14,54 +14,50 @@ package storage
 import (
 	"github.com/clawio/clawiod/pkg/auth"
 	"io"
-	"net/url"
 )
 
-// Storage is the interface that all the storage providers must implement
+// Storage is the interface that all the storage backends must implement
 // to be used by the storage multiplexer.
-// An storage provider is defined by an id called Scheme.
-//
-// A resource is uniquely identified by a URI http://en.wikipedia.org/wiki/Uniform_resource_identifier
 type Storage interface {
-
-	// GetScheme returns the scheme/id of this storage.
-	GetScheme() string
-
-	// CreateUserHome creates the user home directory in the storage.
-	CreateUserHome(authRes *auth.Identity) error
-
-	// IsUserHomeCreated checks if the user home directory has been created or not.
-	IsUserHomeCreated(authRes *auth.Identity) (bool, error)
-
-	// PutFile puts a file into the storage defined by the uri.
-	// If the error returned is not in this list it must be considered
-	// an unexcepted error
-	//   NotExistError
-	//   ExistError
-	PutFile(authRes *auth.Identity, uri *url.URL, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error
-
-	// GetFile gets a file from the storage defined by the uri or by the resourceID.
-	GetFile(authRes *auth.Identity, uri *url.URL) (io.Reader, error)
-
-	// Stat returns metadata information about the resources and its children.
-	Stat(authRes *auth.Identity, uri *url.URL, children bool) (*MetaData, error)
-
-	// Remove removes a resource from the storage defined by the uri.
-	Remove(authRes *auth.Identity, uri *url.URL, recursive bool) error
-
-	// CreateCol creates a collection in the storage defined by the uri.
-	CreateCol(authRes *auth.Identity, uri *url.URL, recursive bool) error
-
-	// Copy copies a resource from one uri to another.
-	// If uris belong to different storages this is a cross-storage copy.
-	Copy(authRes *auth.Identity, fromURI, toURI *url.URL) error
-
-	// Rename renames/move a resource from one uri to another.
-	// If uris belong to different storages this is a cross-storage rename.
-	Rename(authRes *auth.Identity, fromURI, toURI *url.URL) error
 
 	// GetCapabilities returns the capabilities of this storage.
 	GetCapabilities() *Capabilities
 
-	GetSupportedChecksumTypes() []string
+	// GetStoragePrefix returns the prefix of this storage.
+	GetStoragePrefix() string
+
+	// CreateUserHomeDirectory creates the user home directory in the storage.
+	CreateUserHomeDirectory(identity *auth.Identity) error
+
+	// PutObject puts an object into the storage defined by resourcePath.
+	PutObject(identity *auth.Identity, resourcePath string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error
+
+	// StartChunkedUpload starts a transaction for putting an object in chunks.
+	StartChunkedUpload() (string, error)
+
+	// PutChunkedObject uploads the chunk defined by start and size of an object.
+	PutChunkedObject(identity *auth.Identity, r io.Reader, size int64, start int64, chunkID string) error
+
+	// CommitChunkedUpload commits the transaction
+	CommitChunkedUpload(chunkID string, verifyChecksum bool, checksum, checksumType string) error
+
+	// GetObject gets an object from the storage defined by the uri or by the resourceID.
+	GetObject(identity *auth.Identity, resourcePath string) (io.Reader, error)
+
+	// Stat returns metadata information about the resources and its children.
+	Stat(identity *auth.Identity, resourcePath string, children bool) (*MetaData, error)
+
+	// Remove removes a resource from the storage defined by resourcePath.
+	Remove(identity *auth.Identity, resourcePath string, recursive bool) error
+
+	// CreateContainer creates a container in the storage defined by resourcePath.
+	CreateContainer(identity *auth.Identity, resourcePath string, recursive bool) error
+
+	// Copy copies a resource from one resourcePath to another.
+	// If resourcePaths belong to different storages this is a third party copy.
+	Copy(identity *auth.Identity, fromPath, toPath string) error
+
+	// Rename renames/move a resource from one resourcePath to another.
+	// If resourcePaths belong to different storages this is a third party rename.
+	Rename(identity *auth.Identity, fromPath, toPath string) error
 }

@@ -9,12 +9,12 @@
 
 package storage
 
-// ExistError represents the error ocurred when the resource already exists.
-type ExistError struct {
+// AlreadyExistError represents the error ocurred when the resource already exists.
+type AlreadyExistError struct {
 	Err string
 }
 
-func (e *ExistError) Error() string { return e.Err }
+func (e *AlreadyExistError) Error() string { return e.Err }
 
 // NotExistError represents the error ocurred when the resource does not exist.
 type NotExistError struct {
@@ -23,16 +23,7 @@ type NotExistError struct {
 
 func (e *NotExistError) Error() string { return e.Err }
 
-// UnsupportedChecksumTypeError represents the error when trying to put a file with a checksum that is not supported
-type UnsupportedChecksumTypeError struct {
-	Err string
-}
-
-func (e *UnsupportedChecksumTypeError) Error() string {
-	return e.Err
-}
-
-// BadChecksumError represents the error that happens when client and server checksums missmatch.
+// BadChecksumError represents the error of a missmatch between client and server checksums.
 type BadChecksumError struct {
 	Err string
 }
@@ -40,23 +31,3 @@ type BadChecksumError struct {
 func (e *BadChecksumError) Error() string {
 	return e.Err
 }
-
-// ThirdPartyCopyNotEnabled represents the error that happen when trying
-// to do a third party copy (src and dst have different storage schemes) and it is not enabled
-// in the storage.
-// Third party copy permissions is in and out.
-type ThirdPartyCopyNotEnabled struct {
-	Err string
-}
-
-func (e *ThirdPartyCopyNotEnabled) Error() string { return "third party copy not enabled" }
-
-// ThirdPartyRenameNotEnabled represents the error that happen when trying
-// to do a third party copy (src and dst have different storage schemes) and it is not enabled
-// in the storage.
-// Third party copy permissions is in and out.
-type ThirdPartyRenameNotEnabled struct {
-	Err string
-}
-
-func (e *ThirdPartyRenameNotEnabled) Error() string { return "third party rename not enabled" }

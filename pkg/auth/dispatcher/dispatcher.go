@@ -25,20 +25,18 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 )
 
-// Dispatcher is the interface that auth providers must implement.
+// Dispatcher is the interface that authentication dispatchers must implement.
 type Dispatcher interface {
-	AddAuth(ap auth.Auth) error
-	Authenticate(username, password, id string, extra interface{}) (*auth.Identity, error)
+	AddAuthenticationstrategy(authStrategy auth.AuthenticationStrategy) error
 	AuthenticateRequest(r *http.Request) (*auth.Identity, error)
-	AuthenticateRequestWithMiddleware(ctx context.Context, w http.ResponseWriter, r *http.Request, next func(ctx context.Context, w http.ResponseWriter, r *http.Request))
+	AuthenticateRequestWithMiddleware(ctx context.Context, w http.ResponseWriter, r *http.Request, sendBasicChallenge bool, next func(ctx context.Context, w http.ResponseWriter, r *http.Request))
 	CreateAuthTokenFromIdentity(identity *auth.Identity) (string, error)
+	DispatchAuthenticate(eppn, password, idp string, extra interface{}, authID string) (*auth.Identity, error)
 }
 
-// dispatcher is the multiplexer responsible for routing authentication to an specific
-// authentication provider.
-// It keeps a map with all the authentication providers registered.
+// dispatcher dispatchs authentication request to the proper backend.
 type dispatcher struct {
-	auths map[string]auth.Auth
+	auths map[string]auth.AuthenticationStrategy
 	cfg   *config.Config
 	log   logger.Logger
 }
@@ -48,50 +46,47 @@ func New(cfg *config.Config, log logger.Logger) Dispatcher {
 	m := dispatcher{}
 	m.cfg = cfg
 	m.log = log
-	m.auths = make(map[string]auth.Auth)
-
+	m.auths = make(map[string]auth.AuthenticationStrategy)
 	return &m
 }
 
-// AddAuth register an authentication providers to be used for authenticate requests.
-func (d *dispatcher) AddAuth(ap auth.Auth) error {
-	if _, ok := d.auths[ap.GetID()]; ok {
-		return fmt.Errorf("auth '%s' already registered", ap.GetID())
+// AddAuthenticationstrategy register an authentication providers to be used for authenticate requests.
+func (d *dispatcher) AddAuthenticationstrategy(authStrategy auth.AuthenticationStrategy) error {
+	if _, ok := d.auths[authStrategy.GetID()]; ok {
+		return fmt.Errorf("authentication backend %s already registered", authStrategy.GetID())
 	}
-	d.auths[ap.GetID()] = ap
+	d.auths[authStrategy.GetID()] = authStrategy
 	return nil
 }
 
-// Authenticate authenticates a user with username and password credentials.
+// DispatchAuthenticate authenticates a user with eppn and password credentials.
 // The id parameter is the authentication provider id.
-func (d *dispatcher) Authenticate(username, password, id string, extra interface{}) (*auth.Identity, error) {
-	// the authentication request has been made specifically for an authentication provider.
-	if id != "" {
-		a, ok := d.auths[id]
-		// if an auth provider with the id passed is found we just use this auth provider.
+func (d *dispatcher) DispatchAuthenticate(eppn, password, idp string, extra interface{}, authID string) (*auth.Identity, error) {
+	// the authentication request has been made specifically for an authentication backend.
+	if authID != "" {
+		a, ok := d.auths[authID]
+		// if an auth backend with the authID passed is found we just use this auth provauthIDer.
 		if ok {
-			identity, err := a.Authenticate(username, password, extra)
+			identity, err := a.Authenticate(eppn, password, idp, extra)
 			if err != nil {
 				return nil, err
 			}
 			return identity, nil
 		}
-		return nil, &auth.IdentityNotFoundError{ID: username, AuthID: id}
+		return nil, &auth.IdentityNotFoundError{EPPN: eppn, IdP: idp, AuthID: authID}
 	}
 
-	// if the auth provider with the id passed is not found we try all the auth providers.
+	// if the auth backend with the authID passed is not found we try all the auth providers.
 	// This is needed because with Basic Auth we cannot send the auth provider ID.
 	for _, a := range d.auths {
-		if a.GetID() != id {
-			aRes, _ := a.Authenticate(username, password, extra)
-			if aRes != nil {
-				return aRes, nil
-			}
+		identity, err := a.Authenticate(eppn, password, idp, extra)
+		if err == nil {
+			return identity, nil
 		}
 	}
 
 	// we couldn´t find any auth provider that authenticated this user
-	return nil, &auth.IdentityNotFoundError{ID: username, AuthID: "all"}
+	return nil, &auth.IdentityNotFoundError{EPPN: eppn, AuthID: "all"}
 }
 
 // AuthenticateRequest authenticates a HTTP request.
@@ -121,10 +116,11 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 			return nil, fmt.Errorf("failed parsing auth query param because: %s", err.Error())
 		}
 		identity := &auth.Identity{}
-		identity.ID = token.Claims["id"].(string)
-		identity.DisplayName = token.Claims["display_name"].(string)
+		identity.EPPN = token.Claims["eppn"].(string)
+		identity.IdP = token.Claims["idp"].(string)
+		identity.DisplayName = token.Claims["displayname"].(string)
 		identity.Email = token.Claims["email"].(string)
-		identity.AuthID = token.Claims["auth_id"].(string)
+		identity.AuthID = token.Claims["authid"].(string)
 
 		return identity, nil
 	}
@@ -140,25 +136,24 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 		}
 		// TODO: be sure we handle proper conversion
 		identity := &auth.Identity{}
-		identity.ID = token.Claims["id"].(string)
+		identity.EPPN = token.Claims["eppn"].(string)
+		identity.IdP = token.Claims["idp"].(string)
 		identity.DisplayName = token.Claims["display_name"].(string)
 		identity.Email = token.Claims["email"].(string)
-		identity.AuthID = token.Claims["auth_id"].(string)
+		identity.AuthID = token.Claims["authid"].(string)
 		identity.Extra = token.Claims["extra"]
 
 		return identity, nil
 	}
 
 	// 3. HTTP Basic Authentication without digest (Plain Basic Auth).
-	username, password, ok := r.BasicAuth()
+	eppn, password, ok := r.BasicAuth()
 	if ok {
-		identity, err := d.Authenticate(username, password, "", nil)
+		identity, err := d.DispatchAuthenticate(eppn, password, "", nil, "")
 		if err != nil {
 			return nil, err
 		}
-		if err == nil {
-			return identity, nil
-		}
+		return identity, nil
 	}
 
 	return nil, errors.New("no auth credentials found in the request")
@@ -170,10 +165,11 @@ func (d *dispatcher) CreateAuthTokenFromIdentity(identity *auth.Identity) (strin
 	token := jwt.New(jwt.GetSigningMethod(d.cfg.GetDirectives().TokenCipherSuite))
 	token.Claims["iss"] = d.cfg.GetDirectives().TokenISS
 	token.Claims["exp"] = time.Now().Add(time.Minute * 480).Unix() // we need to use cfg.TokenExpirationTime
-	token.Claims["id"] = identity.ID
-	token.Claims["display_name"] = identity.DisplayName
+	token.Claims["eppn"] = identity.EPPN
+	token.Claims["idp"] = identity.IdP
+	token.Claims["displayname"] = identity.DisplayName
 	token.Claims["email"] = identity.Email
-	token.Claims["auth_id"] = identity.AuthID
+	token.Claims["authid"] = identity.AuthID
 
 	tokenString, err := token.SignedString([]byte(d.cfg.GetDirectives().TokenSecret))
 	if err != nil {
@@ -188,15 +184,17 @@ func (d *dispatcher) CreateAuthTokenFromIdentity(identity *auth.Identity) (strin
 // 1. Return 401 (Unauthorized) if the authentication fails.
 //
 // 2. Save the Identity object in the request context and call the next handler if the authentication is successful.
-func (d *dispatcher) AuthenticateRequestWithMiddleware(ctx context.Context, w http.ResponseWriter, r *http.Request, next func(ctx context.Context, w http.ResponseWriter, r *http.Request)) {
+func (d *dispatcher) AuthenticateRequestWithMiddleware(ctx context.Context, w http.ResponseWriter, r *http.Request, sendBasicChallenge bool, next func(ctx context.Context, w http.ResponseWriter, r *http.Request)) {
 	identity, err := d.AuthenticateRequest(r)
 	if err != nil {
-		d.log.Warningf("Authentication of request failed: %+v", map[string]interface{}{"err": err})
-		w.Header().Set("WWW-Authenticate", "Basic Realm='ClawIO credentials'")
+		if sendBasicChallenge {
+			w.Header().Set("WWW-Authenticate", "Basic Realm='ClawIO credentials'")
+		}
+		//d.log.Warningf("Authentication of request failed: %+v", map[string]interface{}{"err": err})
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
-	d.log.Infof("Authentication of request successful: %+v", map[string]interface{}{"username": identity.ID, "auth_id": identity.AuthID})
+	//d.log.Infof("Authentication of request successful: %+v", map[string]interface{}{"eppn": identity.EPPN, "idp": identity.IdP, "authid": identity.AuthID})
 	ctx = context.WithValue(ctx, "identity", identity)
 	next(ctx, w, r)
 }

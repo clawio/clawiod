@@ -15,10 +15,9 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"net/url"
 	"os"
 	"path"
-	"path/filepath"
+	"strings"
 
 	"github.com/clawio/clawiod/pkg/auth"
 	"github.com/clawio/clawiod/pkg/config"
@@ -26,65 +25,50 @@ import (
 	"github.com/clawio/clawiod/pkg/storage"
 )
 
-// local is the implementation of the StorageProvider interface to use a local
+// local is the implementation of the Storage interface to use a local
 // filesystem as the storage backend.
 type local struct {
-	scheme string
-	cfg    *config.Config
-	log    logger.Logger
+	storagePrefix string
+	cfg           *config.Config
+	log           logger.Logger
 }
 
 // New creates a local object or returns an error.
-func New(scheme string, cfg *config.Config, log logger.Logger) storage.Storage {
-	s := &local{scheme: scheme, cfg: cfg, log: log}
+func New(storagePrefix string, cfg *config.Config, log logger.Logger) storage.Storage {
+	s := &local{storagePrefix: storagePrefix, cfg: cfg, log: log}
 	return s
 }
 
-func (s *local) GetScheme() string {
-	return s.scheme
+func (s *local) GetStoragePrefix() string {
+	return s.storagePrefix
 }
 
-func (s *local) CreateUserHome(identity *auth.Identity) error {
-	exists, err := s.IsUserHomeCreated(identity)
+func (s *local) CreateUserHomeDirectory(identity *auth.Identity) error {
+	exists, err := s.isUserHomeDirectoryCreated(identity)
 	if err != nil {
 		return s.convertError(err)
 	}
 	if exists {
 		return nil
 	}
-	homeDir := filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID)
+	homeDir := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN))
 	return s.convertError(os.MkdirAll(homeDir, 0666))
 }
 
-func (s *local) IsUserHomeCreated(identity *auth.Identity) (bool, error) {
-	homeDir := filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID)
-	_, err := os.Stat(homeDir)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
+func (s *local) PutObject(identity *auth.Identity, resourcePath string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error {
+	relPath := s.getPathWithoutStoragePrefix(resourcePath)
+	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
+	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(relPath), "-", s.log.RID()))
 
-func (s *local) PutFile(identity *auth.Identity, uri *url.URL, r io.Reader, size int64, verifyChecksum bool, checksumType, checksum string) error {
-	s.cleanURI(uri)
-	absPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, uri.Path))
-	tmpPath := filepath.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, filepath.Base(uri.Path)+"-"+s.log.RID())
-
-	// We will have the file in the tmp folder so we can calculate checksums
-	if verifyChecksum == true && checksumType != "" { // we allow puting file is the checksum type is empty
-		if s.isChecksumTypeSupported(checksumType) == false {
-			return &storage.UnsupportedChecksumTypeError{Err: fmt.Sprintf("checksum type '%s' not supported", checksumType)}
-		}
+	// If the checksum type is the same as the one in the storage capabilities object, then we do it.
+	if verifyChecksum == true && checksumType == s.GetCapabilities().SupportedChecksum {
 		fd, err := os.Create(tmpPath)
 		if err != nil {
 			return s.convertError(err)
 		}
 		defer func() {
 			if err := fd.Close(); err != nil {
-				s.log.Warningf("Cannot close resource: %+v", map[string]interface{}{"resource": uri.String(), "err": err})
+				s.log.Warningf("Cannot close resource: %+v", map[string]interface{}{"resource": absPath, "err": err})
 			}
 		}()
 
@@ -98,25 +82,26 @@ func (s *local) PutFile(identity *auth.Identity, uri *url.URL, r io.Reader, size
 		computedChecksumHex := fmt.Sprintf("%x", computedChecksum)
 		if computedChecksumHex != checksum {
 			s.log.Errf("Data corruption: %+v", map[string]interface{}{
-				"auth_id":       identity.AuthID,
-				"username":      identity.ID,
-				"storage":       s.GetScheme(),
-				"resource":      absPath,
-				"checksum_type": checksumType,
-				"expected":      checksum,
-				"computed":      computedChecksumHex,
+				"authid":       identity.AuthID,
+				"id":           identity.EPPN,
+				"storage":      s.GetStoragePrefix(),
+				"resource":     absPath,
+				"checksumtype": checksumType,
+				"expected":     checksum,
+				"computed":     computedChecksumHex,
 			})
-			return &storage.BadChecksumError{Err: fmt.Sprintf("expected '%s' but computed '%s'", checksum, computedChecksumHex)}
+			return &storage.BadChecksumError{Err: fmt.Sprintf("expected:%s but computed:%s", checksum, computedChecksumHex)}
 		}
 		return s.commitPutFile(tmpPath, absPath)
 	}
+
 	fd, err := os.Create(tmpPath)
 	if err != nil {
 		return s.convertError(err)
 	}
 	defer func() {
 		if err := fd.Close(); err != nil {
-			s.log.Warningf("Cannot close resource: %+v", map[string]interface{}{"resource": uri.String(), "err": err})
+			s.log.Warningf("Cannot close resource: %+v", map[string]interface{}{"resource": absPath, "err": err})
 		}
 	}()
 	_, err = io.CopyN(fd, r, size)
@@ -127,60 +112,33 @@ func (s *local) PutFile(identity *auth.Identity, uri *url.URL, r io.Reader, size
 
 }
 
-func (s *local) Stat(identity *auth.Identity, uri *url.URL, children bool) (*storage.MetaData, error) {
-	var finfo os.FileInfo
-	var absPath string
-	/*if id != "" {
-		absPath = filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, id))
-		fi, err := os.Stat(absPath)
-		if err != nil {
-			return nil, s.convertError(err)
-		}
-		finfo = fi
-		uri = &url.URL{}
-		uri.Scheme = s.GetScheme()
-		uri.Path = id
-	} else {
-		if uri.Path == "" {
-			return nil, &storage.NotExistError{Err: fmt.Sprintln("No path provided")}
-		}
-		s.cleanURI(uri)
-		absPath = filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, uri.Path))
-		fi, err := os.Stat(absPath)
-		if err != nil {
-			return nil, s.convertError(err)
-		}
-		finfo = fi
-	}*/
-	if uri.Path == "" {
-		return nil, &storage.NotExistError{Err: fmt.Sprintln("No path provided")}
-	}
-	s.cleanURI(uri)
-	absPath = filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, uri.Path))
-	fi, err := os.Stat(absPath)
+func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool) (*storage.MetaData, error) {
+	relPath := s.getPathWithoutStoragePrefix(resourcePath)
+
+	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
+	finfo, err := os.Stat(absPath)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
-	finfo = fi
 
-	mimeType := mime.TypeByExtension(filepath.Ext(uri.Path))
+	mimeType := mime.TypeByExtension(path.Ext(relPath))
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
 	}
 	if finfo.IsDir() {
-		mimeType = "inode/directory"
+		mimeType = "inode/container"
 	}
 	meta := storage.MetaData{
-		ID:       uri.String(),
-		Path:     uri.String(),
-		Size:     uint64(finfo.Size()),
-		IsCol:    finfo.IsDir(),
-		Modified: uint64(finfo.ModTime().Unix()),
-		ETag:     fmt.Sprintf("\"%d\"", finfo.ModTime().Unix()),
-		MimeType: mimeType,
+		ID:          s.getPathWithStoragePrefix(relPath),
+		Path:        s.getPathWithStoragePrefix(relPath),
+		Size:        uint64(finfo.Size()),
+		IsContainer: finfo.IsDir(),
+		Modified:    uint64(finfo.ModTime().Unix()),
+		ETag:        fmt.Sprintf("\"%d\"", finfo.ModTime().Unix()),
+		MimeType:    mimeType,
 	}
 
-	if meta.IsCol == false {
+	if !meta.IsContainer {
 		return &meta, nil
 	}
 	if children == false {
@@ -193,7 +151,7 @@ func (s *local) Stat(identity *auth.Identity, uri *url.URL, children bool) (*sto
 	}
 	defer func() {
 		if err := fd.Close(); err != nil {
-			s.log.Warningf("Cannot close resource: %+v", map[string]interface{}{"resource": uri.String(), "err": err})
+			s.log.Warningf("Cannot close resource: %+v", map[string]interface{}{"resource": relPath, "err": err})
 		}
 	}()
 
@@ -204,27 +162,22 @@ func (s *local) Stat(identity *auth.Identity, uri *url.URL, children bool) (*sto
 
 	meta.Children = make([]*storage.MetaData, len(finfos))
 	for i, f := range finfos {
-		childPathURI := *uri
-		childPathURI.Path = filepath.Join(childPathURI.Path, f.Name())
-		childPath := childPathURI.String()
-
-		uri.Fragment = ""
-		uri.RawQuery = ""
-		mimeType := mime.TypeByExtension(filepath.Ext(childPath))
+		childPath := path.Join(relPath, path.Clean(f.Name()))
+		mimeType := mime.TypeByExtension(path.Ext(childPath))
 		if mimeType == "" {
 			mimeType = "application/octet-stream"
 		}
 		if f.IsDir() {
-			mimeType = "inode/directory"
+			mimeType = "inode/container"
 		}
 		m := storage.MetaData{
-			ID:       childPath,
-			Path:     childPath,
-			Size:     uint64(f.Size()),
-			IsCol:    f.IsDir(),
-			Modified: uint64(f.ModTime().Unix()),
-			ETag:     fmt.Sprintf("\"%d\"", f.ModTime().Unix()),
-			MimeType: mimeType,
+			ID:          s.getPathWithStoragePrefix(childPath),
+			Path:        s.getPathWithStoragePrefix(childPath),
+			Size:        uint64(f.Size()),
+			IsContainer: f.IsDir(),
+			Modified:    uint64(f.ModTime().Unix()),
+			ETag:        fmt.Sprintf("\"%d\"", f.ModTime().Unix()),
+			MimeType:    mimeType,
 		}
 		meta.Children[i] = &m
 	}
@@ -232,17 +185,9 @@ func (s *local) Stat(identity *auth.Identity, uri *url.URL, children bool) (*sto
 	return &meta, nil
 }
 
-func (s *local) GetFile(identity *auth.Identity, uri *url.URL) (io.Reader, error) {
-	/*if id != "" {
-		absPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, id))
-		file, err := os.Open(absPath)
-		if err != nil {
-			return nil, s.convertError(err)
-		}
-		return file, nil
-	}*/
-	s.cleanURI(uri)
-	absPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, uri.Path))
+func (s *local) GetObject(identity *auth.Identity, resourcePath string) (io.Reader, error) {
+	relPath := s.getPathWithoutStoragePrefix(resourcePath)
+	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
 	file, err := os.Open(absPath)
 	if err != nil {
 		return nil, s.convertError(err)
@@ -250,66 +195,78 @@ func (s *local) GetFile(identity *auth.Identity, uri *url.URL) (io.Reader, error
 	return file, nil
 }
 
-func (s *local) Remove(identity *auth.Identity, uri *url.URL, recursive bool) error {
-	s.cleanURI(uri)
-	absPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, uri.Path))
+func (s *local) Remove(identity *auth.Identity, resourcePath string, recursive bool) error {
+	relPath := s.getPathWithoutStoragePrefix(resourcePath)
+	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
 	if recursive == false {
 		return s.convertError(os.Remove(absPath))
 	}
 	return s.convertError(os.RemoveAll(absPath))
 }
 
-func (s *local) CreateCol(identity *auth.Identity, uri *url.URL, recursive bool) error {
-	s.cleanURI(uri)
-	absPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, uri.Path))
+func (s *local) CreateContainer(identity *auth.Identity, resourcePath string, recursive bool) error {
+	relPath := s.getPathWithoutStoragePrefix(resourcePath)
+	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
 	if recursive == false {
 		return s.convertError(os.Mkdir(absPath, 0666))
 	}
 	return s.convertError(os.MkdirAll(absPath, 0666))
 }
 
-func (s *local) Copy(identity *auth.Identity, fromURI, toURI *url.URL) error {
-	s.cleanURI(fromURI)
-	s.cleanURI(toURI)
-	fromabsPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, fromURI.Path))
-	toabsPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, toURI.Path))
-	tmpPath := filepath.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, filepath.Base(fromURI.Path)+"-"+s.log.RID())
+func (s *local) Copy(identity *auth.Identity, fromPath, toPath string) error {
+	fromRelPath := s.getPathWithoutStoragePrefix(fromPath)
+	toRelPath := s.getPathWithoutStoragePrefix(toPath)
+	fromAbsPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, fromRelPath))
+	toAbsPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, toRelPath))
+	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(fromRelPath), "-", s.log.RID()))
 
 	// we need to get metadata to check if it is a col or file
-	meta, err := s.Stat(identity, fromURI, false)
+	meta, err := s.Stat(identity, fromPath, false)
 	if err != nil {
 		return err
 	}
 
 	// we copy the file
-	if meta.IsCol == false {
-		err = s.stageFile(fromabsPath, tmpPath, int64(meta.Size))
+	if !meta.IsContainer {
+		err = s.stageFile(fromAbsPath, tmpPath, int64(meta.Size))
 		if err != nil {
 			return s.convertError(err)
 		}
-		return s.convertError(os.Rename(tmpPath, toabsPath))
+		return s.convertError(os.Rename(tmpPath, toAbsPath))
 	}
 
-	err = s.stageDir(fromabsPath, tmpPath)
+	err = s.stageDir(fromAbsPath, tmpPath)
 	if err != nil {
 		return s.convertError(err)
 	}
-	return s.convertError(os.Rename(tmpPath, toabsPath))
+	return s.convertError(os.Rename(tmpPath, toAbsPath))
 }
 
-func (s *local) Rename(identity *auth.Identity, fromURI, toURI *url.URL) error {
-	s.cleanURI(fromURI)
-	s.cleanURI(toURI)
-	fromabsPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, fromURI.Path))
-	toabsPath := filepath.Clean(filepath.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, identity.AuthID, identity.ID, toURI.Path))
-	return s.convertError(os.Rename(fromabsPath, toabsPath))
+func (s *local) Rename(identity *auth.Identity, fromPath, toPath string) error {
+	fromRelPath := s.getPathWithoutStoragePrefix(fromPath)
+	toRelPath := s.getPathWithoutStoragePrefix(toPath)
+	fromAbsPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, fromRelPath))
+	toAbsPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, toRelPath))
+	return s.convertError(os.Rename(fromAbsPath, toAbsPath))
+}
+
+func (s *local) StartChunkedUpload() (string, error) {
+	return "", fmt.Errorf("not implemented")
+}
+
+func (s *local) PutChunkedObject(identity *auth.Identity, r io.Reader, size int64, start int64, chunkID string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (s *local) CommitChunkedUpload(chunkID string, verifyChecksum bool, checksum, checksumType string) error {
+	return fmt.Errorf("not implemented")
 }
 
 func (s *local) convertError(err error) error {
 	if err == nil {
 		return nil
 	} else if os.IsExist(err) {
-		return &storage.ExistError{Err: err.Error()}
+		return &storage.AlreadyExistError{Err: err.Error()}
 	} else if os.IsNotExist(err) {
 		return &storage.NotExistError{Err: err.Error()}
 	}
@@ -318,11 +275,8 @@ func (s *local) convertError(err error) error {
 
 func (s *local) GetCapabilities() *storage.Capabilities {
 	cap := storage.Capabilities{}
+	cap.CreateUserHomeDirectory = true
 	return &cap
-}
-
-func (s *local) GetSupportedChecksumTypes() []string {
-	return s.cfg.GetDirectives().LocalStorageSupportedChecksumTypes
 }
 
 func (s *local) commitPutFile(from, to string) error {
@@ -392,21 +346,30 @@ func (s *local) stageDir(source string, dest string) (err error) {
 	return
 }
 
-// clean URI removes unncessary information about the URI like User, Host, Fragment and Query.
-// The local stoage does not need them so we can safely remove them to not use
-// them in stat responses.
-func (s *local) cleanURI(uri *url.URL) {
-	uri.User = nil
-	uri.Host = ""
-	uri.RawQuery = ""
-	uri.Fragment = ""
+func (s *local) isUserHomeDirectoryCreated(identity *auth.Identity) (bool, error) {
+	homeDir := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN))
+	_, err := os.Stat(homeDir)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
-func (s *local) isChecksumTypeSupported(checksumType string) bool {
-	for _, cs := range s.cfg.GetDirectives().LocalStorageSupportedChecksumTypes {
-		if cs == checksumType {
-			return true
-		}
+func (s *local) sanitizePath(resourcePath string) string {
+	return resourcePath
+}
+
+func (s *local) getPathWithoutStoragePrefix(resourcePath string) string {
+	parts := strings.Split(resourcePath, "/")
+	if len(parts) == 1 {
+		return ""
+	} else {
+		return strings.Join(parts[1:], "/")
 	}
-	return false
+}
+func (s *local) getPathWithStoragePrefix(relPath string) string {
+	return path.Join(s.GetStoragePrefix(), path.Clean(relPath))
 }

@@ -46,8 +46,14 @@ type Directives struct {
 	// Indicates the level for syslog. From 0 to 7. man syslog.conf
 	LogLevel int `json:"log_level"`
 
-	// If enabled the requests will be logged following Apache format
+	// If enabled requests will be logged following Apache format
 	LogRequests bool `json:"log_requests"`
+
+	// The file where application logs are written
+	LogAppFile string `json:"log_app_file"`
+
+	// The file where Apache-like request logs are written
+	LogReqFile string `json:"log_req_file"`
 
 	// The JSON web token secret used to encrypt sensitive data.
 	// Once the daemon has run you MUST NOT change this value.
@@ -66,12 +72,6 @@ type Directives struct {
 	// The duration in seconds of the JWT to be valid.
 	TokenExpirationTime int `json:"token_expiration_time"`
 
-	// Indicates if the user homedirectory must be created when the user log in
-	CreateUserHomeOnLogin bool `json:"create_user_home_on_login"`
-
-	// If CreateUserHomeOnLogin is enabled indicates in which storages the home dir will be created.
-	CreateUserHomeInStorages []string `json:"create_user_home_in_storages"`
-
 	// Indicates the name of the header that contains the authentication token.
 	AuthTokenHeaderName string `json:"auth_token_header_name"`
 
@@ -83,19 +83,6 @@ type Directives struct {
 
 	// Indicates the name of checksum query param sent by the client
 	ChecksumQueryParamName string `json:"checksum_query_param_name"`
-
-	// Indicates if the server should validate the upload with the provided checksum and checksumtype
-	// sent by the client.
-	// If the checksum type sended by the client is not supported by the server the upload will fail.
-	// If this option is enabled and the checksum type is empty, checksum validation will not be triggered.
-	VerifyClientChecksum bool `json:"verify_client_checksum"`
-
-	// Indicates if the server shoudl send the X-Checksum header with the checksum of the file the client
-	// is asking to download.
-	// To use this feature the client must send a query parameter called checksumtype that specifies the
-	// checksum the server should send.
-	// It is up to the client to validate the download of the file against his header.
-	// SendChecksumHeader bool `json:"send_checksum_header"`
 
 	// Indicates if path validation must be done when talking to the storage.
 	// Path validation checks if a path is a valid UTF-8 string without illegal characters and
@@ -116,9 +103,6 @@ type Directives struct {
 
 	// Indicates where temporary data will be saved.
 	LocalStorageRootTmpDir string `json:"local_storage_root_tmp_dir"`
-
-	// Indicates the checksum type this storage supports
-	LocalStorageSupportedChecksumTypes []string `json:"local_storage_supported_checksum_types"`
 
 	/*********************************
 	 ** FILE AUTHENTICATION **********
@@ -157,10 +141,10 @@ type Directives struct {
 	AuthAPIID string `json:"auth_api_id"`
 
 	// If true enables the File API
-	FileAPIEnabled bool `json:"file_api_enabled"`
+	StorageAPIEnabled bool `json:"storage_api_enabled"`
 
 	// The ID of the File API
-	FileAPIID string `json:"file_api_id"`
+	StorageAPIID string `json:"storage_api_id"`
 
 	// If true enables the WebDAV API
 	WebDAVAPIEnabled bool `json:"webdav_api_enabled"`
@@ -215,7 +199,7 @@ func (c *Config) Reload() error {
 	return nil
 }
 
-// Default returns a default configuration file
+// Default returns an empty configuration file
 func Default() (string, error) {
 	cfg := Directives{}
 	cfgJSON, err := json.MarshalIndent(cfg, "", "    ")
