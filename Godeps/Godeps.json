@@ -1,0 +1,38 @@
+{
+	"ImportPath": "github.com/clawio/clawiod",
+	"GoVersion": "go1.5",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go-uuid/uuid",
+			"Comment": "null-15",
+			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
+		},
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.8.6-13-g84b968c",
+			"Rev": "84b968cb9f82d727044973f8255489bbe15e9948"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v2.3.0-3-g3b55c4a",
+			"Rev": "3b55c4adf0c509e95f815b0cbb36424c7d49c73c"
+		},
+		{
+			"ImportPath": "github.com/gorilla/handlers",
+			"Rev": "40694b40f4a928c062f56849989d3e9cd0570e5f"
+		},
+		{
+			"ImportPath": "github.com/tylerb/graceful",
+			"Comment": "v1.2.1",
+			"Rev": "ac9ebe4f1ee151ac1eeeaef32957085cba64d508"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "ea47fc708ee3e20177f3ca3716217c4ab75942cb"
+		},
+		{
+			"ImportPath": "golang.org/x/net/netutil",
+			"Rev": "ea47fc708ee3e20177f3ca3716217c4ab75942cb"
+		}
+	]
+}
