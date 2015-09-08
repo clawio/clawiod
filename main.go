@@ -22,7 +22,7 @@ import (
 	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/logger"
-	"github.com/clawio/clawiod/pkg/pidfile"
+	//"github.com/clawio/clawiod/pkg/pidfile"
 	"github.com/clawio/clawiod/pkg/signaler"
 	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
 	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
@@ -42,13 +42,13 @@ func main() {
 	 *** 1. Parse CLI flags   ********************
 	 *********************************************/
 	flags := struct {
-		pidFile string // the pidfile that will be used by the daemon
-		cfg     string // the config that will be used by the daemon
+		//pidFile string // the pidfile that will be used by the daemon
+		cfg string // the config that will be used by the daemon
 	}{}
-	flag.StringVar(&flags.pidFile, "pid", "", "The pid file")
+	//flag.StringVar(&flags.pidFile, "pid", "", "The pid file")
 	flag.StringVar(&flags.cfg, "config", "", "the configuration file")
 	flag.Parse()
-	if flags.cfg == "" && flags.pidFile == "" {
+	if flags.cfg == "" /*&& flags.pidFile == ""*/ {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -56,7 +56,7 @@ func main() {
 	/*********************************************
 	 *** 2. Create PID file   ********************
 	 *********************************************/
-	if flags.pidFile == "" {
+	/*if flags.pidFile == "" {
 		fmt.Println("Set pidfile with -pid flag")
 		os.Exit(1)
 	}
@@ -64,7 +64,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Cannot create PID file: ", err)
 		os.Exit(1)
-	}
+	}*/
 
 	/************************************************
 	 *** 3. Load configuration   ********************
