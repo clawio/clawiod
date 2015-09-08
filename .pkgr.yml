@@ -1,6 +1,5 @@
 targets:
   ubuntu-14.04:
-    after_install: ./packager/debian/postinstall.ubuntu.14.04.sh
   ubuntu-12.04:
   centos-6:
   centos-7:
