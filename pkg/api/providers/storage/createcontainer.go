@@ -22,7 +22,7 @@ import (
 func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "mkcol/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "createcontainer/"}, "/"))
 
 	err := a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
 	if err != nil {
