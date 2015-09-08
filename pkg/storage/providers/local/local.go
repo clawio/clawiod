@@ -58,7 +58,7 @@ func (s *local) CreateUserHomeDirectory(identity *auth.Identity) error {
 func (s *local) PutObject(identity *auth.Identity, resourcePath string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error {
 	relPath := s.getPathWithoutStoragePrefix(resourcePath)
 	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
-	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(relPath), "-", s.log.RID()))
+	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(relPath)+"-"+s.log.RID()))
 
 	// If the checksum type is the same as the one in the storage capabilities object, then we do it.
 	if verifyChecksum == true && checksumType == s.GetCapabilities().SupportedChecksum {
@@ -218,7 +218,7 @@ func (s *local) Copy(identity *auth.Identity, fromPath, toPath string) error {
 	toRelPath := s.getPathWithoutStoragePrefix(toPath)
 	fromAbsPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, fromRelPath))
 	toAbsPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, toRelPath))
-	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(fromRelPath), "-", s.log.RID()))
+	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(fromRelPath)+"-"+s.log.RID()))
 
 	// we need to get metadata to check if it is a col or file
 	meta, err := s.Stat(identity, fromPath, false)
