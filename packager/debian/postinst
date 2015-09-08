@@ -2,5 +2,5 @@
 
 set -e
 
-sudo cp /opt/clawiod/config.core.json /etc/clawiod/config.core.json
-sudo cp /opt/clawiod/config.fileauth.json /etc/clawiod/conf.d/config.fileauth.json
+sudo cp /opt/clawiod/config/clawiod.conf /etc/clawiod/clawiod.conf
+sudo cp /opt/clawiod/config/fileauth.conf /etc/clawiod/conf.d/fileauth.conf
