@@ -1,10 +1,10 @@
 targets:
   ubuntu-14.04:
     after:
-      - cp config.core.json /etc/clawiod/config.core.json
-      - cp config.fileauth.json /etc/clawiod/clawio.d/config.fileauth.json
-      - mkdir -p /home/clawiod/data/notmp
-      - mkdir -p /home/clawiod/data/tmp
+      - cp /opt/clawiod/config.core.json /etc/clawiod/config.core.json
+      - cp /opt/clawiod/config.fileauth.json /etc/clawiod/clawio.d/config.fileauth.json
+      - sudo su clawiod mkdir -p /home/clawiod/data/notmp
+      - sudo su clawiod mkdir -p /home/clawiod/data/tmp
   ubuntu-12.04:
   centos-6:
   centos-7:
