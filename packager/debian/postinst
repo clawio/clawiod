@@ -2,9 +2,9 @@
 
 set -e
 
-sudo cp /opt/clawiod/config/clawiod.conf /etc/clawiod/clawiod.conf
-sudo cp /opt/clawiod/config/fileauth.conf /etc/clawiod/conf.d/fileauth.conf
-sudo mkdir -p /home/clawiod/data/tmp
-sudo mkdir -p /home/clawiod/data/notmp
-sudo chown -R clawiod:clawiod /home/clawiod
-sudo chown -R clawiod:clawiod /etc/clawiod
+cp /opt/clawiod/config/clawiod.conf /etc/clawiod/clawiod.conf
+cp /opt/clawiod/config/fileauth.conf /etc/clawiod/conf.d/fileauth.conf
+mkdir -p /home/clawiod/data/tmp
+mkdir -p /home/clawiod/data/notmp
+chown -R clawiod:clawiod /home/clawiod
+chown -R clawiod:clawiod /etc/clawiod
