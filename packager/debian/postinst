@@ -4,6 +4,7 @@ set -e
 
 cp /opt/clawiod/config/clawiod.conf /etc/clawiod/clawiod.conf
 cp /opt/clawiod/config/fileauth.conf /etc/clawiod/conf.d/fileauth.conf
+cp /opt/clawiod/init/sysvinit-debian/clawiod /etc/init.d/clawiod
 mkdir -p /home/clawiod/data/tmp
 mkdir -p /home/clawiod/data/notmp
 chown -R clawiod:clawiod /home/clawiod
