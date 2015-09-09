@@ -57,12 +57,12 @@ func main() {
 	 *** 2. Create PID file   ********************
 	 *********************************************/
 	/*if flags.pidFile == "" {
-		fmt.Println("Set pidfile with -pid flag")
+		fmt.Fprintln(os.Stderr,"Set pidfile with -pid flag")
 		os.Exit(1)
 	}
 	_, err := pidfile.New(flags.pidFile)
 	if err != nil {
-		fmt.Println("Cannot create PID file: ", err)
+		fmt.Fprintln(os.Stderr,"Cannot create PID file: ", err)
 		os.Exit(1)
 	}*/
 
@@ -70,12 +70,12 @@ func main() {
 	 *** 3. Load configuration   ********************
 	 ************************************************/
 	if flags.cfg == "" {
-		fmt.Println("Set configuration file with -config flag")
+		fmt.Fprintln(os.Stderr, "Set configuration file with -config flag")
 		os.Exit(1)
 	}
 	cfg, err := config.New(flags.cfg)
 	if err != nil {
-		fmt.Println("Cannot load configuration: ", err)
+		fmt.Fprintln(os.Stderr, "Cannot load configuration: ", err)
 		os.Exit(1)
 	}
 
@@ -84,19 +84,19 @@ func main() {
 	 ******************************************/
 	/*syslogWriter, err := logger.NewSyslogWriter("", "", cfg.GetDirectives().LogLevel)
 	if err != nil {
-		fmt.Println("Cannot connect to syslog: ", err)
+		fmt.Fprintln(os.Stderr,"Cannot connect to syslog: ", err)
 		os.Exit(1)
 	}*/
 
 	appLogWriter, err := os.OpenFile(cfg.GetDirectives().LogAppFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		fmt.Println("Cannot open app log file: ", err)
+		fmt.Fprintln(os.Stderr, "Cannot open app log file: ", err)
 		os.Exit(1)
 	}
 
 	reqLogWriter, err := os.OpenFile(cfg.GetDirectives().LogReqFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		fmt.Println("Cannot open req log file: ", err)
+		fmt.Fprintln(os.Stderr, "Cannot open req log file: ", err)
 		os.Exit(1)
 	}
 
@@ -106,14 +106,14 @@ func main() {
 	fileAuthLog := logger.New(appLogWriter, "FILEAUTH")
 	fauth, err := authfile.New("fileauth", cfg, fileAuthLog)
 	if err != nil {
-		fmt.Println("Cannot create file auth provider: ", err)
+		fmt.Fprintln(os.Stderr, "Cannot create file auth provider: ", err)
 		os.Exit(1)
 	}
 	adispLog := logger.New(appLogWriter, "AUTHDISP")
 	adisp := authdisp.New(cfg, adispLog)
 	err = adisp.AddAuthenticationstrategy(fauth) // add file auth strategy
 	if err != nil {
-		fmt.Println("Cannot add file auth provider to auth dispatcher: ", err)
+		fmt.Fprintln(os.Stderr, "Cannot add file auth provider to auth dispatcher: ", err)
 		os.Exit(1)
 	}
 
@@ -127,7 +127,7 @@ func main() {
 	sdisp := storagedisp.New(cfg, sdispLog)
 	err = sdisp.AddStorage(localStorage)
 	if err != nil {
-		fmt.Println("Cannot add local storage to storage dispatcher: ", err)
+		fmt.Fprintln(os.Stderr, "Cannot add local storage to storage dispatcher: ", err)
 		os.Exit(1)
 	}
 
@@ -140,7 +140,7 @@ func main() {
 		authAPI := apiauth.New(cfg.GetDirectives().AuthAPIID, cfg, adisp, sdisp)
 		err = apdisp.AddAPI(authAPI)
 		if err != nil {
-			fmt.Println("Cannot add auth API to API dispatcher: ", err)
+			fmt.Fprintln(os.Stderr, "Cannot add auth API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
@@ -150,7 +150,7 @@ func main() {
 
 		err = apdisp.AddAPI(webdavAPI)
 		if err != nil {
-			fmt.Println("Cannot add WebDAV API to API dispatcher: ", err)
+			fmt.Fprintln(os.Stderr, "Cannot add WebDAV API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
@@ -159,7 +159,7 @@ func main() {
 		storageAPI := apistorage.New(cfg.GetDirectives().StorageAPIID, cfg, adisp, sdisp)
 		err = apdisp.AddAPI(storageAPI)
 		if err != nil {
-			fmt.Println("Cannot add Storage API to API dispatcher: ", err)
+			fmt.Fprintln(os.Stderr, "Cannot add Storage API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
@@ -168,7 +168,7 @@ func main() {
 		staticAPI := apistatic.New(cfg.GetDirectives().StaticAPIID, cfg, adisp, sdisp)
 		err = apdisp.AddAPI(staticAPI)
 		if err != nil {
-			fmt.Println("Cannot add Static API to API dispatcher: ", err)
+			fmt.Fprintln(os.Stderr, "Cannot add Static API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
@@ -179,7 +179,7 @@ func main() {
 	go func() {
 		err = srv.Start()
 		if err != nil {
-			fmt.Println("Cannot start HTTP/HTTPS API server: ", err)
+			fmt.Fprintln(os.Stderr, "Cannot start HTTP/HTTPS API server: ", err)
 			os.Exit(1)
 		}
 	}()
