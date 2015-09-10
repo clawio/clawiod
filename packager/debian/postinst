@@ -10,3 +10,4 @@ mkdir -p /home/clawiod/data/tmp
 mkdir -p /home/clawiod/data/notmp
 chown -R clawiod:clawiod /home/clawiod
 chown -R clawiod:clawiod /etc/clawiod
+chmod -R 775 /home/clawiod/data
