@@ -6,7 +6,9 @@ targets:
   centos-6:
   centos-7:
   debian-7:
+    after_install: ./packager/debian/postinst
   debian-8:
+    after_install: ./packager/debian/postinst
   fedora-20:
   sles-12:
 
