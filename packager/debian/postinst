@@ -11,3 +11,4 @@ mkdir -p /home/clawiod/data/notmp
 chown -R clawiod:clawiod /home/clawiod
 chown -R clawiod:clawiod /etc/clawiod
 chmod -R 775 /home/clawiod/data
+chmod 755 /etc/init.d/clawiod
