@@ -77,7 +77,6 @@ case "$1" in
 
 		log_begin_msg "Starting $CLAWIOD_DESC: $BASE"
 		start-stop-daemon --start --background \
-			--no-close \
 			--chuid "clawiod:clawiod" \
 			--exec "$CLAWIOD" \
 			--pidfile "$CLAWIOD_SSD_PIDFILE" \
