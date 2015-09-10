@@ -4,7 +4,9 @@ targets:
   ubuntu-12.04:
     after_install: ./packager/debian/postinst
   centos-6:
+    after_install: ./packager/debian/postinst
   centos-7:
+    after_install: ./packager/debian/postinst
   debian-7:
     after_install: ./packager/debian/postinst
   debian-8:
