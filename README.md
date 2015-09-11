@@ -1,4 +1,5 @@
 
+![](https://raw.githubusercontent.com/clawio/branding/master/clawio_logo.png)
 # ClawIO Daemon
 The official documentation of the project is hosted at  [clawio.github.io](http://clawio.github.io).
 
