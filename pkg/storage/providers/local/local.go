@@ -127,8 +127,21 @@ func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
 	}
+	perm := &storage.Permissions{
+		Stat:           true,
+		List:           false,
+		Add:            false,
+		Get:            true,
+		Remove:         true,
+		Link:           false,
+		Share:          false,
+		FederatedShare: false,
+	}
 	if finfo.IsDir() {
 		mimeType = "inode/container"
+		perm.Add = true
+		perm.List = true
+
 	}
 	meta := storage.MetaData{
 		ID:          s.getPathWithStoragePrefix(relPath),
@@ -138,6 +151,7 @@ func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool
 		Modified:    uint64(finfo.ModTime().Unix()),
 		ETag:        fmt.Sprintf("\"%d\"", finfo.ModTime().Unix()),
 		MimeType:    mimeType,
+		Permissions: perm,
 	}
 
 	if !meta.IsContainer {
@@ -169,9 +183,22 @@ func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool
 		if mimeType == "" {
 			mimeType = "application/octet-stream"
 		}
+		permChild := &storage.Permissions{
+			Stat:           true,
+			List:           false,
+			Add:            false,
+			Get:            true,
+			Remove:         true,
+			Link:           false,
+			Share:          false,
+			FederatedShare: false,
+		}
 		if f.IsDir() {
 			mimeType = "inode/container"
+			permChild.Add = true
+			permChild.List = true
 		}
+
 		m := storage.MetaData{
 			ID:          s.getPathWithStoragePrefix(childPath),
 			Path:        s.getPathWithStoragePrefix(childPath),
@@ -180,6 +207,7 @@ func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool
 			Modified:    uint64(f.ModTime().Unix()),
 			ETag:        fmt.Sprintf("\"%d\"", f.ModTime().Unix()),
 			MimeType:    mimeType,
+			Permissions: permChild,
 		}
 		meta.Children[i] = &m
 	}
