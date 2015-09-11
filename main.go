@@ -29,6 +29,8 @@ import (
 	"os"
 )
 
+const VERSION = "0.0.4"
+
 func main() {
 
 	// The daemon MUST run as non-root user to avoid security holes.
@@ -43,13 +45,21 @@ func main() {
 	 *********************************************/
 	flags := struct {
 		//pidFile string // the pidfile that will be used by the daemon
-		cfg string // the config that will be used by the daemon
+		cfg     string // the config that will be used by the daemon
+		version bool
 	}{}
 	//flag.StringVar(&flags.pidFile, "pid", "", "The pid file")
-	flag.StringVar(&flags.cfg, "config", "", "the configuration file")
+	flag.StringVar(&flags.cfg, "config", "", "use `configfilename` as the configuration file")
+	flag.BoolVar(&flags.version, "version", false, "print the version")
 	flag.Parse()
-	if flags.cfg == "" /*&& flags.pidFile == ""*/ {
-		flag.PrintDefaults()
+	if flags.version == true {
+		fmt.Println(VERSION)
+		os.Exit(0)
+	}
+
+	if flags.cfg == "" {
+		fmt.Fprintln(os.Stderr, "Set configuration file with -config flag")
+		fmt.Fprintln(os.Stderr, "Run clawiod --help to obtain more information")
 		os.Exit(1)
 	}
 
@@ -69,10 +79,6 @@ func main() {
 	/************************************************
 	 *** 3. Load configuration   ********************
 	 ************************************************/
-	if flags.cfg == "" {
-		fmt.Fprintln(os.Stderr, "Set configuration file with -config flag")
-		os.Exit(1)
-	}
 	cfg, err := config.New(flags.cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot load configuration: ", err)
