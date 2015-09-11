@@ -3,8 +3,6 @@ targets:
     after_install: ./packager/debian/postinst
   ubuntu-12.04:
     after_install: ./packager/debian/postinst
-  centos-6:
-    after_install: ./packager/debian/postinst.centos
   centos-7:
     after_install: ./packager/debian/postinst.centos
   debian-7:
