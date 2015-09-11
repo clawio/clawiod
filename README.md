@@ -1,55 +1,60 @@
-[![Build Status](https://travis-ci.org/clawio/clawiod.svg?branch=master)](https://travis-ci.org/clawio/clawiod)
-[![GoDoc](https://godoc.org/github.com/clawio/clawiod?status.svg)](https://godoc.org/github.com/clawio/clawiod/pkg)
+
 # ClawIO Daemon
-The ClawIO Daemon is the core part of the ClawIO project.
+The official documentation of the project is hosted at  [clawio.github.io](http://clawio.github.io).
 
-It provides an HTTP/HTTPS server able to handle thousands of requests in a very high scalable way.
+The ClawIO Daemon (clawiod) is the core component of the [ClawIO project](http://clawio.github.io).
 
-It offers a full featured API that allows synchronisation and sharing over modern high-performance and multi PB storages.
+The daemon runs a HTTP/HTTPS server that exposes a REST API to manage storages.
+
+# Code documentation
+| GoDoc
+-------
+|[![GoDoc](https://godoc.org/github.com/clawio/clawiod?status.svg)](https://godoc.org/github.com/clawio/clawiod/pkg)
+# Build status
+ Master        | Develop           
+| ------------- |:-------------:
+| [![Build Status](https://travis-ci.org/clawio/clawiod.svg?branch=master)](https://travis-ci.org/clawio/clawiod)|[![Build Status](https://travis-ci.org/clawio/clawiod.svg?branch=develop)](https://travis-ci.org/clawio/clawiod)
+
+# Installation for developers
+* [Install Go](https://golang.org/doc/install)
+* [Configure your $GOPATH](https://golang.org/doc/code.html#Workspaces)
+* `go get github.com/tools/godep`
+* `mkdir -p $GOPATH/src/github.com/clawio`
+* `cd $GOPATH/src/github.com/clawio`
+* `git clone https://github.com/clawio/clawiod`
+* `cd $GOPATH/src/github.com/clawio/clawiod`
+* `godep restore`
+* `go build`
+* `./clawiod --help`
  
+
 # Usage
 ```
-clawiod -h
+clawiod --help
 Usage of clawiod:
-  -c="": Configuration file
-  -p="": PID file
-  -pc=false: Prints the default configuration file
+  -config configfilename
+     use configfilename as the configuration file
+  -version
+    	print the version
 ```
-To run the daemon you need to specify where the PID and configuration files are.
-
-If you don't have a configuration file yet,  you can create a default one running ```clawiod -pc```
-
-# Boot sequence
-The following steps are done by the daemon to boot:
-
-1. Parse command line arguments
-2. Create PID file
-3. Load configuration
-4. Connect to syslog daemon
-5. Load authorization providers (file, sql, LDAP, SSO, kbr5...)
-6. Load storage providers (local, eos, s3...)
-7. Load APIs
-8. Start HTTP/HTTPS server to listen to requests
-9. Listen to OS signals to control the daemon
+To run the daemon you only need to specify the location of the configuration file and make sure you have permission to access it.
 
 # How to control the daemon
-The daemon is controlled by sending OS signals to the daemon's process.
+The daemon is controlled by sending kernel signals to the daemon's process.
 
 - Reload configuration.
 ```
-kill -SIGHUP XXXX
+kill -SIGHUP pid
 ```
-- Hard shutdown of the server (not recommended, aborts ongoing requests abruptly)
+- Hard shutdown of the server (**not recommended** because aborts ongoing requests)
 ```
-kill -SIGTERM XXXX
-kill -SIGINT  XXXX
+kill -SIGTERM pid
+kill -SIGINT  pid
 ```
-- Graceful shutdown of the server (recommended). Stops accepting new requests and ongoing requests have the opportunity to finish within the timeout specified in the configuration
+- Graceful shutdown of the server (**recommended**). Stops accepting new requests and ongoing requests have the opportunity to finish within the timeout specified in the configuration
 ```
-kill -SIGQUIT XXXX
+kill -SIGQUIT pid
 ```
-
-*XXXX* is the daemon's process ID
 
 # License
 See COPYING file
