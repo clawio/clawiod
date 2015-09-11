@@ -25,6 +25,8 @@ import (
 	"github.com/clawio/clawiod/pkg/storage"
 )
 
+const DIR_PERM = 0755
+
 // local is the implementation of the Storage interface to use a local
 // filesystem as the storage backend.
 type local struct {
@@ -52,7 +54,7 @@ func (s *local) CreateUserHomeDirectory(identity *auth.Identity) error {
 		return nil
 	}
 	homeDir := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN))
-	return s.convertError(os.MkdirAll(homeDir, 0666))
+	return s.convertError(os.MkdirAll(homeDir, DIR_PERM))
 }
 
 func (s *local) PutObject(identity *auth.Identity, resourcePath string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error {
@@ -208,9 +210,9 @@ func (s *local) CreateContainer(identity *auth.Identity, resourcePath string, re
 	relPath := s.getPathWithoutStoragePrefix(resourcePath)
 	absPath := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir, path.Join(identity.AuthID, identity.EPPN, relPath))
 	if recursive == false {
-		return s.convertError(os.Mkdir(absPath, 0666))
+		return s.convertError(os.Mkdir(absPath, DIR_PERM))
 	}
-	return s.convertError(os.MkdirAll(absPath, 0666))
+	return s.convertError(os.MkdirAll(absPath, DIR_PERM))
 }
 
 func (s *local) Copy(identity *auth.Identity, fromPath, toPath string) error {
