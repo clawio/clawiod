@@ -15,7 +15,7 @@ The daemon runs a HTTP/HTTPS server that exposes a REST API to manage storages.
 | ------------- |:-------------:
 | [![Build Status](https://travis-ci.org/clawio/clawiod.svg?branch=master)](https://travis-ci.org/clawio/clawiod)|[![Build Status](https://travis-ci.org/clawio/clawiod.svg?branch=develop)](https://travis-ci.org/clawio/clawiod)
 
-# Installation for developers
+# Setting up the build enviroment
 * [Install Go](https://golang.org/doc/install)
 * [Configure your $GOPATH](https://golang.org/doc/code.html#Workspaces)
 * `go get github.com/tools/godep`
