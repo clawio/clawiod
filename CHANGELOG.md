@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.5 (2015-09-12)
+
+- Stablity fixes
+- Improved documentation 
+- Improved packaging for major platforms
+
+## 0.0.4 (2015-09-08)
+
+- Stablity fixes
+- github.com/clawio/lib resides now under github.com/clawio/clawiod/pkg
+
 ## 0.0.3 (2015-07-21)
 
 - Added Files API to the core APIs
