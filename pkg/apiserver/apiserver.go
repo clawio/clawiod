@@ -82,7 +82,7 @@ func (s *apiServer) handleRequest() http.Handler {
 		/******************************************
 		 ** 1. Create logger for request    *******
 		 ******************************************/
-		log := logger.New(s.logWriter, "api-"+uuid.New())
+		log := logger.New(s.cfg, s.logWriter, "api-"+uuid.New())
 		log.Infof("Request started: %+v", map[string]interface{}{"URL": r.RequestURI})
 		defer func() {
 			log.Info("Request finished")
