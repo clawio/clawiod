@@ -55,7 +55,7 @@ type apiServer struct {
 func New(cfg *config.Config, w io.Writer, rw io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher) APIServer {
 	srv := &graceful.Server{
 		NoSignalHandling: true,
-		Timeout:          10 * time.Second,
+		Timeout:          time.Duration(cfg.GetDirectives().ShutdownTimeout) * time.Second,
 		Server: &http.Server{
 			Addr: fmt.Sprintf(":%d", cfg.GetDirectives().Port),
 		},
@@ -106,6 +106,12 @@ func (s *apiServer) handleRequest() http.Handler {
 				return
 			}
 		}()
+
+		// Check the server is not in maintenance mode
+		if s.cfg.GetDirectives().Maintenance == true {
+			http.Error(w, s.cfg.GetDirectives().MaintenanceMessage, http.StatusServiceUnavailable)
+			return
+		}
 
 		rootCtx := context.Background()
 		ctx := context.WithValue(rootCtx, "log", log)
