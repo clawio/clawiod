@@ -20,7 +20,7 @@ import (
 type Logger interface {
 	RID() string
 	Err(msg string)
-	Errf(format string, a ...interface{})
+	Errf(msg string, a ...interface{})
 	Warning(msg string)
 	Warningf(format string, a ...interface{})
 	Info(msg string)
@@ -44,33 +44,30 @@ type logger struct {
 	rid string
 }
 
-func (l *logger) prependRID(msg string) string {
-	return fmt.Sprintf("rid=%s msg=%s", l.rid, msg)
-}
 func (l *logger) RID() string {
 	return l.rid
 }
 func (l *logger) Err(msg string) {
-	l.log.Error(l.prependRID(msg))
+	l.log.WithField("RID", l.RID()).Error(msg)
 }
 func (l *logger) Errf(format string, a ...interface{}) {
-	l.log.Error(l.prependRID(fmt.Sprintf(format, a)))
+	l.log.WithField("RID", l.RID()).Error(fmt.Sprintf(format, a))
 }
 func (l *logger) Warning(msg string) {
-	l.log.Warning(l.prependRID(msg))
+	l.log.WithField("RID", l.RID()).Warning(msg)
 }
 func (l *logger) Warningf(format string, a ...interface{}) {
-	l.log.Warning(l.prependRID(fmt.Sprintf(format, a)))
+	l.log.WithField("RID", l.RID()).Warning(fmt.Sprintf(format, a))
 }
 func (l *logger) Info(msg string) {
-	l.log.Info(l.prependRID(msg))
+	l.log.WithField("RID", l.RID()).Info(msg)
 }
 func (l *logger) Infof(format string, a ...interface{}) {
-	l.log.Info(l.prependRID(fmt.Sprintf(format, a)))
+	l.log.WithField("RID", l.RID()).Info(fmt.Sprintf(format, a))
 }
 func (l *logger) Debug(msg string) {
-	l.log.Debug(l.prependRID(msg))
+	l.log.WithField("RID", l.RID()).Debug(msg)
 }
 func (l *logger) Debugf(format string, a ...interface{}) {
-	l.log.Debug(l.prependRID(fmt.Sprint(l.prependRID(fmt.Sprintf(format, a)))))
+	l.log.WithField("RID", l.RID()).Debug(fmt.Sprintf(format, a))
 }
