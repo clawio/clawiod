@@ -109,6 +109,9 @@ type Directives struct {
 	**********************************/
 
 	// Indicates the JSON file to be used as an authentication provider.
+	FileAuthAuthID string `json:"file_auth_auth_id"`
+
+	// Indicates the JSON file to be used as an authentication provider.
 	FileAuthFilename string `json:"file_auth_filename"`
 
 	/****************************

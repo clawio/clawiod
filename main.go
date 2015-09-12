@@ -110,7 +110,7 @@ func main() {
 	 ** 5. Create auth dispatcher       *******
 	 ******************************************/
 	fileAuthLog := logger.New(appLogWriter, "FILEAUTH")
-	fauth, err := authfile.New("fileauth", cfg, fileAuthLog)
+	fauth, err := authfile.New(cfg.GetDirectives().FileAuthAuthID, cfg, fileAuthLog)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot create file auth provider: ", err)
 		os.Exit(1)
