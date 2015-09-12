@@ -106,6 +106,7 @@ func (d *dispatcher) DispatchAuthenticate(eppn, password, idp string, extra inte
 //
 // More authentication methods wil be used in the future like Kerberos access tokens.
 func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error) {
+
 	// 1. JWT authentication token in query parameter.
 	authQueryParam := r.URL.Query().Get(d.cfg.GetDirectives().AuthTokenQueryParamName)
 	if authQueryParam != "" {
@@ -116,11 +117,34 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 			return nil, fmt.Errorf("failed parsing auth query param because: %s", err.Error())
 		}
 		identity := &auth.Identity{}
-		identity.EPPN = token.Claims["eppn"].(string)
-		identity.IdP = token.Claims["idp"].(string)
-		identity.DisplayName = token.Claims["displayname"].(string)
-		identity.Email = token.Claims["email"].(string)
-		identity.AuthID = token.Claims["authid"].(string)
+
+		eppnString, ok := token.Claims["eppn"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of eppn:%s", fmt.Sprintln(token.Claims["eppn"]))
+		}
+		idpString, ok := token.Claims["idp"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of idp:%s", fmt.Sprintln(token.Claims["idp"]))
+		}
+		displaynameString, ok := token.Claims["displayname"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of displayname:%s", fmt.Sprintln(token.Claims["displayname"]))
+		}
+		emailString, ok := token.Claims["email"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of email:%s", fmt.Sprintln(token.Claims["email"]))
+		}
+		authidString, ok := token.Claims["authid"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of authid:%s", fmt.Sprintln(token.Claims["authid"]))
+		}
+
+		identity.EPPN = eppnString
+		identity.IdP = idpString
+		identity.DisplayName = displaynameString
+		identity.Email = emailString
+		identity.AuthID = authidString
+		identity.Extra = token.Claims["extra"]
 
 		return identity, nil
 	}
@@ -134,13 +158,34 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 		if err != nil {
 			return nil, fmt.Errorf("failed parsing auth header because: %s", err.Error())
 		}
-		// TODO: be sure we handle proper conversion
 		identity := &auth.Identity{}
-		identity.EPPN = token.Claims["eppn"].(string)
-		identity.IdP = token.Claims["idp"].(string)
-		identity.DisplayName = token.Claims["display_name"].(string)
-		identity.Email = token.Claims["email"].(string)
-		identity.AuthID = token.Claims["authid"].(string)
+
+		eppnString, ok := token.Claims["eppn"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of eppn:%s", fmt.Sprintln(token.Claims["eppn"]))
+		}
+		idpString, ok := token.Claims["idp"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of idp:%s", fmt.Sprintln(token.Claims["idp"]))
+		}
+		displaynameString, ok := token.Claims["displayname"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of displayname:%s", fmt.Sprintln(token.Claims["displayname"]))
+		}
+		emailString, ok := token.Claims["email"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of email:%s", fmt.Sprintln(token.Claims["email"]))
+		}
+		authidString, ok := token.Claims["authid"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed cast to string of authid:%s", fmt.Sprintln(token.Claims["authid"]))
+		}
+
+		identity.EPPN = eppnString
+		identity.IdP = idpString
+		identity.DisplayName = displaynameString
+		identity.Email = emailString
+		identity.AuthID = authidString
 		identity.Extra = token.Claims["extra"]
 
 		return identity, nil
@@ -163,13 +208,13 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 // It returns the JWT token or an error.
 func (d *dispatcher) CreateAuthTokenFromIdentity(identity *auth.Identity) (string, error) {
 	token := jwt.New(jwt.GetSigningMethod(d.cfg.GetDirectives().TokenCipherSuite))
-	token.Claims["iss"] = d.cfg.GetDirectives().TokenISS
-	token.Claims["exp"] = time.Now().Add(time.Minute * 480).Unix() // we need to use cfg.TokenExpirationTime
 	token.Claims["eppn"] = identity.EPPN
 	token.Claims["idp"] = identity.IdP
 	token.Claims["displayname"] = identity.DisplayName
 	token.Claims["email"] = identity.Email
 	token.Claims["authid"] = identity.AuthID
+	token.Claims["iss"] = d.cfg.GetDirectives().TokenISS
+	token.Claims["exp"] = time.Now().Add(time.Second * time.Duration(d.cfg.GetDirectives().TokenExpirationTime)).Unix()
 
 	tokenString, err := token.SignedString([]byte(d.cfg.GetDirectives().TokenSecret))
 	if err != nil {
