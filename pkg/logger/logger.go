@@ -19,8 +19,6 @@ import (
 // Logger is the interface that loggers must implement
 type Logger interface {
 	RID() string
-	Fatal(msg string)
-	Fatalf(format string, a ...interface{})
 	Err(msg string)
 	Errf(format string, a ...interface{})
 	Warning(msg string)
@@ -50,12 +48,6 @@ func (l *logger) prependRID(msg string) string {
 }
 func (l *logger) RID() string {
 	return l.rid
-}
-func (l *logger) Fatal(msg string) {
-	l.log.Fatal(l.prependRID(l.prependRID(msg)))
-}
-func (l *logger) Fatalf(format string, a ...interface{}) {
-	l.log.Fatal(l.prependRID(fmt.Sprintf(format, a)))
 }
 func (l *logger) Err(msg string) {
 	l.log.Error(l.prependRID(msg))

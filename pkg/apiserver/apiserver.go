@@ -98,7 +98,7 @@ func (s *apiServer) handleRequest() http.Handler {
 				default:
 					err = errors.New("Unknown error")
 				}
-				log.Fatal(err.Error())
+				log.Err(err.Error())
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
