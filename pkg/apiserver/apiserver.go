@@ -17,6 +17,7 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/config"
 	"io"
+	"runtime"
 
 	"net/http"
 	"time"
@@ -98,7 +99,9 @@ func (s *apiServer) handleRequest() http.Handler {
 				default:
 					err = errors.New("Unknown error")
 				}
-				log.Err(err.Error())
+				trace := make([]byte, 2048)
+				count := runtime.Stack(trace, true)
+				log.Errf("Recover from panic: %s\nStack of %d bytes: %s\n", err.Error(), count, trace)
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
