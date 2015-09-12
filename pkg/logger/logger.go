@@ -13,6 +13,7 @@ package logger
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/clawio/clawiod/pkg/config"
 	"io"
 )
 
@@ -30,10 +31,10 @@ type Logger interface {
 }
 
 // New creates a logger that uses logrus to log.
-func New(w io.Writer, rid string) Logger {
+func New(cfg *config.Config, w io.Writer, rid string) Logger {
 	lgrus := logrus.New()
 	lgrus.Out = w
-	lgrus.Level = logrus.DebugLevel
+	lgrus.Level = logrus.Level(cfg.GetDirectives().LogLevel + 2) // we add +2 because we don't have Fatal and Panic
 	lgrus.Formatter = &logrus.JSONFormatter{}
 	return &logger{log: lgrus, rid: rid}
 }
