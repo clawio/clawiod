@@ -34,6 +34,7 @@ func New(w io.Writer, rid string) Logger {
 	lgrus := logrus.New()
 	lgrus.Out = w
 	lgrus.Level = logrus.DebugLevel
+	lgrus.Formatter = &logrus.JSONFormatter{}
 	return &logger{log: lgrus, rid: rid}
 }
 
