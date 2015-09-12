@@ -99,7 +99,7 @@ func (s *apiServer) handleRequest() http.Handler {
 				default:
 					err = errors.New("Unknown error")
 				}
-				trace := make([]byte, 20981760)
+				trace := make([]byte, 2048)
 				count := runtime.Stack(trace, true)
 				log.Err(fmt.Sprintf("Recover from panic: %s\nStack of %d bytes: %s\n", err.Error(), count, trace))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
