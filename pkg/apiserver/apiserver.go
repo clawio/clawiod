@@ -11,6 +11,7 @@
 package apiserver
 
 import (
+	"errors"
 	"fmt"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/gorilla/handlers"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
@@ -84,6 +85,23 @@ func (s *apiServer) handleRequest() http.Handler {
 		log.Infof("Request started: %+v", map[string]interface{}{"URL": r.RequestURI})
 		defer func() {
 			log.Info("Request finished")
+
+			// Catch panic and return 500
+			var err error
+			r := recover()
+			if r != nil {
+				switch t := r.(type) {
+				case string:
+					err = errors.New(t)
+				case error:
+					err = t
+				default:
+					err = errors.New("Unknown error")
+				}
+				log.Fatal(err.Error())
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
 		}()
 
 		rootCtx := context.Background()
