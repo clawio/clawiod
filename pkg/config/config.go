@@ -98,6 +98,9 @@ type Directives struct {
 	 ** LOCAL STORAGE **********
 	****************************/
 
+	// The prefix used for this storage
+	LocalStoragePrefix string `json:"local_storage_prefix"`
+
 	// Indicates where data will be saved.
 	LocalStorageRootDataDir string `json:"local_storage_root_data_dir"`
 

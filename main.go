@@ -109,13 +109,13 @@ func main() {
 	/******************************************
 	 ** 5. Create auth dispatcher       *******
 	 ******************************************/
-	fileAuthLog := logger.New(appLogWriter, "FILEAUTH")
+	fileAuthLog := logger.New(appLogWriter, fmt.Sprintf("authid-%s", cfg.GetDirectives().FileAuthAuthID))
 	fauth, err := authfile.New(cfg.GetDirectives().FileAuthAuthID, cfg, fileAuthLog)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot create file auth provider: ", err)
 		os.Exit(1)
 	}
-	adispLog := logger.New(appLogWriter, "AUTHDISP")
+	adispLog := logger.New(appLogWriter, "authdispatcher")
 	adisp := authdisp.New(cfg, adispLog)
 	err = adisp.AddAuthenticationstrategy(fauth) // add file auth strategy
 	if err != nil {
@@ -126,10 +126,10 @@ func main() {
 	/******************************************
 	 ** 6. Create storage dispatcher      *****
 	 ******************************************/
-	localStorageLog := logger.New(appLogWriter, "LOCALSTORAGE")
-	localStorage := storagelocal.New("local", cfg, localStorageLog)
+	localStorageLog := logger.New(appLogWriter, fmt.Sprintf("storage-%s", cfg.GetDirectives().LocalStoragePrefix))
+	localStorage := storagelocal.New(cfg.GetDirectives().LocalStoragePrefix, cfg, localStorageLog)
 
-	sdispLog := logger.New(appLogWriter, "STORAGEDISP")
+	sdispLog := logger.New(appLogWriter, "storagedispatcher")
 	sdisp := storagedisp.New(cfg, sdispLog)
 	err = sdisp.AddStorage(localStorage)
 	if err != nil {
@@ -146,7 +146,7 @@ func main() {
 		authAPI := apiauth.New(cfg.GetDirectives().AuthAPIID, cfg, adisp, sdisp)
 		err = apdisp.AddAPI(authAPI)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot add auth API to API dispatcher: ", err)
+			fmt.Fprintln(os.Stderr, "Cannot add Auth API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
