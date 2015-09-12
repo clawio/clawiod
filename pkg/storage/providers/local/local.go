@@ -25,7 +25,7 @@ import (
 	"github.com/clawio/clawiod/pkg/storage"
 )
 
-const DIR_PERM = 0755
+const DIR_PERM = 0775
 
 // local is the implementation of the Storage interface to use a local
 // filesystem as the storage backend.
@@ -344,7 +344,7 @@ func (s *local) stageFile(source string, dest string, size int64) (err error) {
 
 func (s *local) stageDir(source string, dest string) (err error) {
 	// create dest dir
-	err = os.MkdirAll(dest, 0644)
+	err = os.MkdirAll(dest, DIR_PERM)
 	if err != nil {
 		return err
 	}
