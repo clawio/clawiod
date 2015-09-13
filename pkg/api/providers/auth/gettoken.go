@@ -58,7 +58,7 @@ func (a *auth) gettoken(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	// Check if we have to create the user homedir in the storages.
 	storages := a.sdisp.GetAllStorages()
 	for _, s := range storages {
-		if s.GetCapabilities().CreateUserHomeDirectory {
+		if s.GetCapabilities(identity).CreateUserHomeDirectory {
 			err := a.sdisp.DispatchCreateUserHomeDirectory(identity, s.GetStoragePrefix())
 			if err != nil {
 				log.Errf("Creation of user home failed: %+v", map[string]interface{}{
@@ -82,7 +82,7 @@ func (a *auth) gettoken(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	data := make(map[string]string)
-	data["auth_token"] = tokenString
+	data["authtoken"] = tokenString
 	tokenJSON, err := json.Marshal(data)
 	if err != nil {
 		log.Err(err.Error())
@@ -90,6 +90,7 @@ func (a *auth) gettoken(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(tokenJSON)
 	if err != nil {

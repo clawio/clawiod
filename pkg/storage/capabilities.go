@@ -13,7 +13,7 @@ package storage
 // Clients should ask for the capabilities of a storage before doing any operation.
 type Capabilities struct {
 	// Can upload a full object.
-	PutObject bool `json:putobject`
+	PutObject bool `json:"putobject"`
 
 	// Can upload an object in chunks
 	PutObjectInChunks bool `json:"putobjectinchunks"`

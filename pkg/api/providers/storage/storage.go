@@ -45,8 +45,9 @@ func (a *Storage) GetID() string { return a.id }
 // HandleRequest handles the request
 func (a *Storage) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-
-	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "get"}, "/")) && r.Method == "GET" {
+	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "getcapabilities"}, "/")) && r.Method == "GET" {
+		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.getcapabilities)
+	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "get"}, "/")) && r.Method == "GET" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.get)
 	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "rm"}, "/")) && r.Method == "DELETE" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, false, a.rm)

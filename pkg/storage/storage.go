@@ -21,7 +21,7 @@ import (
 type Storage interface {
 
 	// GetCapabilities returns the capabilities of this storage.
-	GetCapabilities() *Capabilities
+	GetCapabilities(identity *auth.Identity) *Capabilities
 
 	// GetStoragePrefix returns the prefix of this storage.
 	GetStoragePrefix() string

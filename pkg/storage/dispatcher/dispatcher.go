@@ -28,7 +28,7 @@ type Dispatcher interface {
 	GetStorage(path string) (storage.Storage, bool)
 	GetAllStorages() []storage.Storage
 
-	DispatchGetCapabilities(path string) (*storage.Capabilities, error)
+	DispatchGetCapabilities(identity *auth.Identity, path string) (*storage.Capabilities, error)
 	DispatchCreateUserHomeDirectory(identity *auth.Identity, path string) error
 	DispatchPutObject(identity *auth.Identity, path string, r io.Reader, size int64, verifyChecksum bool, checksum, checksumType string) error
 	DispatchStartChunkedUpload(path string) (string, error)
@@ -79,12 +79,12 @@ func (disp *dispatcher) GetAllStorages() []storage.Storage {
 	return storages
 }
 
-func (disp *dispatcher) DispatchGetCapabilities(path string) (*storage.Capabilities, error) {
+func (disp *dispatcher) DispatchGetCapabilities(identity *auth.Identity, path string) (*storage.Capabilities, error) {
 	s, err := disp.getStorageFromPath(path)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetCapabilities(), nil
+	return s.GetCapabilities(identity), nil
 }
 func (disp *dispatcher) DispatchCreateUserHomeDirectory(identity *auth.Identity, path string) error {
 	s, err := disp.getStorageFromPath(path)
@@ -185,7 +185,7 @@ func (disp *dispatcher) getStorageFromPath(path string) (storage.Storage, error)
 	parts := strings.Split(path, "/")
 	s, ok := disp.GetStorage(parts[0])
 	if !ok {
-		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered", parts[0])}
+		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered for path:%s", parts[0], path)}
 	}
 	return s, nil
 }

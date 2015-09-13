@@ -63,7 +63,7 @@ func (s *local) PutObject(identity *auth.Identity, resourcePath string, r io.Rea
 	tmpPath := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, path.Join(path.Base(relPath)+"-"+s.log.RID()))
 
 	// If the checksum type is the same as the one in the storage capabilities object, then we do it.
-	if verifyChecksum == true && checksumType == s.GetCapabilities().SupportedChecksum {
+	if verifyChecksum == true && checksumType == s.GetCapabilities(identity).SupportedChecksum {
 		fd, err := os.Create(tmpPath)
 		if err != nil {
 			return s.convertError(err)
@@ -303,7 +303,8 @@ func (s *local) convertError(err error) error {
 	return err
 }
 
-func (s *local) GetCapabilities() *storage.Capabilities {
+func (s *local) GetCapabilities(identity *auth.Identity) *storage.Capabilities {
+	// TOOD: Maybe in the future depending on the user we can give some capabilities or not. This can be helpful to test new things.
 	cap := storage.Capabilities{}
 	cap.CreateUserHomeDirectory = true
 	return &cap
