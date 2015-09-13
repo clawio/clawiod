@@ -149,7 +149,7 @@ func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool
 		Size:        uint64(finfo.Size()),
 		IsContainer: finfo.IsDir(),
 		Modified:    uint64(finfo.ModTime().Unix()),
-		ETag:        fmt.Sprintf("\"%d\"", finfo.ModTime().Unix()),
+		ETag:        fmt.Sprintf("%d", finfo.ModTime().Unix()),
 		MimeType:    mimeType,
 		Permissions: perm,
 	}
@@ -205,7 +205,7 @@ func (s *local) Stat(identity *auth.Identity, resourcePath string, children bool
 			Size:        uint64(f.Size()),
 			IsContainer: f.IsDir(),
 			Modified:    uint64(f.ModTime().Unix()),
-			ETag:        fmt.Sprintf("\"%d\"", f.ModTime().Unix()),
+			ETag:        fmt.Sprintf("%d", f.ModTime().Unix()),
 			MimeType:    mimeType,
 			Permissions: permChild,
 		}

@@ -80,7 +80,7 @@ func getResponseFromMeta(a *WebDAV, meta *storage.MetaData) responseXML {
 	lasModifiedString := t.Format(time.RFC1123)
 	getContentLegnth := propertyXML{xml.Name{Space: "", Local: "d:getcontentlength"}, "", []byte(fmt.Sprintf("%d", meta.Size))}
 	getLastModified := propertyXML{xml.Name{Space: "", Local: "d:getlastmodified"}, "", []byte(lasModifiedString)}
-	getETag := propertyXML{xml.Name{Space: "", Local: "d:getetag"}, "", []byte(meta.ETag)}
+	getETag := propertyXML{xml.Name{Space: "", Local: "d:getetag"}, "", []byte("\"" + meta.ETag + "\"")}
 	getContentType := propertyXML{xml.Name{Space: "", Local: "d:getcontenttype"}, "", []byte(meta.MimeType)}
 	if meta.IsContainer {
 		getResourceType := propertyXML{xml.Name{Space: "", Local: "d:resourcetype"}, "", []byte("<d:collection/>")}
