@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.0.6 (2015-09-13)
+
+- Send pretty-printed JSON in responses
+- Added /api/v1/storage/getcapabilities endpoint
+- Improved packaging
+
+Added after_install hook for Fedora 20
+0c061e6 Added after_install hook for Fedora 20
+7db4e3c Added reload and graceful-stop to init script. Tested on Debian 7
+7e8cbd7 Trim / in from and to query parameters
+6b00a1b Added application/json mime to JSON API responses
+e2a0fac Changed HTTP code to 200 in /storage/getcapabilities response
+17dcca8 Pretty-print JSON
+78735f4 Add capabilites endpoint
+8c1ea7d Remove quotes on Etag field when using REST API
+9ce25fa (HEAD, origin/develop, develop) Updated after_install hook
+d3cda60 Added after_install hook for Fedora 20
+0c061e6 Added after_install hook for Fedora 20
+7db4e3c Added reload and graceful-stop to init script. Tested on Debian 7
+7e8cbd7 Trim / in from and to query parameters
+6b00a1b Added application/json mime to JSON API responses
+e2a0fac Changed HTTP code to 200 in /storage/getcapabilities response
+17dcca8 Pretty-print JSON
+78735f4 Add capabilites endpoint
+8c1ea7d Remove quotes on Etag field when using REST API
+
 ## 0.0.5 (2015-09-12)
 
 - Stablity fixes
