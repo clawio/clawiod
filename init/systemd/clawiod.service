@@ -4,8 +4,10 @@ Documentation=http://clawio.github.io
 After=network.target
 
 [Service]
-Type=notify
-ExecStart=/usr/bin/clawiod --config /etc/clawio/clawiod.conf
+Type=simple
+PIDFile=/var/run/clawiod.pid
+User=clawiod
+ExecStart=/usr/bin/clawiod --config /etc/clawiod/clawiod.conf
 LimitNOFILE=1048576
 LimitNPROC=1048576
 LimitCORE=infinity
