@@ -67,7 +67,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 				}
 			}
 
-			metaJSON, err := json.Marshal(meta)
+			metaJSON, err := json.MarshalIndent(meta, "", "    ")
 			if err != nil {
 				log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -128,7 +128,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	metaJSON, err := json.Marshal(meta)
+	metaJSON, err := json.MarshalIndent(meta, "", "    ")
 	if err != nil {
 		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

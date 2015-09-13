@@ -37,7 +37,7 @@ func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r 
 		}
 	}
 
-	capJSON, err := json.Marshal(cap)
+	capJSON, err := json.MarshalIndent(cap, "", "    ")
 	if err != nil {
 		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

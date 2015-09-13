@@ -83,7 +83,7 @@ func (a *auth) gettoken(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	data := make(map[string]string)
 	data["authtoken"] = tokenString
-	tokenJSON, err := json.Marshal(data)
+	tokenJSON, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		log.Err(err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
