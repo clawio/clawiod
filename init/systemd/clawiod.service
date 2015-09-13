@@ -1,0 +1,14 @@
+[Unit]
+Description=ClawIO Scalable Sync and Share Server
+Documentation=http://clawio.github.io
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/clawiod --config /etc/clawio/clawiod.conf
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+
+[Install]
+WantedBy=multi-user.target
