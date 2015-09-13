@@ -44,7 +44,7 @@ func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r 
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(capJSON)
 	if err != nil {
 		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
