@@ -27,7 +27,7 @@ CLAWIOD_PIDFILE=/var/run/$BASE.pid
 CLAWIOD_SSD_PIDFILE=/var/run/$BASE-ssd.pid
 CLAWIOD_LOGFILE=/var/log/$BASE.log
 CLAWIOD_OPTS=
-CLAWIOD_DESC="Clawiod"
+CLAWIOD_DESC="clawiod"
 CLAWIOD_CONFIG=/etc/$BASE/$BASE.conf
 
 # Get lsb functions
@@ -45,7 +45,7 @@ fi
 
 check_init() {
 	 # see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	 if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then        
+	 if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
                 echo -n
 		# log_failure_msg "$CLAWIOD_DESC is managed via upstart, try using service $BASE $1"
                 # exit 1
@@ -62,8 +62,18 @@ fail_unless_root() {
 case "$1" in
 	start)
 		check_init
-		
+
 		fail_unless_root
+
+		status="0"
+		status_of_proc -p "$CLAWIOD_SSD_PIDFILE" "$CLAWIOD" "$CLAWIOD_DESC" > /dev/null 2>&1|| status="$?"
+		if [ "$status" = 0 ]; then
+			log_begin_msg "$CLAWIO_DESC is already running"
+			log_end_msg "$?"
+			exit 0
+	    	fi
+
+
 
 		touch "$CLAWIOD_LOGFILE"
 		chown clawiod:clawiod "$CLAWIOD_LOGFILE"
@@ -75,7 +85,7 @@ case "$1" in
 			ulimit -p 1048576
 		fi
 
-		log_begin_msg "Starting $CLAWIOD_DESC: $BASE"
+		log_begin_msg "Starting $CLAWIOD_DESC"
 		start-stop-daemon --start --background \
 			--chuid "clawiod:clawiod" \
 			--exec "$CLAWIOD" \
@@ -90,7 +100,7 @@ case "$1" in
 	stop)
 		check_init
 		fail_unless_root
-		log_begin_msg "Stopping $CLAWIOD_DESC: $BASE"
+		log_begin_msg "Stopping $CLAWIOD_DESC"
 		start-stop-daemon --stop --pidfile "$CLAWIOD_SSD_PIDFILE"
 		log_end_msg $?
 		;;
@@ -105,21 +115,30 @@ case "$1" in
 		$0 start
 		;;
 
-	force-reload)
+	reload)
 		check_init
 		fail_unless_root
-		$0 restart
+		log_begin_msg "Reloading $CLAWIOD_DESC configuration"
+		start-stop-daemon --stop --signal HUP --pidfile "$CLAWIOD_SSD_PIDFILE"
+		log_end_msg $?
 		;;
 
 	status)
 		check_init
 		status_of_proc -p "$CLAWIOD_SSD_PIDFILE" "$CLAWIOD" "$CLAWIOD_DESC"
 		;;
+	graceful-stop)
+		check_init
+		fail_unless_root
+
+		log_begin_msg "Gracefully stopping $CLAWIOD_DESC. It can take some minutes..."
+                start-stop-daemon --stop --signal QUIT --pidfile "$CLAWIOD_SSD_PIDFILE"
+                log_end_msg $?
+		;;
+
 
 	*)
-		echo "Usage: service clawiod {start|stop|restart|status}"
+		echo "Usage: service clawiod {start|stop|restart|status|reload|graceful-stop}"
 		exit 1
 		;;
 esac
-
-
