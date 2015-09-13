@@ -17,14 +17,15 @@ import (
 	"github.com/clawio/clawiod/pkg/storage"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 func (a *Storage) mv(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	from := filepath.Clean(r.URL.Query().Get("from"))
-	to := filepath.Clean(r.URL.Query().Get("to"))
+	from := filepath.Clean(strings.TrimPrefix(r.URL.Query().Get("from"), "/"))
+	to := filepath.Clean(strings.TrimPrefix(r.URL.Query().Get("to"), "/"))
 
 	err := a.sdisp.DispatchRename(identity, from, to)
 	if err != nil {
