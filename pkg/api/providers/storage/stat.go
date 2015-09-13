@@ -55,6 +55,7 @@ func (a *Storage) stat(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(metaJSON)
 	if err != nil {

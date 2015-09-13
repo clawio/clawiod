@@ -63,6 +63,7 @@ func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r 
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(metaJSON)
 	if err != nil {

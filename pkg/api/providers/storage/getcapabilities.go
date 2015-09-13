@@ -43,6 +43,7 @@ func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r 
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(capJSON)
