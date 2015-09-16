@@ -69,7 +69,6 @@ func (s *root) Stat(identity *auth.Identity, resourcePath string, children bool)
 	}
 
 	parentMeta.Children = []*storage.MetaData{}
-	_ = "breakpoint"
 	for _, sto := range s.storages {
 		m := &storage.MetaData{}
 		m.ID = sto.GetStoragePrefix()
