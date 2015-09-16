@@ -97,7 +97,7 @@ func (s *apiServer) handleRequest() http.Handler {
 				case error:
 					err = t
 				default:
-					err = errors.New("Unknown error")
+					err = errors.New(fmt.Sprintln(r))
 				}
 				trace := make([]byte, 2048)
 				count := runtime.Stack(trace, true)
