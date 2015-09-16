@@ -31,3 +31,11 @@ type BadChecksumError struct {
 func (e *BadChecksumError) Error() string {
 	return e.Err
 }
+
+type NotImplementedError struct {
+	Err string
+}
+
+func (e *NotImplementedError) Error() string {
+	return e.Err
+}
