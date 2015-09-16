@@ -13,6 +13,7 @@ package storage
 
 import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+	"github.com/clawio/clawiod/pkg/api"
 	adisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	"github.com/clawio/clawiod/pkg/config"
 	sdisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
@@ -29,7 +30,7 @@ type Storage struct {
 }
 
 // New creates a Storage API.
-func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) *Storage {
+func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) api.API {
 	fa := Storage{
 		id:    id,
 		cfg:   cfg,
