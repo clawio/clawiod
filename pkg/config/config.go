@@ -169,6 +169,30 @@ type Directives struct {
 
 	// If enabled only authetnicated users can see the the static contents.
 	StaticAPIWithAuthentication bool `json:"static_api_with_authentication"`
+
+	// The major version of OwnCloud to fake.
+	OwnCloudVersionMajor string `json:"owncloud_version_major"`
+
+	// The minor version of OwnCloud to fake.
+	OwnCloudVersionMinor string `json:"owncloud_version_minor"`
+
+	// The micro version of OwnCloud to fake.
+	OwnCloudVersionMicro string `json:"owncloud_version_micro"`
+
+	// The edition of OwnCloud to fake.
+	OwnCloudEdition string `json:"owncloud_edition"`
+
+	// iInterval to poll for server side changes (unused)
+	OwnCloudCapabilitiesCorePollInterval string `json:"owncloud_capabilities_core_poll_interval"`
+
+	// Indicates if server supports big file chunking
+	OwnCloudCapabilitiesFilesBigFileChunking bool `json:"owncloud_capabilities_files_big_file_chunking"`
+
+	// Indicates if server supports big file trash.
+	OwnCloudCapabilitiesFilesUndelete bool `json:"owncloud_capabilities_files_undelete"`
+
+	// Indicates if server supports big file versioning.
+	OwnCloudCapabilitiesFilesVersioning bool `json:"owncloud_capabilities_files_versioning"`
 }
 
 // Config manages the load and reload of the configuration.

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	apidisp "github.com/clawio/clawiod/pkg/api/dispatcher"
 	apiauth "github.com/clawio/clawiod/pkg/api/providers/auth"
+	apiocwebdav "github.com/clawio/clawiod/pkg/api/providers/ocwebdav"
 	apistatic "github.com/clawio/clawiod/pkg/api/providers/static"
 	apistorage "github.com/clawio/clawiod/pkg/api/providers/storage"
 	apiwebdav "github.com/clawio/clawiod/pkg/api/providers/webdav"
@@ -22,10 +23,12 @@ import (
 	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/logger"
+	"github.com/clawio/clawiod/pkg/storage"
 	//"github.com/clawio/clawiod/pkg/pidfile"
 	"github.com/clawio/clawiod/pkg/signaler"
 	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
 	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
+	storageroot "github.com/clawio/clawiod/pkg/storage/providers/root"
 	"os"
 )
 
@@ -129,11 +132,22 @@ func main() {
 	localStorageLog := logger.New(cfg, appLogWriter, fmt.Sprintf("storage-%s", cfg.GetDirectives().LocalStoragePrefix))
 	localStorage := storagelocal.New(cfg.GetDirectives().LocalStoragePrefix, cfg, localStorageLog)
 
+	// The storage prefix for root storage must be ALWAYS the empty string. This is the only way to get
+	// OC sync clients connects to ClawIO skipping folder configuration.
+	rootStorageLog := logger.New(cfg, appLogWriter, "storage-root")
+	sts := []storage.Storage{localStorage}
+	rootStorage := storageroot.New("", sts, cfg, rootStorageLog)
+
 	sdispLog := logger.New(cfg, appLogWriter, "storagedispatcher")
 	sdisp := storagedisp.New(cfg, sdispLog)
 	err = sdisp.AddStorage(localStorage)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot add local storage to storage dispatcher: ", err)
+		os.Exit(1)
+	}
+	err = sdisp.AddStorage(rootStorage)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot add root storage to storage dispatcher: ", err)
 		os.Exit(1)
 	}
 
@@ -157,6 +171,16 @@ func main() {
 		err = apdisp.AddAPI(webdavAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add WebDAV API to API dispatcher: ", err)
+			os.Exit(1)
+		}
+	}
+
+	if cfg.GetDirectives().WebDAVAPIEnabled {
+		ocwebdavAPI := apiocwebdav.New("ocwebdav", cfg, adisp, sdisp)
+
+		err = apdisp.AddAPI(ocwebdavAPI)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Cannot add OCWebDAV API to API dispatcher: ", err)
 			os.Exit(1)
 		}
 	}
