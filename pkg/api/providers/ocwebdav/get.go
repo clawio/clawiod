@@ -60,6 +60,8 @@ func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	w.Header().Set("Content-Type", meta.MimeType)
+	w.Header().Set("ETag", meta.ETag)
 	w.WriteHeader(http.StatusOK)
 	_, err = io.Copy(w, reader)
 	if err != nil {

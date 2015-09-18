@@ -56,9 +56,10 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 	w.Header().Set("DAV", "1, 3, extended-mkcol")
+	w.Header().Set("ETag", meta.ETag)
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
-	_, err = w.Write([]byte(fmt.Sprintln(`<?xml version="1.0" encoding="utf-8"?>`) + `<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns">` + string(responsesXML) + `</d:multistatus>`))
+	_, err = w.Write([]byte(`<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns">` + string(responsesXML) + `</d:multistatus>`))
 	if err != nil {
 		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
 	}

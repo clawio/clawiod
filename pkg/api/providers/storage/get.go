@@ -61,9 +61,9 @@ func (a *Storage) get(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", meta.MimeType)
+	w.Header().Set("ETag", meta.ETag)
 	w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(meta.Path))
 	w.WriteHeader(http.StatusOK)
-
 	_, err = io.Copy(w, reader)
 	if err != nil {
 		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
