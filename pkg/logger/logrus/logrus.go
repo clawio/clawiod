@@ -17,10 +17,11 @@ func New(w io.Writer, rid string, cfg config.Config) (logger.Logger, error) {
 	rus.Out = w
 	rus.Level = lgrus.Level(directives.LogLevel + 2) // Added +2 because logrus has more log levels (Fatal and Panic)
 	rus.Formatter = &lgrus.JSONFormatter{}
-	return &rusLogger{log: rus, rid: rid, cfg: cfg}, nil
+	return &rusLogger{w: w, log: rus, rid: rid, cfg: cfg}, nil
 }
 
 type rusLogger struct {
+	w   io.Writer
 	log *lgrus.Logger
 	rid string
 	cfg config.Config
