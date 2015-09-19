@@ -24,7 +24,7 @@ type fileConfig struct {
 
 // New returns a new config.Config using a local file
 func New(path string) (config.Config, error) {
-	directives, err := getdirectivesFromFile(path)
+	directives, err := getDirectivesFromFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -42,14 +42,14 @@ func (c *fileConfig) GetDirectives() (*config.Directives, error) {
 
 // Reload reloads the directives from the local file.
 func (c *fileConfig) Reload() error {
-	directives, err := getdirectivesFromFile(c.path)
+	directives, err := getDirectivesFromFile(c.path)
 	if err != nil {
 		return err
 	}
 	c.val.Store(directives)
 	return nil
 }
-func getdirectivesFromFile(path string) (*config.Directives, error) {
+func getDirectivesFromFile(path string) (*config.Directives, error) {
 	fileConfigData, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
