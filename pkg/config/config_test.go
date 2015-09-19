@@ -7,88 +7,74 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package config
+package config_test
 
 import (
+	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/config/file"
+	"github.com/clawio/clawiod/pkg/config/mock"
+	. "gopkg.in/check.v1"
 	"io/ioutil"
+	"path"
 	"testing"
 )
 
-var (
-	originalConfiguration = []byte(`{"maintenance": true}`)
-	newConfiguration      = []byte(`{"maintenance": false}`)
-	badConfiguration      = []byte(`{"this is invalid," JSON{}}`)
-	inventedPath          = "/this/path/not/exists"
-)
+func Test(t *testing.T) { TestingT(t) }
 
-func createMockConfigFile(t *testing.T) string {
-	file, err := ioutil.TempFile("", "gotesting")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = file.Write([]byte(originalConfiguration))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return file.Name()
-}
-func createMockingConfig(t *testing.T) *Config {
-	path := createMockConfigFile(t)
-	cfg, err := New(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.path != path {
-		t.Error("paths are different")
-	}
-	return cfg
+type ConfigSuite struct {
+	fileConfigFilename string
 }
 
-func TestNew(t *testing.T) {
-	path := createMockConfigFile(t)
-	cfg, err := New(path)
+var _ = Suite(&ConfigSuite{})
+
+var configurationImplementations []config.Config
+
+func (s *ConfigSuite) SetUpSuite(c *C) {
+	// file based configuration
+	tmpDir := c.MkDir()
+	fn := path.Join(tmpDir, "fileconfig.json")
+	s.fileConfigFilename = fn
+	err := ioutil.WriteFile(fn, []byte(`{"maintenance": true}`), 0644)
 	if err != nil {
-		t.Fatal(err)
+		c.Error(err)
 	}
-	if cfg.path != path {
-		t.Error("paths are different")
+	fileConfig, err := file.New(fn)
+	if err != nil {
+		c.Error(err)
+	}
+
+	// mock based configuration
+	mockConfig := mock.New(&config.Directives{Maintenance: true})
+
+	configurationImplementations = append(configurationImplementations, fileConfig, mockConfig)
+}
+
+func (s *ConfigSuite) TestGetDirectives(c *C) {
+	for _, cfg := range configurationImplementations {
+		directives, err := cfg.GetDirectives()
+		if err != nil {
+			c.Error(err)
+		}
+		c.Assert(directives.Maintenance, Equals, true)
 	}
 }
 
-func TestNewFail(t *testing.T) {
-	_, err := New(inventedPath)
-	if err == nil {
-		t.Fatal("this should have failed")
-	}
-}
-func TestGetDirectives(t *testing.T) {
-	cfg := createMockingConfig(t)
-	if cfg.GetDirectives().Maintenance != true {
-		t.Error("directives are wrong")
-	}
-}
-func TestReload(t *testing.T) {
-	cfg := createMockingConfig(t)
-	err := ioutil.WriteFile(cfg.path, newConfiguration, 0644)
+func (s *ConfigSuite) TestReload(c *C) {
+	// update file config behind the scenes
+	err := ioutil.WriteFile(s.fileConfigFilename, []byte(`{"maintenance": false}`), 0644)
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
-	err = cfg.Reload()
-	if err != nil {
-		t.Error(err)
-	}
-	if cfg.GetDirectives().Maintenance != false {
-		t.Error("configuration not reloaded correctly")
-	}
-}
-func TestReloadFail(t *testing.T) {
-	cfg := createMockingConfig(t)
-	err := ioutil.WriteFile(cfg.path, badConfiguration, 0644)
-	if err != nil {
-		t.Error(err)
-	}
-	err = cfg.Reload()
-	if err == nil {
-		t.Fatal("this should have failed")
+
+	for _, cfg := range configurationImplementations {
+		err := cfg.Reload()
+		if err != nil {
+			c.Error(err)
+		}
+		newDirectives, err := cfg.GetDirectives()
+		if err != nil {
+			c.Error(err)
+		}
+		c.Assert(newDirectives.Maintenance, Equals, false)
 	}
 }

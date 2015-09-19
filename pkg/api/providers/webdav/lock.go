@@ -24,6 +24,6 @@ func (a *WebDAV) lock(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(xml))
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 }

@@ -19,13 +19,13 @@ func (a *Storage) info(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	infos := a.sdisp.GetStoragesInfo()
 	infosJSON, err := json.Marshal(infos)
 	if err != nil {
-		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}*/
 	w.WriteHeader(http.StatusOK)
 	/*_, err = w.Write(infosJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse: %+v", map[string]interface{}{"err": err})
 	}*/
 }

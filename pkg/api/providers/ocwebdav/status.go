@@ -19,10 +19,16 @@ import (
 
 func (a *WebDAV) status(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
-	major := a.cfg.GetDirectives().OwnCloudVersionMajor
-	minor := a.cfg.GetDirectives().OwnCloudVersionMinor
-	micro := a.cfg.GetDirectives().OwnCloudVersionMicro
-	edition := a.cfg.GetDirectives().OwnCloudEdition
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	major := directives.OwnCloudVersionMajor
+	minor := directives.OwnCloudVersionMinor
+	micro := directives.OwnCloudVersionMicro
+	edition := directives.OwnCloudEdition
 
 	version := fmt.Sprintf("%s.%s.%s.3", major, minor, micro)
 	versionString := fmt.Sprintf("%s.%s.%s", major, minor, micro)
@@ -43,7 +49,7 @@ func (a *WebDAV) status(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 	statusJSON, err := json.MarshalIndent(status, "", "    ")
 	if err != nil {
-		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to JSON. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -52,7 +58,7 @@ func (a *WebDAV) status(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(statusJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 	return
 

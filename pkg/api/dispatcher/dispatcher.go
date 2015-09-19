@@ -15,6 +15,7 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/api"
 	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/logger"
 	"net/http"
 	"strings"
 )
@@ -28,13 +29,14 @@ type Dispatcher interface {
 // dispatcher is the multiplexer responsible for routing request to a specific API.
 // It keeps a map with all the APIs.
 type dispatcher struct {
-	cfg  *config.Config
 	apis map[string]api.API
+	cfg  config.Config
+	log  logger.Logger
 }
 
 // New creates a new dispatcher object or return an error
-func New(cfg *config.Config) Dispatcher {
-	m := &dispatcher{cfg: cfg, apis: map[string]api.API{}}
+func New(cfg config.Config, log logger.Logger) Dispatcher {
+	m := &dispatcher{apis: map[string]api.API{}, cfg: cfg, log: log}
 	return m
 }
 
@@ -42,7 +44,7 @@ func New(cfg *config.Config) Dispatcher {
 func (d *dispatcher) AddAPI(api api.API) error {
 	_, ok := d.GetAPI(api.GetID())
 	if ok {
-		return fmt.Errorf("api '%s' already added", api.GetID())
+		return fmt.Errorf("api:%s already added", api.GetID())
 	}
 	d.apis[api.GetID()] = api
 	return nil
@@ -55,25 +57,35 @@ func (d *dispatcher) GetAPI(apiID string) (api.API, bool) {
 }
 
 // HandleRequest routes a general request to the specific API or returns 404 if the API
-// asked is not registered.
+// asked for is not registered.
 func (d *dispatcher) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	api, ok := d.getAPIFromURL(r)
+	api, ok, err := d.getAPIFromURL(r)
+	if err != nil {
+		d.log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
 	api.HandleRequest(ctx, w, r)
 }
-func (d *dispatcher) getAPIFromURL(r *http.Request) (api.API, bool) {
-	path := r.URL.Path
-	if len(path) <= len(d.cfg.GetDirectives().APIRoot) {
-		return nil, false
+func (d *dispatcher) getAPIFromURL(r *http.Request) (api.API, bool, error) {
+	directives, err := d.cfg.GetDirectives()
+	if err != nil {
+		return nil, false, err
 	}
-	withoutAPIRoot := path[len(d.cfg.GetDirectives().APIRoot):]
+	path := r.URL.Path
+	if len(path) <= len(directives.APIRoot) {
+		return nil, false, nil
+	}
+	withoutAPIRoot := path[len(directives.APIRoot):]
 	urlParts := strings.Split(withoutAPIRoot, "/")
 	if len(urlParts) < 2 {
-		return nil, false
+		return nil, false, nil
 	}
 	apiID := urlParts[1]
-	return d.GetAPI(apiID)
+	api, ok := d.GetAPI(apiID)
+	return api, ok, nil
 }

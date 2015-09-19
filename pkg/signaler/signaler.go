@@ -24,13 +24,13 @@ type Signaler interface {
 }
 
 type signaler struct {
-	cfg  *config.Config
 	srv  apiserver.APIServer
 	sigc chan os.Signal
 	endc chan bool
+	cfg  config.Config
 }
 
-func New(cfg *config.Config, srv apiserver.APIServer) Signaler {
+func New(srv apiserver.APIServer, cfg config.Config) Signaler {
 	sigc := make(chan os.Signal, 1)
 	endc := make(chan bool, 1)
 	return &signaler{cfg: cfg, srv: srv, sigc: sigc, endc: endc}

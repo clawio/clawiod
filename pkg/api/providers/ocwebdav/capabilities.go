@@ -24,7 +24,7 @@ func (a *WebDAV) capabilities(ctx context.Context, w http.ResponseWriter, r *htt
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(capabilities))
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 	return
 

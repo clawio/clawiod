@@ -35,7 +35,7 @@ func (a *Storage) mv(ctx context.Context, w http.ResponseWriter, r *http.Request
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot rename resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot rename resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -49,7 +49,7 @@ func (a *Storage) mv(ctx context.Context, w http.ResponseWriter, r *http.Request
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -57,7 +57,7 @@ func (a *Storage) mv(ctx context.Context, w http.ResponseWriter, r *http.Request
 
 	metaJSON, err := json.MarshalIndent(meta, "", "    ")
 	if err != nil {
-		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to JSON. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -66,7 +66,7 @@ func (a *Storage) mv(ctx context.Context, w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(metaJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 	return
 }

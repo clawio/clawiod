@@ -26,13 +26,13 @@ import (
 type root struct {
 	storagePrefix string
 	storages      []storage.Storage
-	cfg           *config.Config
+	cfg           config.Config
 	log           logger.Logger
 }
 
 // New creates a root object or returns an error.\
 // to have a
-func New(storagePrefix string, storages []storage.Storage, cfg *config.Config, log logger.Logger) storage.Storage {
+func New(storagePrefix string, storages []storage.Storage, cfg config.Config, log logger.Logger) storage.Storage {
 	s := &root{storagePrefix: storagePrefix, storages: storages, cfg: cfg, log: log}
 	return s
 }

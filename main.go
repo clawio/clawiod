@@ -21,8 +21,8 @@ import (
 	"github.com/clawio/clawiod/pkg/apiserver"
 	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
-	"github.com/clawio/clawiod/pkg/config"
-	"github.com/clawio/clawiod/pkg/logger"
+	config "github.com/clawio/clawiod/pkg/config/file"
+	logger "github.com/clawio/clawiod/pkg/logger/logrus"
 	"github.com/clawio/clawiod/pkg/storage"
 	//"github.com/clawio/clawiod/pkg/pidfile"
 	"github.com/clawio/clawiod/pkg/signaler"
@@ -32,6 +32,7 @@ import (
 	"os"
 )
 
+// The version of the daemon.
 const VERSION = "0.0.6"
 
 func main() {
@@ -87,23 +88,27 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Cannot load configuration: ", err)
 		os.Exit(1)
 	}
-
+	directives, err := cfg.GetDirectives()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot read configuration directives: ", err)
+		os.Exit(1)
+	}
 	/******************************************
 	 ** 4. Connect to the syslog daemon *******
 	 ******************************************/
-	/*syslogWriter, err := logger.NewSyslogWriter("", "", cfg.GetDirectives().LogLevel)
+	/*syslogWriter, err := logger.NewSyslogWriter("", "", directives.LogLevel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr,"Cannot connect to syslog: ", err)
 		os.Exit(1)
 	}*/
 
-	appLogWriter, err := os.OpenFile(cfg.GetDirectives().LogAppFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	appLogWriter, err := os.OpenFile(directives.LogAppFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot open app log file: ", err)
 		os.Exit(1)
 	}
 
-	reqLogWriter, err := os.OpenFile(cfg.GetDirectives().LogReqFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	reqLogWriter, err := os.OpenFile(directives.LogReqFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot open req log file: ", err)
 		os.Exit(1)
@@ -112,13 +117,21 @@ func main() {
 	/******************************************
 	 ** 5. Create auth dispatcher       *******
 	 ******************************************/
-	fileAuthLog := logger.New(cfg, appLogWriter, fmt.Sprintf("authid-%s", cfg.GetDirectives().FileAuthAuthID))
-	fauth, err := authfile.New(cfg.GetDirectives().FileAuthAuthID, cfg, fileAuthLog)
+	fileAuthLog, err := logger.New(appLogWriter, fmt.Sprintf("authid-%s", directives.FileAuthAuthID), cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create file auth logger: ", err.Error())
+		os.Exit(1)
+	}
+	fauth, err := authfile.New(directives.FileAuthAuthID, cfg, fileAuthLog)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot create file auth provider: ", err)
 		os.Exit(1)
 	}
-	adispLog := logger.New(cfg, appLogWriter, "authdispatcher")
+	adispLog, err := logger.New(appLogWriter, "authdispatcher", cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create auth dispatcher logger: ", err.Error())
+		os.Exit(1)
+	}
 	adisp := authdisp.New(cfg, adispLog)
 	err = adisp.AddAuthenticationstrategy(fauth) // add file auth strategy
 	if err != nil {
@@ -129,16 +142,30 @@ func main() {
 	/******************************************
 	 ** 6. Create storage dispatcher      *****
 	 ******************************************/
-	localStorageLog := logger.New(cfg, appLogWriter, fmt.Sprintf("storage-%s", cfg.GetDirectives().LocalStoragePrefix))
-	localStorage := storagelocal.New(cfg.GetDirectives().LocalStoragePrefix, cfg, localStorageLog)
+	localStorageLog, err := logger.New(appLogWriter, fmt.Sprintf("storage-%s", directives.LocalStoragePrefix), cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create local storage logger: ", err.Error())
+		os.Exit(1)
+	}
+	localStorage := storagelocal.New(directives.LocalStoragePrefix, cfg, localStorageLog)
 
 	// The storage prefix for root storage must be ALWAYS the empty string. This is the only way to get
 	// OC sync clients connects to ClawIO skipping folder configuration.
-	rootStorageLog := logger.New(cfg, appLogWriter, "storage-root")
+	rootStorageLog, err := logger.New(appLogWriter, "storage-root", cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create root storage logger: ", err.Error())
+		os.Exit(1)
+	}
 	sts := []storage.Storage{localStorage}
 	rootStorage := storageroot.New("", sts, cfg, rootStorageLog)
 
-	sdispLog := logger.New(cfg, appLogWriter, "storagedispatcher")
+	sdispLog, err := logger.New(appLogWriter, "storagedispatcher", cfg)
+	if err != nil {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Cannot create storage dispatcher logger: ", err.Error())
+			os.Exit(1)
+		}
+	}
 	sdisp := storagedisp.New(cfg, sdispLog)
 	err = sdisp.AddStorage(localStorage)
 	if err != nil {
@@ -154,10 +181,24 @@ func main() {
 	/******************************************
 	 ** 7. Create API dispatcher             **
 	 ******************************************/
-	apdisp := apidisp.New(cfg)
+	apiDispatcherLog, err := logger.New(appLogWriter, "apidispatcher", cfg)
+	if err != nil {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Cannot create api dispatcher logger: ", err.Error())
+			os.Exit(1)
+		}
+	}
+	apdisp := apidisp.New(cfg, apiDispatcherLog)
 
-	if cfg.GetDirectives().AuthAPIEnabled == true {
-		authAPI := apiauth.New(cfg.GetDirectives().AuthAPIID, cfg, adisp, sdisp)
+	if directives.AuthAPIEnabled == true {
+		apiAuthLog, err := logger.New(appLogWriter, "apiauth", cfg)
+		if err != nil {
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Cannot create api auth logger: ", err.Error())
+				os.Exit(1)
+			}
+		}
+		authAPI := apiauth.New(directives.AuthAPIID, adisp, sdisp, cfg, apiAuthLog)
 		err = apdisp.AddAPI(authAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add Auth API to API dispatcher: ", err)
@@ -165,9 +206,15 @@ func main() {
 		}
 	}
 
-	if cfg.GetDirectives().WebDAVAPIEnabled {
-		webdavAPI := apiwebdav.New(cfg.GetDirectives().WebDAVAPIID, cfg, adisp, sdisp)
-
+	if directives.WebDAVAPIEnabled {
+		apiWebDAVLog, err := logger.New(appLogWriter, "apiwebdav", cfg)
+		if err != nil {
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Cannot create api webdav logger: ", err.Error())
+				os.Exit(1)
+			}
+		}
+		webdavAPI := apiwebdav.New(directives.WebDAVAPIID, adisp, sdisp, cfg, apiWebDAVLog)
 		err = apdisp.AddAPI(webdavAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add WebDAV API to API dispatcher: ", err)
@@ -175,9 +222,15 @@ func main() {
 		}
 	}
 
-	if cfg.GetDirectives().WebDAVAPIEnabled {
-		ocwebdavAPI := apiocwebdav.New("ocwebdav", cfg, adisp, sdisp)
-
+	if directives.WebDAVAPIEnabled {
+		apiOCWebDAVLog, err := logger.New(appLogWriter, "apiocwebdav", cfg)
+		if err != nil {
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Cannot create api ocwebdav logger: ", err.Error())
+				os.Exit(1)
+			}
+		}
+		ocwebdavAPI := apiocwebdav.New("ocwebdav", adisp, sdisp, cfg, apiOCWebDAVLog)
 		err = apdisp.AddAPI(ocwebdavAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add OCWebDAV API to API dispatcher: ", err)
@@ -185,8 +238,15 @@ func main() {
 		}
 	}
 
-	if cfg.GetDirectives().StorageAPIEnabled == true {
-		storageAPI := apistorage.New(cfg.GetDirectives().StorageAPIID, cfg, adisp, sdisp)
+	if directives.StorageAPIEnabled == true {
+		apiStorageLog, err := logger.New(appLogWriter, "apistorage", cfg)
+		if err != nil {
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Cannot create api storage logger: ", err.Error())
+				os.Exit(1)
+			}
+		}
+		storageAPI := apistorage.New(directives.StorageAPIID, adisp, sdisp, cfg, apiStorageLog)
 		err = apdisp.AddAPI(storageAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add Storage API to API dispatcher: ", err)
@@ -194,8 +254,8 @@ func main() {
 		}
 	}
 
-	if cfg.GetDirectives().StaticAPIEnabled == true {
-		staticAPI := apistatic.New(cfg.GetDirectives().StaticAPIID, cfg, adisp, sdisp)
+	if directives.StaticAPIEnabled == true {
+		staticAPI := apistatic.New(directives.StaticAPIID, cfg, adisp, sdisp)
 		err = apdisp.AddAPI(staticAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add Static API to API dispatcher: ", err)
@@ -205,7 +265,10 @@ func main() {
 	/***************************************************
 	 *** 8. Start HTTP/HTTPS Server ********************
 	 ***************************************************/
-	srv := apiserver.New(cfg, appLogWriter, reqLogWriter, apdisp, adisp, sdisp)
+	srv, err := apiserver.New(appLogWriter, reqLogWriter, apdisp, adisp, sdisp, cfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create API server: ", err)
+	}
 	go func() {
 		err = srv.Start()
 		if err != nil {
@@ -217,7 +280,7 @@ func main() {
 	/***************************************************
 	 *** 9. Listen to OS signals to control the daemon *
 	 ***************************************************/
-	sig := signaler.New(cfg, srv)
+	sig := signaler.New(srv, cfg)
 	endc := sig.Start()
 	<-endc
 	os.Exit(0)

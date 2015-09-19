@@ -21,10 +21,21 @@ import (
 
 func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "put/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID(), "put/"}, "/"))
 
-	checksumType, checksum := a.getChecksumInfo(ctx, r)
+	checksumType, checksum, err := a.getChecksumInfo(ctx, r)
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	verifyChecksum := false
 	if checksumType != "" {
 		verifyChecksum = true
@@ -44,11 +55,11 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return
 				case *storage.BadChecksumError:
-					log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
+					log.Err("Data has been corrupted. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusPreconditionFailed), http.StatusPreconditionFailed)
 					return
 				default:
-					log.Errf("Cannot put file: %v", map[string]interface{}{"err": err})
+					log.Err("Cannot put file. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
@@ -61,7 +72,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return
 				default:
-					log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+					log.Err("Cannot stat resource. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
@@ -69,7 +80,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 
 			metaJSON, err := json.MarshalIndent(meta, "", "    ")
 			if err != nil {
-				log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+				log.Err("Cannot convert to JSON. err:" + err.Error())
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -78,19 +89,19 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusCreated)
 			_, err = w.Write(metaJSON)
 			if err != nil {
-				log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+				log.Err("Error sending reponse. err:" + err.Error())
 			}
 			return
 
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 	}
 
 	if meta.IsContainer {
-		log.Errf("Cannot put a file where there is a directory: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot put resource where there is a container. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 		return
 	}
@@ -104,7 +115,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				return
 			case *storage.BadChecksumError:
-				log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
+				log.Err("Data has been corrupted. err:" + err.Error())
 				http.Error(w, http.StatusText(http.StatusPreconditionFailed), http.StatusPreconditionFailed)
 				return
 			default:
@@ -123,7 +134,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -131,7 +142,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 
 	metaJSON, err := json.MarshalIndent(meta, "", "    ")
 	if err != nil {
-		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to JSON. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -140,7 +151,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(metaJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 	return
 }

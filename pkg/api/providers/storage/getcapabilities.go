@@ -21,8 +21,14 @@ import (
 
 func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "getcapabilities/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID(), "getcapabilities/"}, "/"))
 	cap, err := a.sdisp.DispatchGetCapabilities(identity, resourcePath)
 	if err != nil {
 		switch err.(type) {
@@ -31,7 +37,7 @@ func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r 
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot get capabilities: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot get capabilities. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -39,7 +45,7 @@ func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r 
 
 	capJSON, err := json.MarshalIndent(cap, "", "    ")
 	if err != nil {
-		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to JSON. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -48,6 +54,6 @@ func (a *Storage) getcapabilities(ctx context.Context, w http.ResponseWriter, r 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(capJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 }

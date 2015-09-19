@@ -11,6 +11,7 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/logger"
 	"io/ioutil"
@@ -61,13 +62,9 @@ func (a *auth) gettoken(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		if s.GetCapabilities(identity).CreateUserHomeDirectory {
 			err := a.sdisp.DispatchCreateUserHomeDirectory(identity, s.GetStoragePrefix())
 			if err != nil {
-				log.Errf("Creation of user home failed: %+v", map[string]interface{}{
-					"err":     err,
-					"eppn":    identity.EPPN,
-					"idp":     identity.IdP,
-					"authid":  identity.AuthID,
-					"storage": s.GetStoragePrefix(),
-				})
+				msg := fmt.Sprintf("Creation of user home failed. err:(err:%s eppn:%s idp:%s authid:%s storageprefix:%s)",
+					err.Error(), identity.EPPN, identity.IdP, identity.AuthID, s.GetStoragePrefix())
+				log.Err(msg)
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -94,6 +91,6 @@ func (a *auth) gettoken(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(tokenJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 }

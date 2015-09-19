@@ -20,8 +20,14 @@ import (
 
 func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + REMOTE_URL}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID() + REMOTE_URL}, "/"))
 
 	meta, err := a.sdisp.DispatchStat(identity, resourcePath, false)
 	if err != nil {
@@ -30,7 +36,7 @@ func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter, r *http.Req
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

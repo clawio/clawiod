@@ -21,9 +21,15 @@ import (
 
 func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + REMOTE_URL}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID() + REMOTE_URL}, "/"))
 	destination := r.Header.Get("Destination")
 	overwrite := r.Header.Get("Overwrite")
 
@@ -36,7 +42,7 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	destination = strings.TrimPrefix(destinationURL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID()}, "/")+"/")
+	destination = strings.TrimPrefix(destinationURL.Path, strings.Join([]string{directives.APIRoot, a.GetID()}, "/")+"/")
 
 	overwrite = strings.ToUpper(overwrite)
 	if overwrite == "" {
@@ -59,7 +65,7 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter, r *http.Reques
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return
 				default:
-					log.Errf("Cannot rename resource: %+v", map[string]interface{}{"err": err})
+					log.Err("Cannot rename resource. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
@@ -68,7 +74,7 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusCreated)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -86,7 +92,7 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter, r *http.Reques
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot rename resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot rename resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

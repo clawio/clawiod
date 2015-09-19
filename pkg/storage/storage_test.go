@@ -7,36 +7,28 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-package storage
+package storage_test
 
-/*
 import (
+	"github.com/clawio/clawiod/pkg/config"
 	. "gopkg.in/check.v1"
 	"testing"
+
+	// Storages to test
+	localstorage "github.com/clawio/clawiod/pkg/storage/providers/local"
 )
 
+// Hook up gocheck into the "go test" runner.
 func Test(t *testing.T) { TestingT(t) }
 
-type TestSuite struct{}
+type StorageSuite struct{}
 
-var _ = Suite(&TestSuite{})
+var _ = Suite(&StorageSuite{})
 
-var GetURIFromPathTests = []struct {
-	path     string
-	expected string
-}{
-	{"http:/example.org", "http"},
-	{"local://abc:abc@some/data", "local"},
-	{"swift://abc:abc@example.org/photos", "swift:"},
+func (s *StorageSuite) SetUpSuite(c *C) {
+	local, err := localstorage.New("local", cfg, log)
 }
 
-func (s *TestSuite) TestGetURIFromPath(c *C) {
-	for _, t := range GetURIFromPathTests {
-		uri, err := GetURIFromPath(t.path)
-		if err != nil {
-			c.Error(err)
-		}
-		c.Assert(uri.Scheme, Equals, t.expected)
-	}
+func (s *StorageSuite) TestGetStorage(c *C) {
+
 }
-*/

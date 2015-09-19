@@ -21,10 +21,16 @@ import (
 
 func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "createcontainer/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID(), "createcontainer/"}, "/"))
 
-	err := a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
+	err = a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -36,7 +42,7 @@ func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r 
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		default:
-			log.Errf("Cannot create col: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot create container. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -46,11 +52,11 @@ func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r 
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			log.Debug(err.Error())
+			log.Warning(err.Error())
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -58,7 +64,7 @@ func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r 
 
 	metaJSON, err := json.MarshalIndent(meta, "", "    ")
 	if err != nil {
-		log.Errf("Cannot convert to JSON: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to JSON. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -67,6 +73,6 @@ func (a *Storage) createcontainer(ctx context.Context, w http.ResponseWriter, r 
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(metaJSON)
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 }

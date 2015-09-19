@@ -7,17 +7,15 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package config provides the configuration directives of the daemon
+// Package config provides the config interface and configuration Directives
 package config
 
-import (
-	"encoding/json"
-	"io/ioutil"
-	"sync/atomic"
-)
+type Config interface {
+	GetDirectives() (*Directives, error) // if it is not possible to get the directives the implementation should panic
+	Reload() error
+}
 
-// Directives represents the diffrent configuration options.
-// To see changes in the confguration file the daemon must be reloaded.
+// Directives represents the different configuration options.
 type Directives struct {
 
 	// Indicates the port on which the server will be listening
@@ -193,60 +191,4 @@ type Directives struct {
 
 	// Indicates if server supports big file versioning.
 	OwnCloudCapabilitiesFilesVersioning bool `json:"owncloud_capabilities_files_versioning"`
-}
-
-// Config manages the load and reload of the configuration.
-type Config struct {
-	path string // where is the file located
-	val  atomic.Value
-}
-
-// New creates a new Config object given the path to the configuration file
-func New(path string) (*Config, error) {
-	directives, err := getDirectivesFromFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var v atomic.Value
-	v.Store(directives)
-	return &Config{path: path, val: v}, nil
-}
-
-// GetDirectives return the configuration directives
-func (c *Config) GetDirectives() *Directives {
-	x := c.val.Load()
-	d, _ := x.(*Directives)
-	return d
-}
-
-// Reload reloads the configuration from the file so new request will be the new configuration
-func (c *Config) Reload() error {
-	directives, err := getDirectivesFromFile(c.path)
-	if err != nil {
-		return err
-	}
-	c.val.Store(directives)
-	return nil
-}
-
-// Default returns an empty configuration file
-func Default() (string, error) {
-	cfg := Directives{}
-	cfgJSON, err := json.MarshalIndent(cfg, "", "    ")
-	if err != nil {
-		return "", err
-	}
-	return string(cfgJSON), nil
-}
-func getDirectivesFromFile(path string) (*Directives, error) {
-	configData, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	directives := &Directives{}
-	err = json.Unmarshal(configData, directives)
-	if err != nil {
-		return nil, err
-	}
-	return directives, nil
 }

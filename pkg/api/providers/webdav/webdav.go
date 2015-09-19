@@ -16,6 +16,7 @@ import (
 	"github.com/clawio/clawiod/pkg/api"
 	adisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/logger"
 	sdisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
 	"net/http"
 	"strings"
@@ -24,18 +25,19 @@ import (
 // WebDAV is the implementation of the API interface to manage resources using WebDAV.
 type WebDAV struct {
 	id    string
-	cfg   *config.Config
 	adisp adisp.Dispatcher
 	sdisp sdisp.Dispatcher
+	cfg   config.Config
+	log   logger.Logger
 }
 
 // New creates a WebDAV API.
-func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) api.API {
+func New(id string, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher, cfg config.Config, log logger.Logger) api.API {
 	fa := WebDAV{
 		id:    id,
-		cfg:   cfg,
 		adisp: adisp,
 		sdisp: sdisp,
+		cfg:   cfg,
 	}
 	return &fa
 }
@@ -45,27 +47,34 @@ func (a *WebDAV) GetID() string { return a.id }
 
 // HandleRequest handles the request
 func (a *WebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	path := r.URL.Path
 
-	if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "GET" {
+	if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "GET" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.get)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "PUT" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "PUT" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.put)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "MKCOL" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "MKCOL" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.mkcol)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "OPTIONS" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "OPTIONS" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.options)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "PROPFIND" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "PROPFIND" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.propfind)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "LOCK" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "LOCK" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.lock)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "UNLOCK" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "UNLOCK" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.unlock)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "DELETE" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "DELETE" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.delete)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "MOVE" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "MOVE" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.move)
-	} else if strings.HasPrefix(path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/")) && r.Method == "COPY" {
+	} else if strings.HasPrefix(path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/")) && r.Method == "COPY" {
 		a.adisp.AuthenticateRequestWithMiddleware(ctx, w, r, true, a.copy)
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -78,13 +87,19 @@ func (a *WebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter, r *ht
 // <checksumtype>:<checksum>.
 // If the info is sent in the URL the name of the query param is checksum and thas the same format
 // as in the header.
-func (a *WebDAV) getChecksumInfo(ctx context.Context, r *http.Request) (string, string) {
+func (a *WebDAV) getChecksumInfo(ctx context.Context, r *http.Request) (string, string, error) {
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		a.log.Err(err.Error())
+		return "", "", err
+	}
+
 	var checksumInfo string
 	var checksumType string
 	var checksum string
 
 	// 1. Get checksum info from query params
-	checksumInfo = r.URL.Query().Get(a.cfg.GetDirectives().ChecksumQueryParamName)
+	checksumInfo = r.URL.Query().Get(directives.ChecksumQueryParamName)
 	if checksumInfo != "" {
 		parts := strings.Split(checksumInfo, ":")
 		if len(parts) > 1 {
@@ -95,12 +110,12 @@ func (a *WebDAV) getChecksumInfo(ctx context.Context, r *http.Request) (string, 
 
 	// 2. Get checksum info from header
 	if checksumInfo == "" { // If already provided in URL we don´t override
-		checksumInfo = r.Header.Get(a.cfg.GetDirectives().ChecksumHeaderName)
+		checksumInfo = r.Header.Get(directives.ChecksumHeaderName)
 		parts := strings.Split(checksumInfo, ":")
 		if len(parts) > 1 {
 			checksumType = parts[0]
 			checksum = parts[1]
 		}
 	}
-	return checksumType, checksum
+	return checksumType, checksum, nil
 }

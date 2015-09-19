@@ -20,8 +20,14 @@ import (
 
 func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + REMOTE_URL}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID() + REMOTE_URL}, "/"))
 
 	// MKCOL with weird body must fail with 415 (RFC2518:8.3.1)
 	if r.ContentLength > 0 {
@@ -30,7 +36,7 @@ func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err := a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
+	err = a.sdisp.DispatchCreateContainer(identity, resourcePath, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -42,7 +48,7 @@ func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		default:
-			log.Errf("Cannot create col: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot create container. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

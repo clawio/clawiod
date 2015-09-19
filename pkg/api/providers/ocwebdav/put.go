@@ -10,6 +10,7 @@
 package ocwebdav
 
 import (
+	"fmt"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/auth"
 	"github.com/clawio/clawiod/pkg/logger"
@@ -21,8 +22,14 @@ import (
 
 func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + REMOTE_URL}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID() + REMOTE_URL}, "/"))
 
 	/*
 	   Content-Range is dangerous for PUT requests:  PUT per definition
@@ -74,12 +81,13 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 		   but we don't get a request body we will fail the request to
 		   protect the end-user.
 		*/
-		log.Warningf("Intercepting the Finder problem: %+v", map[string]interface{}{"Content-Length": r.Header.Get("Content-Length"), "X-Expected-Entity-Length": r.Header.Get("X-Expected-Entity-Length")})
+		msg := fmt.Sprintf("Intercepting the Finder problem. err:(Content-Length:%s X-Expected-Entity-Length:%s)", r.Header.Get("Content-Length"), r.Header.Get("X-Expected-Entity-Length"))
+		log.Warning(msg)
 		// A possible mitigation is to change the Content-Length for the X-Expected-Entity-Length
 		xexpected := r.Header.Get("X-Expected-Entity-Length")
 		xexpectedInt, err := strconv.ParseInt(xexpected, 10, 64)
 		if err != nil {
-			log.Debugf("X-Expected-Entity-Length is not a number: %+v", map[string]interface{}{"err": err})
+			log.Debug("X-Expected-Entity-Length is not a number. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
@@ -107,7 +115,12 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 		*/
 	}
 
-	checksumType, checksum := a.getChecksumInfo(ctx, r)
+	checksumType, checksum, err := a.getChecksumInfo(ctx, r)
+	if err != nil {
+		a.log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	verifyChecksum := false
 	if checksumType != "" {
 		verifyChecksum = true
@@ -127,11 +140,11 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return
 				case *storage.BadChecksumError:
-					log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
+					log.Err("Data has been corrupted. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusPreconditionFailed), http.StatusPreconditionFailed)
 					return
 				default:
-					log.Errf("Cannot put file: %+v", map[string]interface{}{"err": err})
+					log.Err("Cannot put file. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
@@ -144,7 +157,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					return
 				default:
-					log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+					log.Err("Cannot stat resource. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
@@ -155,14 +168,14 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 			return
 
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 	}
 
 	if meta.IsContainer {
-		log.Errf("Cannot put a file where there is a directory: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot put a resource where there is a container. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 		return
 	}
@@ -176,11 +189,11 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				return
 			case *storage.BadChecksumError:
-				log.Errf("Data corruption: %+v", map[string]interface{}{"err": err})
+				log.Err("Data has been corrupted. err:" + err.Error())
 				http.Error(w, http.StatusText(http.StatusPreconditionFailed), http.StatusPreconditionFailed)
 				return
 			default:
-				log.Errf(err.Error())
+				log.Err(err.Error())
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -195,7 +208,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter, r *http.Request
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

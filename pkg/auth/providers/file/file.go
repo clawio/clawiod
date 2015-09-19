@@ -34,7 +34,7 @@ type user struct {
 // This authentication provider should be used just for testing or for small installations.
 type file struct {
 	id  string
-	cfg *config.Config
+	cfg config.Config
 	log logger.Logger
 	val atomic.Value
 }
@@ -53,8 +53,12 @@ func getUsersFromFile(path string) ([]*user, error) {
 }
 
 // New returns an file object or an error.
-func New(id string, cfg *config.Config, log logger.Logger) (auth.AuthenticationStrategy, error) {
-	users, err := getUsersFromFile(cfg.GetDirectives().FileAuthFilename)
+func New(id string, cfg config.Config, log logger.Logger) (auth.AuthenticationStrategy, error) {
+	directives, err := cfg.GetDirectives()
+	if err != nil {
+		return nil, err
+	}
+	users, err := getUsersFromFile(directives.FileAuthFilename)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +95,11 @@ func (f *file) Authenticate(eppn, password, idp string, extra interface{}) (*aut
 
 // Reload reloads the configuration from the file so new request will be the new configuration
 func (f *file) Reload() error {
-	users, err := getUsersFromFile(f.cfg.GetDirectives().FileAuthFilename)
+	directives, err := f.cfg.GetDirectives()
+	if err != nil {
+		return err
+	}
+	users, err := getUsersFromFile(directives.FileAuthFilename)
 	if err != nil {
 		return err
 	}
