@@ -18,14 +18,14 @@ import (
 	apistatic "github.com/clawio/clawiod/pkg/api/providers/static"
 	apistorage "github.com/clawio/clawiod/pkg/api/providers/storage"
 	apiwebdav "github.com/clawio/clawiod/pkg/api/providers/webdav"
-	"github.com/clawio/clawiod/pkg/apiserver"
 	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
 	config "github.com/clawio/clawiod/pkg/config/file"
+	apiserver "github.com/clawio/clawiod/pkg/httpserver/api"
 	logger "github.com/clawio/clawiod/pkg/logger/logrus"
 	"github.com/clawio/clawiod/pkg/storage"
 	//"github.com/clawio/clawiod/pkg/pidfile"
-	"github.com/clawio/clawiod/pkg/signaler"
+	"github.com/clawio/clawiod/pkg/signaler/signalone"
 	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
 	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
 	storageroot "github.com/clawio/clawiod/pkg/storage/providers/root"
@@ -280,7 +280,14 @@ func main() {
 	/***************************************************
 	 *** 9. Listen to OS signals to control the daemon *
 	 ***************************************************/
-	sig := signaler.New(srv, cfg)
+	signalerLog, err := logger.New(appLogWriter, "signaler", cfg)
+	if err != nil {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Cannot create signaler logger: ", err.Error())
+			os.Exit(1)
+		}
+	}
+	sig := signalone.New(srv, cfg, signalerLog)
 	endc := sig.Start()
 	<-endc
 	os.Exit(0)
