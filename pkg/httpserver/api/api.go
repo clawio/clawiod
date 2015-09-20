@@ -87,7 +87,7 @@ func (s *apiServer) HandleRequest() http.Handler {
 			// At this point we don't have a logger, so the output go to stderr
 			fmt.Fprintln(os.Stderr, err)
 		}
-		log.Info("Request started:" + r.Method + " " + r.RequestURI)
+		log.Info("Request started: " + r.Method + " " + r.RequestURI)
 		defer func() {
 			log.Info("Request finished")
 
