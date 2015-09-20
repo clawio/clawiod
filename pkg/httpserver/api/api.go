@@ -7,8 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package apiserver contains the functions to create the HTTP/HTTPS API server
-package apiserver
+package api
 
 import (
 	"errors"
@@ -16,6 +15,7 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/gorilla/handlers"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/httpserver"
 	"io"
 	"os"
 	"runtime"
@@ -33,13 +33,6 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/tylerb/graceful"
 )
 
-// APIServer is the interface that api servers must implement.
-type APIServer interface {
-	Start() error
-	StopChan() <-chan struct{}
-	Stop()
-}
-
 type apiServer struct {
 	appLogWriter io.Writer
 	reqLogWriter io.Writer
@@ -50,8 +43,8 @@ type apiServer struct {
 	cfg          config.Config
 }
 
-// New returns a new APIServer
-func New(w io.Writer, rw io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher, cfg config.Config) (APIServer, error) {
+// New returns a new HTTPServer
+func New(appLogWriter io.Writer, reqLogWriter io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher, cfg config.Config) (httpserver.HTTPServer, error) {
 	directives, err := cfg.GetDirectives()
 	if err != nil {
 		return nil, err
@@ -63,7 +56,7 @@ func New(w io.Writer, rw io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.D
 			Addr: fmt.Sprintf(":%d", directives.Port),
 		},
 	}
-	return &apiServer{appLogWriter: w, reqLogWriter: rw, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv, cfg: cfg}, nil
+	return &apiServer{appLogWriter: appLogWriter, reqLogWriter: reqLogWriter, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv, cfg: cfg}, nil
 }
 
 func (s *apiServer) Start() error {
@@ -71,7 +64,7 @@ func (s *apiServer) Start() error {
 	if err != nil {
 		return err
 	}
-	s.srv.Server.Handler = s.handleRequest()
+	s.srv.Server.Handler = s.HandleRequest()
 	if directives.TLSEnabled == true {
 		return s.srv.ListenAndServeTLS(directives.TLSCertificate, directives.TLSCertificatePrivateKey)
 	}
@@ -84,7 +77,7 @@ func (s *apiServer) Stop() {
 	s.srv.Stop(10 * time.Second)
 }
 
-func (s *apiServer) handleRequest() http.Handler {
+func (s *apiServer) HandleRequest() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		/******************************************
 		 ** 1. Create logger for request    *******
@@ -146,7 +139,7 @@ func (s *apiServer) handleRequest() http.Handler {
 
 	directives, err := s.cfg.GetDirectives()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error at apiServer.handleRequest():", err.Error())
+		fmt.Fprintln(os.Stderr, "error at apiServer.HandleRequest():", err.Error())
 		return http.HandlerFunc(fn500)
 	}
 
