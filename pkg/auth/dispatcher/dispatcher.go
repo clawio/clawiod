@@ -37,12 +37,12 @@ type Dispatcher interface {
 // dispatcher dispatchs authentication request to the proper backend.
 type dispatcher struct {
 	auths map[string]auth.AuthenticationStrategy
-	cfg   *config.Config
+	cfg   config.Config
 	log   logger.Logger
 }
 
 // New creates an dispatcher object or returns an error
-func New(cfg *config.Config, log logger.Logger) Dispatcher {
+func New(cfg config.Config, log logger.Logger) Dispatcher {
 	m := dispatcher{}
 	m.cfg = cfg
 	m.log = log
@@ -106,12 +106,15 @@ func (d *dispatcher) DispatchAuthenticate(eppn, password, idp string, extra inte
 //
 // More authentication methods wil be used in the future like Kerberos access tokens.
 func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error) {
-
+	directives, err := d.cfg.GetDirectives()
+	if err != nil {
+		return nil, err
+	}
 	// 1. JWT authentication token in query parameter.
-	authQueryParam := r.URL.Query().Get(d.cfg.GetDirectives().AuthTokenQueryParamName)
+	authQueryParam := r.URL.Query().Get(directives.AuthTokenQueryParamName)
 	if authQueryParam != "" {
 		token, err := jwt.Parse(authQueryParam, func(token *jwt.Token) (key interface{}, err error) {
-			return []byte(d.cfg.GetDirectives().TokenSecret), nil
+			return []byte(directives.TokenSecret), nil
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed parsing auth query param because: %s", err.Error())
@@ -150,10 +153,10 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 	}
 
 	// 2. JWT authentication token in HTTP header.
-	authHeader := r.Header.Get(d.cfg.GetDirectives().AuthTokenHeaderName)
+	authHeader := r.Header.Get(directives.AuthTokenHeaderName)
 	if authHeader != "" {
 		token, err := jwt.Parse(authHeader, func(token *jwt.Token) (key interface{}, err error) {
-			return []byte(d.cfg.GetDirectives().TokenSecret), nil
+			return []byte(directives.TokenSecret), nil
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed parsing auth header because: %s", err.Error())
@@ -207,16 +210,20 @@ func (d *dispatcher) AuthenticateRequest(r *http.Request) (*auth.Identity, error
 // CreateAuthTokenFromIdentity creates an JWT authentication token from an AuthenticationResource object.
 // It returns the JWT token or an error.
 func (d *dispatcher) CreateAuthTokenFromIdentity(identity *auth.Identity) (string, error) {
-	token := jwt.New(jwt.GetSigningMethod(d.cfg.GetDirectives().TokenCipherSuite))
+	directives, err := d.cfg.GetDirectives()
+	if err != nil {
+		return "", err
+	}
+	token := jwt.New(jwt.GetSigningMethod(directives.TokenCipherSuite))
 	token.Claims["eppn"] = identity.EPPN
 	token.Claims["idp"] = identity.IdP
 	token.Claims["displayname"] = identity.DisplayName
 	token.Claims["email"] = identity.Email
 	token.Claims["authid"] = identity.AuthID
-	token.Claims["iss"] = d.cfg.GetDirectives().TokenISS
-	token.Claims["exp"] = time.Now().Add(time.Second * time.Duration(d.cfg.GetDirectives().TokenExpirationTime)).Unix()
+	token.Claims["iss"] = directives.TokenISS
+	token.Claims["exp"] = time.Now().Add(time.Second * time.Duration(directives.TokenExpirationTime)).Unix()
 
-	tokenString, err := token.SignedString([]byte(d.cfg.GetDirectives().TokenSecret))
+	tokenString, err := token.SignedString([]byte(directives.TokenSecret))
 	if err != nil {
 		return "", err
 	}

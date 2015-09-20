@@ -7,17 +7,15 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package config provides the configuration directives of the daemon
+// Package config provides the config interface and configuration Directives
 package config
 
-import (
-	"encoding/json"
-	"io/ioutil"
-	"sync/atomic"
-)
+type Config interface {
+	GetDirectives() (*Directives, error) // if it is not possible to get the directives the implementation should panic
+	Reload() error
+}
 
-// Directives represents the diffrent configuration options.
-// To see changes in the confguration file the daemon must be reloaded.
+// Directives represents the different configuration options.
 type Directives struct {
 
 	// Indicates the port on which the server will be listening
@@ -169,60 +167,28 @@ type Directives struct {
 
 	// If enabled only authetnicated users can see the the static contents.
 	StaticAPIWithAuthentication bool `json:"static_api_with_authentication"`
-}
 
-// Config manages the load and reload of the configuration.
-type Config struct {
-	path string // where is the file located
-	val  atomic.Value
-}
+	// The major version of OwnCloud to fake.
+	OwnCloudVersionMajor string `json:"owncloud_version_major"`
 
-// New creates a new Config object given the path to the configuration file
-func New(path string) (*Config, error) {
-	directives, err := getDirectivesFromFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var v atomic.Value
-	v.Store(directives)
-	return &Config{path: path, val: v}, nil
-}
+	// The minor version of OwnCloud to fake.
+	OwnCloudVersionMinor string `json:"owncloud_version_minor"`
 
-// GetDirectives return the configuration directives
-func (c *Config) GetDirectives() *Directives {
-	x := c.val.Load()
-	d, _ := x.(*Directives)
-	return d
-}
+	// The micro version of OwnCloud to fake.
+	OwnCloudVersionMicro string `json:"owncloud_version_micro"`
 
-// Reload reloads the configuration from the file so new request will be the new configuration
-func (c *Config) Reload() error {
-	directives, err := getDirectivesFromFile(c.path)
-	if err != nil {
-		return err
-	}
-	c.val.Store(directives)
-	return nil
-}
+	// The edition of OwnCloud to fake.
+	OwnCloudEdition string `json:"owncloud_edition"`
 
-// Default returns an empty configuration file
-func Default() (string, error) {
-	cfg := Directives{}
-	cfgJSON, err := json.MarshalIndent(cfg, "", "    ")
-	if err != nil {
-		return "", err
-	}
-	return string(cfgJSON), nil
-}
-func getDirectivesFromFile(path string) (*Directives, error) {
-	configData, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	directives := &Directives{}
-	err = json.Unmarshal(configData, directives)
-	if err != nil {
-		return nil, err
-	}
-	return directives, nil
+	// iInterval to poll for server side changes (unused)
+	OwnCloudCapabilitiesCorePollInterval string `json:"owncloud_capabilities_core_poll_interval"`
+
+	// Indicates if server supports big file chunking
+	OwnCloudCapabilitiesFilesBigFileChunking bool `json:"owncloud_capabilities_files_big_file_chunking"`
+
+	// Indicates if server supports big file trash.
+	OwnCloudCapabilitiesFilesUndelete bool `json:"owncloud_capabilities_files_undelete"`
+
+	// Indicates if server supports big file versioning.
+	OwnCloudCapabilitiesFilesVersioning bool `json:"owncloud_capabilities_files_versioning"`
 }

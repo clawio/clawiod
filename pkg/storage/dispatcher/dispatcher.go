@@ -45,12 +45,12 @@ type Dispatcher interface {
 // dispatcher dispatchs storage operations to the correct storage
 type dispatcher struct {
 	storages map[string]storage.Storage
-	cfg      *config.Config
+	cfg      config.Config
 	log      logger.Logger
 }
 
 // New creates a dispatcher or returns an error
-func New(cfg *config.Config, log logger.Logger) Dispatcher {
+func New(cfg config.Config, log logger.Logger) Dispatcher {
 	m := dispatcher{storages: make(map[string]storage.Storage), cfg: cfg, log: log}
 	return &m
 }

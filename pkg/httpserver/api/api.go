@@ -7,8 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package apiserver contains the functions to create the HTTP/HTTPS API server
-package apiserver
+package api
 
 import (
 	"errors"
@@ -16,7 +15,9 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/gorilla/handlers"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/httpserver"
 	"io"
+	"os"
 	"runtime"
 
 	"net/http"
@@ -26,47 +27,46 @@ import (
 	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
 
-	"github.com/clawio/clawiod/pkg/logger"
+	logger "github.com/clawio/clawiod/pkg/logger/logrus"
 
 	"github.com/clawio/clawiod/Godeps/_workspace/src/code.google.com/p/go-uuid/uuid"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/tylerb/graceful"
 )
 
-// APIServer is the interface that api servers must implement.
-type APIServer interface {
-	Start() error
-	StopChan() <-chan struct{}
-	Stop()
-}
-
 type apiServer struct {
-	cfg       *config.Config
-	logWriter io.Writer
-	reqWriter io.Writer
-
-	apidisp apidisp.Dispatcher
-	adisp   authdisp.Dispatcher
-	sdisp   storagedisp.Dispatcher
-
-	srv *graceful.Server
+	appLogWriter io.Writer
+	reqLogWriter io.Writer
+	apidisp      apidisp.Dispatcher
+	adisp        authdisp.Dispatcher
+	sdisp        storagedisp.Dispatcher
+	srv          *graceful.Server
+	cfg          config.Config
 }
 
-// New returns a new APIServer
-func New(cfg *config.Config, w io.Writer, rw io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher) APIServer {
+// New returns a new HTTPServer
+func New(appLogWriter io.Writer, reqLogWriter io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher, cfg config.Config) (httpserver.HTTPServer, error) {
+	directives, err := cfg.GetDirectives()
+	if err != nil {
+		return nil, err
+	}
 	srv := &graceful.Server{
 		NoSignalHandling: true,
-		Timeout:          time.Duration(cfg.GetDirectives().ShutdownTimeout) * time.Second,
+		Timeout:          time.Duration(directives.ShutdownTimeout) * time.Second,
 		Server: &http.Server{
-			Addr: fmt.Sprintf(":%d", cfg.GetDirectives().Port),
+			Addr: fmt.Sprintf(":%d", directives.Port),
 		},
 	}
-	return &apiServer{cfg: cfg, logWriter: w, reqWriter: rw, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv}
+	return &apiServer{appLogWriter: appLogWriter, reqLogWriter: reqLogWriter, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv, cfg: cfg}, nil
 }
 
 func (s *apiServer) Start() error {
-	s.srv.Server.Handler = s.handleRequest()
-	if s.cfg.GetDirectives().TLSEnabled == true {
-		return s.srv.ListenAndServeTLS(s.cfg.GetDirectives().TLSCertificate, s.cfg.GetDirectives().TLSCertificatePrivateKey)
+	directives, err := s.cfg.GetDirectives()
+	if err != nil {
+		return err
+	}
+	s.srv.Server.Handler = s.HandleRequest()
+	if directives.TLSEnabled == true {
+		return s.srv.ListenAndServeTLS(directives.TLSCertificate, directives.TLSCertificatePrivateKey)
 	}
 	return s.srv.ListenAndServe()
 }
@@ -77,13 +77,17 @@ func (s *apiServer) Stop() {
 	s.srv.Stop(10 * time.Second)
 }
 
-func (s *apiServer) handleRequest() http.Handler {
+func (s *apiServer) HandleRequest() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		/******************************************
 		 ** 1. Create logger for request    *******
 		 ******************************************/
-		log := logger.New(s.cfg, s.logWriter, "api-"+uuid.New())
-		log.Infof("Request started: %+v", map[string]interface{}{"URL": r.RequestURI})
+		log, err := logger.New(s.appLogWriter, "api-"+uuid.New(), s.cfg)
+		if err != nil {
+			// At this point we don't have a logger, so the output go to stderr
+			fmt.Fprintln(os.Stderr, err)
+		}
+		log.Info("Request started:" + r.Method + " " + r.RequestURI)
 		defer func() {
 			log.Info("Request finished")
 
@@ -107,9 +111,15 @@ func (s *apiServer) handleRequest() http.Handler {
 			}
 		}()
 
+		directives, err := s.cfg.GetDirectives()
+		if err != nil {
+			log.Err(err.Error())
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 		// Check the server is not in maintenance mode
-		if s.cfg.GetDirectives().Maintenance == true {
-			http.Error(w, s.cfg.GetDirectives().MaintenanceMessage, http.StatusServiceUnavailable)
+		if directives.Maintenance == true {
+			http.Error(w, directives.MaintenanceMessage, http.StatusServiceUnavailable)
 			return
 		}
 
@@ -117,14 +127,24 @@ func (s *apiServer) handleRequest() http.Handler {
 		ctx := context.WithValue(rootCtx, "log", log)
 		ctx = context.WithValue(ctx, "adisp", s.adisp)
 		ctx = context.WithValue(ctx, "sdisp", s.sdisp)
-		ctx = context.WithValue(ctx, "cfg", s.cfg)
 
 		s.apidisp.HandleRequest(ctx, w, r)
 
 	}
 
-	if s.cfg.GetDirectives().LogRequests == true {
-		return handlers.CombinedLoggingHandler(s.reqWriter, http.HandlerFunc(fn))
+	fn500 := func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	directives, err := s.cfg.GetDirectives()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error at apiServer.HandleRequest():", err.Error())
+		return http.HandlerFunc(fn500)
+	}
+
+	if directives.LogRequests == true {
+		return handlers.CombinedLoggingHandler(s.reqLogWriter, http.HandlerFunc(fn))
 	}
 	return http.HandlerFunc(fn)
 }

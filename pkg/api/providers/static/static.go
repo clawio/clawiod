@@ -15,6 +15,7 @@ import (
 	"github.com/clawio/clawiod/pkg/api"
 	adisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
 	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/logger"
 	sdisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
 	"net/http"
 	"path"
@@ -24,13 +25,13 @@ import (
 // Static is the implementation of the API interface to serve static resources.
 type Static struct {
 	id    string
-	cfg   *config.Config
+	cfg   config.Config
 	adisp adisp.Dispatcher
 	sdisp sdisp.Dispatcher
 }
 
 // New creates a Static API.
-func New(id string, cfg *config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) api.API {
+func New(id string, cfg config.Config, adisp adisp.Dispatcher, sdisp sdisp.Dispatcher) api.API {
 	fa := Static{
 		id:    id,
 		cfg:   cfg,
@@ -45,6 +46,13 @@ func (a *Static) GetID() string { return a.id }
 
 // HandleRequest handles the request
 func (a *Static) HandleRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	fn := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID()}, "/")+"/")
-	http.ServeFile(w, r, path.Join(a.cfg.GetDirectives().StaticAPIDir, path.Clean(fn)))
+	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	fn := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID()}, "/")+"/")
+	http.ServeFile(w, r, path.Join(directives.StaticAPIDir, path.Clean(fn)))
 }

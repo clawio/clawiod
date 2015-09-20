@@ -21,9 +21,15 @@ import (
 
 func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
 
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID(), "/"}, "/"))
 
 	destination := r.Header.Get("Destination")
 	overwrite := r.Header.Get("Overwrite")
@@ -37,7 +43,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	destination = strings.TrimPrefix(destinationURL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID()}, "/")+"/")
+	destination = strings.TrimPrefix(destinationURL.Path, strings.Join([]string{directives.APIRoot, a.GetID()}, "/")+"/")
 
 	overwrite = strings.ToUpper(overwrite)
 	if overwrite == "" {
@@ -60,7 +66,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 					http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 					return
 				default:
-					log.Errf("Cannot copy resource: %+v", map[string]interface{}{"err": err})
+					log.Err("Cannot copy resource. err:" + err.Error())
 					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
@@ -69,7 +75,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusCreated)
 			return
 		default:
-			log.Errf("Cannot stat resource", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -87,7 +93,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter, r *http.Reques
 			http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 			return
 		default:
-			log.Errf("Cannot copy resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot copy resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

@@ -23,8 +23,14 @@ import (
 
 func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	log := ctx.Value("log").(logger.Logger)
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	identity := ctx.Value("identity").(*auth.Identity)
-	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID() + "/"}, "/"))
+	resourcePath := strings.TrimPrefix(r.URL.Path, strings.Join([]string{directives.APIRoot, a.GetID() + "/"}, "/"))
 
 	var children bool
 	depth := r.Header.Get("Depth")
@@ -40,16 +46,21 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter, r *http.Re
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		default:
-			log.Errf("Cannot stat resource: %+v", map[string]interface{}{"err": err})
+			log.Err("Cannot stat resource. err:" + err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 	}
 
-	responses := getPropFindFromMeta(a, meta)
+	responses, err := getPropFindFromMeta(a, meta)
+	if err != nil {
+		log.Err(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 	responsesXML, err := xml.Marshal(&responses)
 	if err != nil {
-		log.Errf("Cannot convert to XML: %+v", map[string]interface{}{"err": err})
+		log.Err("Cannot convert to XML. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -58,24 +69,40 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter, r *http.Re
 	w.WriteHeader(207)
 	_, err = w.Write([]byte(`<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:">` + string(responsesXML) + `</d:multistatus>`))
 	if err != nil {
-		log.Errf("Error sending reponse: %+v", map[string]interface{}{"err": err})
+		log.Err("Error sending reponse. err:" + err.Error())
 	}
 }
-func getPropFindFromMeta(a *WebDAV, meta *storage.MetaData) []responseXML {
-	responses := []responseXML{}
-	responses = append(responses, getResponseFromMeta(a, meta))
+func getPropFindFromMeta(a *WebDAV, meta *storage.MetaData) ([]*responseXML, error) {
+	responses := []*responseXML{}
 
+	parentResponse, err := getResponseFromMeta(a, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	responses = append(responses, parentResponse)
 	if len(meta.Children) > 0 {
 		for _, m := range meta.Children {
-			responses = append(responses, getResponseFromMeta(a, m))
+			childResponse, err := getResponseFromMeta(a, m)
+			if err != nil {
+				return nil, err
+			}
+			responses = append(responses, childResponse)
 		}
 	}
 
-	return responses
+	return responses, nil
 }
 
-func getResponseFromMeta(a *WebDAV, meta *storage.MetaData) responseXML {
+func getResponseFromMeta(a *WebDAV, meta *storage.MetaData) (*responseXML, error) {
+	directives, err := a.cfg.GetDirectives()
+	if err != nil {
+		return nil, err
+	}
+	// TODO: clean a little bit this and refactor creation of properties
 	propList := []propertyXML{}
+
+	// Attributes
 	t := time.Unix(int64(meta.Modified), 0)
 	lasModifiedString := t.Format(time.RFC1123)
 	getContentLegnth := propertyXML{xml.Name{Space: "", Local: "d:getcontentlength"}, "", []byte(fmt.Sprintf("%d", meta.Size))}
@@ -89,6 +116,7 @@ func getResponseFromMeta(a *WebDAV, meta *storage.MetaData) responseXML {
 	}
 	propList = append(propList, getContentLegnth, getLastModified, getETag, getContentType)
 
+	// PropStat, only HTTP/1.1 200 is sent.
 	propStatList := []propstatXML{}
 
 	propStat := propstatXML{}
@@ -97,10 +125,10 @@ func getResponseFromMeta(a *WebDAV, meta *storage.MetaData) responseXML {
 	propStatList = append(propStatList, propStat)
 
 	response := responseXML{}
-	response.Href = strings.Join([]string{a.cfg.GetDirectives().APIRoot, a.GetID(), meta.Path}, "/")
+	response.Href = strings.Join([]string{directives.APIRoot, a.GetID(), meta.Path}, "/")
 	response.Propstat = propStatList
 
-	return response
+	return &response, nil
 
 }
 
