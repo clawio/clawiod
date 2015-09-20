@@ -168,6 +168,12 @@ type Directives struct {
 	// If enabled only authetnicated users can see the the static contents.
 	StaticAPIWithAuthentication bool `json:"static_api_with_authentication"`
 
+	// If true enables the WebDAV API
+	OCWebDAVAPIEnabled bool `json:"ocwebdav_api_enabled"`
+
+	// The ID of the OCWebDAV API
+	OCWebDAVAPIID string `json:"ocwebdav_api_id"`
+
 	// The major version of OwnCloud to fake.
 	OwnCloudVersionMajor string `json:"owncloud_version_major"`
 
