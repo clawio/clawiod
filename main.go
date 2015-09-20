@@ -150,7 +150,7 @@ func main() {
 	localStorage := storagelocal.New(directives.LocalStoragePrefix, cfg, localStorageLog)
 
 	// The storage prefix for root storage must be ALWAYS the empty string. This is the only way to get
-	// OC sync clients connects to ClawIO skipping folder configuration.
+	// OC sync clients connect to ClawIO skipping folder configuration.
 	rootStorageLog, err := logger.New(appLogWriter, "storage-root", cfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot create root storage logger: ", err.Error())
@@ -222,7 +222,7 @@ func main() {
 		}
 	}
 
-	if directives.WebDAVAPIEnabled {
+	if directives.OCWebDAVAPIEnabled {
 		apiOCWebDAVLog, err := logger.New(appLogWriter, "apiocwebdav", cfg)
 		if err != nil {
 			if err != nil {
@@ -230,7 +230,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		ocwebdavAPI := apiocwebdav.New("ocwebdav", adisp, sdisp, cfg, apiOCWebDAVLog)
+		ocwebdavAPI := apiocwebdav.New(directives.OCWebDAVAPIID, adisp, sdisp, cfg, apiOCWebDAVLog)
 		err = apdisp.AddAPI(ocwebdavAPI)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Cannot add OCWebDAV API to API dispatcher: ", err)
