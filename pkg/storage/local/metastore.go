@@ -1,0 +1,16 @@
+package local
+
+/*import (
+	"database/sql"
+	"fmt"
+)
+
+const metaTable = `
+	CREATE TABLE userinfo (
+    uid INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(64) NULL,
+    departname VARCHAR(64) NULL,
+    created DATE NULL
+);
+`
+*/

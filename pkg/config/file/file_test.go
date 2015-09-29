@@ -45,24 +45,20 @@ func (s *ConfigSuite) SetUpSuite(c *C) {
 
 // SUCCESSFUL SCENARIOS
 func (s *ConfigSuite) TestGetDirectives(c *C) {
-	directives, err := s._interface.GetDirectives()
-	if err != nil {
-		c.Error(err)
-	}
-	c.Assert(directives.Maintenance, Equals, true)
+	c.Assert(s._interface.GetDirectives().Maintenance, Equals, true)
 }
 func (s *ConfigSuite) TestReload(c *C) {
 	// update file config behind the scenes
-	err := ioutil.WriteFile(s._implementation.path, []byte(`{"maintenance": false}`), 0644)
+	err := ioutil.WriteFile(s._implementation.path,
+		[]byte(`{"maintenance": false}`), 0644)
+
 	if err != nil {
 		c.Error(err)
 	}
 
-	err = s._interface.Reload()
-	if err != nil {
-		c.Error(err)
-	}
-	newDirectives, err := s._interface.GetDirectives()
+	s._interface.Reload()
+
+	newDirectives := s._interface.GetDirectives()
 	if err != nil {
 		c.Error(err)
 	}
@@ -76,12 +72,13 @@ func (s *ConfigSuite) TestNewFail(c *C) {
 		c.Error("Must have failed: Path did not exist")
 	}
 }
+
 func (s *ConfigSuite) TestReloadFail(c *C) {
 	s._implementation.path = "paththatdoesnotexists"
-	err := s._interface.Reload()
-	if err == nil {
-		c.Error("Must have failed: Path did not exist")
-	}
+	panicMsg := "fileconfig: cannot reload. err:open paththatdoesnotexists: " +
+		"no such file or directory"
+
+	c.Assert(func() { s._interface.Reload() }, Panics, panicMsg)
 }
 func (s *ConfigSuite) TestInvalidJSON(c *C) {
 	err := ioutil.WriteFile(s.originalFilename, []byte("thisisnotjson"), 0644)
@@ -89,8 +86,8 @@ func (s *ConfigSuite) TestInvalidJSON(c *C) {
 		c.Error(err)
 	}
 	s._implementation.path = s.originalFilename
-	err = s._interface.Reload()
-	if err == nil {
-		c.Error("Must have failed: JSON is invalid")
-	}
+	panicMsg := "fileconfig: cannot reload. err:invalid character 'h' " +
+		"in literal true (expecting 'r')"
+
+	c.Assert(func() { s._interface.Reload() }, Panics, panicMsg)
 }

@@ -7,9 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package storage defines the interface that storage providers
-// must implement and
-// defines the metadata resource.
+// Package storage defines the Storage interface.
 package storage
 
 import (
@@ -17,6 +15,11 @@ import (
 	"github.com/clawio/clawiod/pkg/auth"
 	"io"
 	"strings"
+)
+
+const (
+	DEFAULT_OBJECT_MIMETYPE    = "application/octet-stream"
+	DEFAULT_CONTAINER_MIMETYPE = "application/container"
 )
 
 // The first 16 bits are reserved and are part of the public API.
@@ -258,7 +261,7 @@ type Storage interface {
 	Capabilities(identity auth.Identity) Capabilities
 
 	// CommitChunkedUpload commits the transaction
-	CommitChunkedUpload(chunkID string, checksum, checksumType string) error
+	CommitChunkedUpload(checksum Checksum) error
 
 	// Copy copies a resource from one resourcePath to another.
 	// If resourcePaths belong to different storages this is a third party copy.

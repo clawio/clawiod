@@ -33,31 +33,12 @@ func (s *ConfigSuite) SetUpSuite(c *C) {
 
 // SUCCESSFUL SCENARIOS
 func (s *ConfigSuite) TestGetDirectives(c *C) {
-	directives, err := s._interface.GetDirectives()
-	if err != nil {
-		c.Error(err)
-	}
-	c.Assert(directives.Maintenance, Equals, true)
+	c.Assert(s._interface.GetDirectives().Maintenance, Equals, true)
 }
 
 func (s *ConfigSuite) TestReload(c *C) {
 	s._implementation.directives = &config.Directives{Maintenance: false}
-	err := s._interface.Reload()
-	if err != nil {
-		c.Error(err)
-	}
-	newDirectives, err := s._interface.GetDirectives()
-	if err != nil {
-		c.Error(err)
-	}
+	s._interface.Reload()
+	newDirectives := s._interface.GetDirectives()
 	c.Assert(newDirectives.Maintenance, Equals, false)
-}
-
-// FAILURE SCENARIOS
-func (s *ConfigSuite) TestGetDirectivesFail(c *C) {
-	mockConfig := New(&config.Directives{}, true)
-	_, err := mockConfig.GetDirectives()
-	if err == nil {
-		c.Error("Must have failed: cannot get directives")
-	}
 }

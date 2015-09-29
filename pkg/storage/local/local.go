@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package local implements the storage interface to use a local filesystem as a storage backend.
+// Package local implements a local filesystem.
 package local
 
 import (
@@ -27,10 +27,8 @@ import (
 )
 
 const (
-	DIR_PERM                   = 0775
-	DEFAULT_OBJECT_MIMETYPE    = "application/octet-stream"
-	DEFAULT_CONTAINER_MIMETYPE = "application/container"
-	SUPPORTED_CHECKSUMS        = "md5"
+	DIR_PERM           = 0775
+	SUPPORTED_CHECKSUM = "md5"
 )
 
 // local is the implementation of the Storage interface to use a local
@@ -61,7 +59,7 @@ func (s *local) CreateUserHomeDirectory(identity auth.Identity) error {
 		return nil
 	}
 	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(identity.AuthID, identity.EPPN))
+		path.Join(identity.AuthTypeID(), identity.PID()))
 
 	return s.convertError(os.MkdirAll(homeDir, DIR_PERM))
 }
@@ -141,12 +139,13 @@ func (s *local) Stat(identity auth.Identity, resourcePath string,
 	}
 	mimeType := s.getMimeType(finfo)
 	perm := s.getPermissions(finfo)
+	parentPath := s.pathWithPrefix(relPath)
 	if finfo.IsDir() {
-		relPath += "/" // container' path ends with slash
+		parentPath += "/" // container' path ends with slash
 	}
 	m := meta{
-		id:          relPath,
-		path:        relPath,
+		id:          parentPath,
+		path:        parentPath,
 		size:        uint64(finfo.Size()),
 		isContainer: finfo.IsDir(),
 		modified:    uint64(finfo.ModTime().UnixNano()),
@@ -287,8 +286,7 @@ func (s *local) PutChunkedObject(identity auth.Identity, r io.Reader,
 	return fmt.Errorf("not implemented")
 }
 
-func (s *local) CommitChunkedUpload(chunkID string,
-	checksum, checksumType string) error {
+func (s *local) CommitChunkedUpload(checksum storage.Checksum) error {
 
 	return fmt.Errorf("not implemented")
 }
@@ -399,7 +397,7 @@ func (s *local) stageDir(source string, dest string) (err error) {
 
 func (s *local) isHomeDirCreated(identity auth.Identity) (bool, error) {
 	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(identity.AuthID, identity.EPPN))
+		path.Join(identity.AuthTypeID(), identity.PID()))
 
 	_, err := os.Stat(homeDir)
 	if err == nil {
@@ -415,7 +413,7 @@ func (s *local) sanitizePath(resourcePath string) string {
 	return resourcePath
 }
 
-func (s *local) getPathWithoutStoragePrefix(resourcePath string) string {
+func (s *local) pathWithoutPrefix(resourcePath string) string {
 	parts := strings.Split(resourcePath, "/")
 	if len(parts) == 1 {
 		return ""
@@ -423,17 +421,17 @@ func (s *local) getPathWithoutStoragePrefix(resourcePath string) string {
 		return strings.Join(parts[1:], "/")
 	}
 }
-func (s *local) getPathWithStoragePrefix(relPath string) string {
+func (s *local) pathWithPrefix(relPath string) string {
 	return path.Join(s.Prefix(), path.Clean(relPath))
 }
 
 func (s *local) getMimeType(fi os.FileInfo) string {
 	if fi.IsDir() {
-		return DEFAULT_CONTAINER_MIMETYPE
+		return storage.DEFAULT_CONTAINER_MIMETYPE
 	}
 	mimeType := mime.TypeByExtension(path.Ext(fi.Name()))
 	if mimeType == "" {
-		mimeType = DEFAULT_OBJECT_MIMETYPE
+		mimeType = storage.DEFAULT_OBJECT_MIMETYPE
 	}
 	return mimeType
 }
@@ -448,11 +446,12 @@ func (s *local) getPermissions(fi os.FileInfo) storage.ResourceMode {
 
 // getRelAndAbsPaths returns the relativePath (without storage prefix)
 // and the absolutePath (the fs path)
-func (s *local) getRelAndAbsPaths(resourcePath string, identity auth.Identity) (string, string) {
+func (s *local) getRelAndAbsPaths(resourcePath string,
+	identity auth.Identity) (string, string) {
 
-	relPath := s.getPathWithoutStoragePrefix(resourcePath)
+	relPath := s.pathWithoutPrefix(resourcePath)
 	absPath := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(identity.AuthID, identity.EPPN, relPath))
+		path.Join(identity.AuthTypeID(), identity.PID(), relPath))
 
 	return relPath, absPath
 }
@@ -468,6 +467,7 @@ type meta struct {
 	mimeType    string
 	permissions storage.ResourceMode
 	children    []storage.MetaData
+	extra       interface{}
 }
 
 func (m *meta) ID() string                        { return m.id }
@@ -477,10 +477,10 @@ func (m *meta) IsContainer() bool                 { return m.isContainer }
 func (m *meta) Modified() uint64                  { return m.modified }
 func (m *meta) ETag() string                      { return m.etag }
 func (m *meta) MimeType() string                  { return m.mimeType }
-func (m *meta) Permissions() storage.ResourceMode { return m.Permissions() }
+func (m *meta) Permissions() storage.ResourceMode { return m.permissions }
 func (m *meta) Checksum() storage.Checksum        { return m.checksum }
 func (m *meta) Children() []storage.MetaData      { return m.children }
-func (m *meta) Extra() interface{}                { return m.Extra() }
+func (m *meta) Extra() interface{}                { return m.extra }
 
 type capabilities struct{}
 
@@ -504,5 +504,7 @@ func (c *capabilities) RestoreDeletedResource() bool  { return false }
 func (c *capabilities) PurgeDeletedResource() bool    { return false }
 func (c *capabilities) VerifyClientChecksum() bool    { return false }
 func (c *capabilities) SendChecksum() bool            { return false }
-func (c *capabilities) SupportedChecksum() string     { return "md5" }
 func (c *capabilities) CreateUserHomeDirectory() bool { return false }
+func (c *capabilities) SupportedChecksum() string {
+	return SUPPORTED_CHECKSUM
+}

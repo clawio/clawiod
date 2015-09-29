@@ -66,13 +66,3 @@ func (s *ConfigSuite) TestWarning(c *C) {
 func (s *ConfigSuite) TestError(c *C) {
 	s._interface.Err("ERRORMSG")
 }
-
-// FAILURE SCENARIOS
-func (s *ConfigSuite) TestNewFail(c *C) {
-	mockConfig := mock.New(&config.Directives{}, true)
-
-	_, err := New(s._implementation.w, "TEST", mockConfig)
-	if err == nil {
-		c.Error("Must have failed: cannot get directives")
-	}
-}
