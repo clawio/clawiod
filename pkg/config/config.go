@@ -11,8 +11,14 @@
 package config
 
 type Config interface {
-	GetDirectives() (*Directives, error) // if it is not possible to get the directives the implementation should panic
-	Reload() error
+
+	// if it is not possible to get
+	// the directives the implementation should panic
+	GetDirectives() *Directives
+
+	// if it is not possible to reload
+	// the directives the implementation should panic
+	Reload()
 }
 
 // Directives represents the different configuration options.

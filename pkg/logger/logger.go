@@ -7,10 +7,10 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package logger defines the logger used by the daemon and libraries to log information.
+// Package logger defines the logger interface.
 package logger
 
-// Logger is the interface that loggers must implement
+// Logger defines the Logger interface.
 type Logger interface {
 	RID() string
 	Err(msg string)

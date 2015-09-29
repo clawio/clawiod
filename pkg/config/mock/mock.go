@@ -11,7 +11,6 @@
 package mock
 
 import (
-	"errors"
 	"github.com/clawio/clawiod/pkg/config"
 )
 
@@ -25,14 +24,10 @@ func New(directives *config.Directives, triggerError bool) config.Config {
 	return m
 }
 
-func (c *mockConfig) GetDirectives() (*config.Directives, error) {
-	if c.triggerError {
-		return nil, errors.New("Cannot get directives")
-	}
-	return c.directives, nil
+func (c *mockConfig) GetDirectives() *config.Directives {
+	return c.directives
 }
 
-func (c *mockConfig) Reload() error {
+func (c *mockConfig) Reload() {
 	// reload is done behing the scenes manipulating the implementation
-	return nil
 }

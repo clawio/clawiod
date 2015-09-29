@@ -1,3 +1,13 @@
+// ClawIO - Scalable Distributed High-Performance Synchronisation and Sharing Service
+//
+// Copyright (C) 2015  Hugo González Labrador <clawio@hugo.labkode.com>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version. See file COPYNG.
+
+// Package logrus implements a logger based on logrus.
 package logrus
 
 import (
@@ -9,13 +19,9 @@ import (
 
 // New returns a logrus logger
 func New(w io.Writer, rid string, cfg config.Config) (logger.Logger, error) {
-	directives, err := cfg.GetDirectives()
-	if err != nil {
-		return nil, err
-	}
 	rus := lgrus.New()
 	rus.Out = w
-	rus.Level = lgrus.Level(directives.LogLevel + 2) // Added +2 because logrus has more log levels (Fatal and Panic)
+	rus.Level = lgrus.Level(cfg.GetDirectives().LogLevel + 2) // Added +2 because logrus has more log levels (Fatal and Panic)
 	rus.Formatter = &lgrus.JSONFormatter{}
 	return &rusLogger{w: w, log: rus, rid: rid, cfg: cfg}, nil
 }

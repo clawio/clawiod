@@ -7,7 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package server contains the functions to create the HTTP/HTTPS API server
+// Package httpserver defines the HTTPServer interface.
 package httpserver
 
 import (

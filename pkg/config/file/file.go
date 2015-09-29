@@ -34,20 +34,19 @@ func New(path string) (config.Config, error) {
 }
 
 // Getdirectives returns the connfiguration directives from a file.
-func (c *fileConfig) GetDirectives() (*config.Directives, error) {
+func (c *fileConfig) GetDirectives() *config.Directives {
 	x := c.val.Load()
 	d, _ := x.(*config.Directives)
-	return d, nil
+	return d
 }
 
 // Reload reloads the directives from the local file.
-func (c *fileConfig) Reload() error {
+func (c *fileConfig) Reload() {
 	directives, err := getDirectivesFromFile(c.path)
 	if err != nil {
-		return err
+		panic("fileconfig: cannot reload. err:" + err.Error())
 	}
 	c.val.Store(directives)
-	return nil
 }
 func getDirectivesFromFile(path string) (*config.Directives, error) {
 	fileConfigData, err := ioutil.ReadFile(path)

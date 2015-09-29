@@ -7,18 +7,18 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package api defines the API interface that every API should implement.
+// Package api defines the API interface.
 package api
 
 import (
-	"net/http"
-
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+	"net/http"
 )
 
-// API is the interface that APIs should implement to be served from the daemon.
-// An API is defined by an ID, so for example the APIFiles will have the ID 'files'.
+// API is the interface that APIs must implement.
+// Every API has to provide a unique ID and handle the request with the
+// HandleRequest mehtod.
 type API interface {
-	GetID() string
+	ID() string
 	HandleRequest(context.Context, http.ResponseWriter, *http.Request)
 }

@@ -7,6 +7,7 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
+// Package api implements an API server.
 package api
 
 import (
@@ -23,9 +24,9 @@ import (
 	"net/http"
 	"time"
 
-	apidisp "github.com/clawio/clawiod/pkg/api/dispatcher"
-	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
-	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
+	apidisp "github.com/clawio/clawiod/pkg/api/pat"
+	authdisp "github.com/clawio/clawiod/pkg/auth/pat"
+	storagedisp "github.com/clawio/clawiod/pkg/storage/pat"
 
 	logger "github.com/clawio/clawiod/pkg/logger/logrus"
 
@@ -36,37 +37,36 @@ import (
 type apiServer struct {
 	appLogWriter io.Writer
 	reqLogWriter io.Writer
-	apidisp      apidisp.Dispatcher
-	adisp        authdisp.Dispatcher
-	sdisp        storagedisp.Dispatcher
+	apidisp      apidisp.Pat
+	adisp        authdisp.Pat
+	sdisp        storagedisp.Pat
 	srv          *graceful.Server
-	cfg          config.Config
+	config.Config
 }
 
 // New returns a new HTTPServer
-func New(appLogWriter io.Writer, reqLogWriter io.Writer, apidisp apidisp.Dispatcher, adisp authdisp.Dispatcher, sdisp storagedisp.Dispatcher, cfg config.Config) (httpserver.HTTPServer, error) {
-	directives, err := cfg.GetDirectives()
-	if err != nil {
-		return nil, err
-	}
+func New(appLogWriter io.Writer, reqLogWriter io.Writer, apidisp apidisp.Pat,
+	adisp authdisp.Pat, sdisp storagedisp.Pat,
+	cfg config.Config) (httpserver.HTTPServer, error) {
+
 	srv := &graceful.Server{
 		NoSignalHandling: true,
-		Timeout:          time.Duration(directives.ShutdownTimeout) * time.Second,
+		Timeout: time.Duration(time.Second *
+			time.Duration(cfg.GetDirectives().ShutdownTimeout)),
 		Server: &http.Server{
-			Addr: fmt.Sprintf(":%d", directives.Port),
+			Addr: fmt.Sprintf(":%d", cfg.GetDirectives().Port),
 		},
 	}
-	return &apiServer{appLogWriter: appLogWriter, reqLogWriter: reqLogWriter, apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv, cfg: cfg}, nil
+	return &apiServer{appLogWriter: appLogWriter, reqLogWriter: reqLogWriter,
+		apidisp: apidisp, adisp: adisp, sdisp: sdisp, srv: srv,
+		Config: cfg}, nil
 }
 
 func (s *apiServer) Start() error {
-	directives, err := s.cfg.GetDirectives()
-	if err != nil {
-		return err
-	}
 	s.srv.Server.Handler = s.HandleRequest()
-	if directives.TLSEnabled == true {
-		return s.srv.ListenAndServeTLS(directives.TLSCertificate, directives.TLSCertificatePrivateKey)
+	if s.GetDirectives().TLSEnabled == true {
+		return s.srv.ListenAndServeTLS(s.GetDirectives().TLSCertificate,
+			s.GetDirectives().TLSCertificatePrivateKey)
 	}
 	return s.srv.ListenAndServe()
 }
@@ -82,14 +82,14 @@ func (s *apiServer) HandleRequest() http.Handler {
 		/******************************************
 		 ** 1. Create logger for request    *******
 		 ******************************************/
-		log, err := logger.New(s.appLogWriter, "api-"+uuid.New(), s.cfg)
+		log, err := logger.New(s.appLogWriter, "api-"+uuid.New(), s.Config)
 		if err != nil {
 			// At this point we don't have a logger, so the output go to stderr
 			fmt.Fprintln(os.Stderr, err)
 		}
-		log.Info("Request started: " + r.Method + " " + r.RequestURI)
+		log.Info("apiserver: Request started. " + r.Method + " " + r.RequestURI)
 		defer func() {
-			log.Info("Request finished")
+			log.Info("apiserver: Request finished.")
 
 			// Catch panic and return 500
 			var err error
@@ -105,21 +105,20 @@ func (s *apiServer) HandleRequest() http.Handler {
 				}
 				trace := make([]byte, 2048)
 				count := runtime.Stack(trace, true)
-				log.Err(fmt.Sprintf("Recover from panic: %s\nStack of %d bytes: %s\n", err.Error(), count, trace))
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				msg := "apiserver: Recover from panic: %s\nStack of %d bytes: %s\n"
+				log.Err(fmt.Sprintf(msg, err.Error(), count, trace))
+				msg = "Internal server error. Contact administrator with this ID:" + log.RID()
+				http.Error(w, msg, http.StatusInternalServerError)
+
 				return
 			}
 		}()
 
-		directives, err := s.cfg.GetDirectives()
-		if err != nil {
-			log.Err(err.Error())
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
 		// Check the server is not in maintenance mode
-		if directives.Maintenance == true {
-			http.Error(w, directives.MaintenanceMessage, http.StatusServiceUnavailable)
+		if s.GetDirectives().Maintenance == true {
+			http.Error(w, s.GetDirectives().MaintenanceMessage,
+				http.StatusServiceUnavailable)
+
 			return
 		}
 
@@ -132,19 +131,9 @@ func (s *apiServer) HandleRequest() http.Handler {
 
 	}
 
-	fn500 := func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	directives, err := s.cfg.GetDirectives()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error at apiServer.HandleRequest():", err.Error())
-		return http.HandlerFunc(fn500)
-	}
-
-	if directives.LogRequests == true {
-		return handlers.CombinedLoggingHandler(s.reqLogWriter, http.HandlerFunc(fn))
+	if s.GetDirectives().LogRequests == true {
+		return handlers.CombinedLoggingHandler(s.reqLogWriter,
+			http.HandlerFunc(fn))
 	}
 	return http.HandlerFunc(fn)
 }
