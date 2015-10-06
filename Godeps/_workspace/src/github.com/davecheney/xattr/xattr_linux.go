@@ -1,5 +1,6 @@
 package xattr
 
+import "C"
 import (
 	"strings"
 )
