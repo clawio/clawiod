@@ -2,6 +2,8 @@
 
 set -e
 
+apt-get install -y attr
+
 cp /opt/clawiod/config/clawiod.conf /etc/clawiod/clawiod.conf
 cp /opt/clawiod/config/fileauth.conf /etc/clawiod/conf.d/fileauth.conf
 cp /opt/clawiod/config/cert.pem /etc/clawiod/conf.d/cert.pem
