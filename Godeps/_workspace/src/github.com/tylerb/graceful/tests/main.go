@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/tylerb/graceful"
 	"github.com/codegangsta/negroni"
+	"github.com/tylerb/graceful"
 )
 
 func main() {

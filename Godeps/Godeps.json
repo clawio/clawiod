@@ -13,6 +13,15 @@
 			"Rev": "84b968cb9f82d727044973f8255489bbe15e9948"
 		},
 		{
+			"ImportPath": "github.com/aerospike/aerospike-client-go",
+			"Comment": "v1.6.5-4-gfae9606",
+			"Rev": "fae9606198eaaa55f37b0468c24684e941e4b817"
+		},
+		{
+			"ImportPath": "github.com/davecheney/xattr",
+			"Rev": "a3c0139b6e1ff63fa02d9aacc93f8eb3ff7c4fb3"
+		},
+		{
 			"ImportPath": "github.com/dgrijalva/jwt-go",
 			"Comment": "v2.3.0-3-g3b55c4a",
 			"Rev": "3b55c4adf0c509e95f815b0cbb36424c7d49c73c"

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+	"golang.org/x/net/context"
 )
 
 const (
