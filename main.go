@@ -142,7 +142,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Cannot create local storage logger: ", err.Error())
 		os.Exit(1)
 	}
-	localStorage := storagelocal.New(cfg.GetDirectives().LocalStoragePrefix, cfg, localStorageLog)
+	localStorage, err := storagelocal.New(cfg.GetDirectives().LocalStoragePrefix, cfg, localStorageLog)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create local storage: ", err.Error())
+		os.Exit(1)
+	}
 
 	// The storage prefix for root storage must be ALWAYS the empty string. This is the only way to get
 	// OC sync clients connect to ClawIO skipping folder configuration.

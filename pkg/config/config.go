@@ -111,6 +111,23 @@ type Directives struct {
 	// Indicates where temporary data will be saved.
 	LocalStorageRootTmpDir string `json:"local_storage_root_tmp_dir"`
 
+	// Aerospike host used by LocalStorage
+	LocalStorageAeroSpikeHost string `json:"local_storage_aerospike_host"`
+
+	// Aerospike port used by LocalStorage
+	LocalStorageAeroSpikePort int `json:"local_storage_aerospike_port"`
+
+	// AeroSpike namespace used by LocalStorage.
+	LocalStorageAeroSpikeNamespace string `json:"local_storage_aerospike_namespace"`
+
+	// Aerospike set used by LocalStorage to propagate changes.
+	LocalStorageAeroSpikePropagatorSet string `json:"local_storage_aerospike_propagator_set"`
+
+	// AeroSpike set used by LocalStorage to index resource IDs.
+	LocalStorageAeroSpikeRID2PathSet string `json:"local_storage_aerospike_rid2path_set"`
+
+	//LocalStorageMetaStoreSQLite3 string `json:"local_storage_metastore_sqlite3"`
+
 	/*********************************
 	 ** FILE AUTHENTICATION **********
 	**********************************/

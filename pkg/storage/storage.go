@@ -130,14 +130,20 @@ type Capabilities interface {
 	// Can purge a resource.
 	PurgeDeletedResource() bool
 
-	// Can verify client checksums
-	VerifyClientChecksum() bool
-
 	// Can send checksums to the client
 	SendChecksum() bool
 
 	// The checksum supported on the server.
+	// If empty the server does not computes the checksum.
+	// If this paremeter is set, the server will compute the checksum
+	// independently of the value of VerifyClientChecksum.
 	SupportedChecksum() string
+
+	// Can verify client checksums.
+	// When it is enabled and SupportedChecksum is defined,
+	// the server will compare the client´s supplied checksum against
+	// the server checksum.
+	VerifyClientChecksum() bool
 
 	// Create user home directory on login
 	CreateUserHomeDirectory() bool
