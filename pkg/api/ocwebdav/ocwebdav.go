@@ -701,7 +701,7 @@ func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	w.Header().Set("ETag", meta.ETag())
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
-	msg := `<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:"`
+	msg := `<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" `
 	msg += `xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns">`
 	msg += string(responsesXML) + `</d:multistatus>`
 	_, err = w.Write([]byte(msg))
