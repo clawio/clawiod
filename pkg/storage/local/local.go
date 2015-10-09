@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -277,15 +278,16 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 				return s.convertError(err)
 			}
 		}
+		err = xattr.SetXAttr(tmpPath, "user.checksum",
+			[]byte(srvChk+":"+computedChecksum), xattr.XAttrCreateOrReplace)
 
-		err = xattr.SetXattr(tmpPath, "checksum", []byte(srvChk+":"+computedChecksum))
-		if err != nil && !strings.Contains(err.Error(), "errno 0") {
+		if err != nil {
 			return s.convertError(err)
 		}
 	}
 
 	resourceID := uuid.New()
-	err = xattr.SetXattr(tmpPath, "id", []byte(resourceID))
+	err = xattr.SetXAttr(tmpPath, "id", []byte(resourceID), xattr.XAttrCreate)
 
 	// Atomic move from tmp file to target file.
 	err = s.commitPutFile(tmpPath, absPath)
@@ -411,14 +413,25 @@ func (s *local) getFSInfo(resourcePath string,
 		return nil, s.convertError(err)
 	}
 
-	id, found, err := xattr.GetXattr(absPath, "id")
+	id, err := xattr.GetXAttr(absPath, "user.cid")
 	if err != nil {
-		return nil, err
+		if err == syscall.ENODATA {
+			id = []byte(uuid.New())
+			err = xattr.SetXAttr(absPath, "user.cid", []byte(id), xattr.XAttrCreate)
+			if err != nil {
+				return nil, err
+			}
+			err := s.aero.PutRecord(resourcePath, string(id))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
-
-	if !found || string(id) == "" {
+	if len(id) == 0 { // xattr is empty but is set
 		id = []byte(uuid.New())
-		err = xattr.SetXattr(absPath, "id", []byte(id))
+		err = xattr.SetXAttr(absPath, "user.cid", []byte(id), xattr.XAttrCreateOrReplace)
 		if err != nil {
 			return nil, err
 		}
@@ -486,7 +499,7 @@ func (s *local) createContainer(identity auth.Identity,
 
 	// Set xattrs, on moves they are preserved.
 	resourceID := uuid.New()
-	err = xattr.SetXattr(absPath, "id", []byte(resourceID))
+	err = xattr.SetXAttr(absPath, "id", []byte(resourceID), xattr.XAttrCreate)
 
 	// On Mac, it always gives an error with the error string errno 0.
 	//  False positive.
