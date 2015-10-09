@@ -841,7 +841,7 @@ func getResponseFromMeta(a *OCWebDAV,
 
 	getETag := propertyXML{
 		xml.Name{Space: "", Local: "d:getetag"},
-		"", []byte("\"" + meta.ETag() + "\"")}
+		"", []byte(meta.ETag())}
 
 	getContentType := propertyXML{
 		xml.Name{Space: "", Local: "d:getcontenttype"},
