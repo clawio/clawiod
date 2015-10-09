@@ -164,7 +164,7 @@ func (m *meta) IsContainer() bool                 { return m.isContainer }
 func (m *meta) Modified() uint64                  { return m.modified }
 func (m *meta) ETag() string                      { return m.etag }
 func (m *meta) MimeType() string                  { return m.mimeType }
-func (m *meta) Permissions() storage.ResourceMode { return m.Permissions() }
+func (m *meta) Permissions() storage.ResourceMode { return m.permissions }
 func (m *meta) Checksum() storage.Checksum        { return m.checksum }
 func (m *meta) Children() []storage.MetaData      { return m.children }
 func (m *meta) Extra() interface{}                { return m.Extra() }
