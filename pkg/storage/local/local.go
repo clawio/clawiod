@@ -31,9 +31,13 @@ import (
 )
 
 const (
-	DIR_PERM           = 0775
-	SUPPORTED_CHECKSUM = "md5"
+	DirPerm           = 0775
+	SupportedChecksum = "md5"
+	XAttrID           = "user.cid"
+	XAttrChecksum     = "user.checksum"
 )
+
+const ()
 
 // local is the implementation of the Storage interface to use a local
 // filesystem as the storage backend.
@@ -278,7 +282,7 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 				return s.convertError(err)
 			}
 		}
-		err = xattr.SetXAttr(tmpPath, "user.checksum",
+		err = xattr.SetXAttr(tmpPath, XAttrChecksum,
 			[]byte(srvChk+":"+computedChecksum), xattr.XAttrCreateOrReplace)
 
 		if err != nil {
@@ -287,7 +291,7 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 	}
 
 	resourceID := uuid.New()
-	err = xattr.SetXAttr(tmpPath, "id", []byte(resourceID), xattr.XAttrCreate)
+	err = xattr.SetXAttr(tmpPath, XAttrID, []byte(resourceID), xattr.XAttrCreate)
 
 	// Atomic move from tmp file to target file.
 	err = s.commitPutFile(tmpPath, absPath)
@@ -348,56 +352,26 @@ func (s *local) stat(identity auth.Identity, resourcePath string,
 		return m, nil
 	}
 
+	// fns is just the base name
 	fns, err := s.getFSChildrenNames(resourcePath, identity)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
-	panic(fns)
+
+	childrenMeta := []storage.MetaData{}
+	for _, fn := range fns {
+		p := path.Join(resourcePath, path.Clean(fn))
+		m, err := s.getMergedMetaData(p, identity)
+		if err != nil {
+			// just log the error
+			s.Err(err.Error())
+		} else {
+			// healthy children are added to the parent
+			childrenMeta = append(childrenMeta, m)
+		}
+	}
+	m.children = childrenMeta
 	return m, nil
-	/*
-		if !m.IsContainer() || children == false {
-			return m, nil
-		}
-
-		fd, err := os.Open(absPath)
-		if err != nil {
-			return nil, s.convertError(err)
-		}
-		defer func() {
-			if err := fd.Close(); err != nil {
-				msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
-					absPath, err.Error())
-
-				s.Warning(msg)
-			}
-		}()
-
-		finfos, err := fd.Readdir(0)
-		if err != nil {
-			return nil, s.convertError(err)
-		}
-
-		m.children = make([]storage.MetaData, len(finfos))
-		for i, f := range finfos {
-			childPath := path.Join(m.Path(), path.Clean(f.Name()))
-			mimeType := s.getMimeType(f)
-			permChild := s.getPermissions(f)
-			if f.IsDir() {
-				childPath += "/"
-			}
-			cm := meta{
-				id:          childPath,
-				path:        childPath,
-				size:        uint64(f.Size()),
-				isContainer: f.IsDir(),
-				modified:    uint64(f.ModTime().UnixNano()),
-				etag:        fmt.Sprintf("%d", f.ModTime().UnixNano()),
-				mimeType:    mimeType,
-				permissions: permChild,
-			}
-			m.children[i] = &cm
-		}
-		return m, nil*/
 }
 
 func (s *local) getFSInfo(resourcePath string,
@@ -413,11 +387,11 @@ func (s *local) getFSInfo(resourcePath string,
 		return nil, s.convertError(err)
 	}
 
-	id, err := xattr.GetXAttr(absPath, "user.cid")
+	id, err := xattr.GetXAttr(absPath, XAttrID)
 	if err != nil {
 		if err == syscall.ENODATA {
 			id = []byte(uuid.New())
-			err = xattr.SetXAttr(absPath, "user.cid", []byte(id), xattr.XAttrCreate)
+			err = xattr.SetXAttr(absPath, XAttrID, []byte(id), xattr.XAttrCreate)
 			if err != nil {
 				return nil, err
 			}
@@ -431,7 +405,7 @@ func (s *local) getFSInfo(resourcePath string,
 	}
 	if len(id) == 0 { // xattr is empty but is set
 		id = []byte(uuid.New())
-		err = xattr.SetXAttr(absPath, "user.cid", []byte(id), xattr.XAttrCreateOrReplace)
+		err = xattr.SetXAttr(absPath, XAttrID, []byte(id), xattr.XAttrCreateOrReplace)
 		if err != nil {
 			return nil, err
 		}
@@ -492,18 +466,15 @@ func (s *local) createContainer(identity auth.Identity,
 
 	s.Info("local: createcontainer " + absPath)
 
-	err := os.Mkdir(absPath, DIR_PERM)
+	err := os.Mkdir(absPath, DirPerm)
 	if err != nil {
 		return s.convertError(err)
 	}
 
 	// Set xattrs, on moves they are preserved.
 	resourceID := uuid.New()
-	err = xattr.SetXAttr(absPath, "id", []byte(resourceID), xattr.XAttrCreate)
-
-	// On Mac, it always gives an error with the error string errno 0.
-	//  False positive.
-	if err != nil && !strings.Contains(err.Error(), "errno 0") {
+	err = xattr.SetXAttr(absPath, XAttrID, []byte(resourceID), xattr.XAttrCreate)
+	if err != nil {
 		return err
 	}
 
@@ -521,7 +492,7 @@ func (s *local) createUserHomeDirectory(identity auth.Identity) error {
 	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
 		path.Join(identity.AuthTypeID(), identity.PID()))
 
-	return s.convertError(os.MkdirAll(homeDir, DIR_PERM))
+	return s.convertError(os.MkdirAll(homeDir, DirPerm))
 }
 func (s *local) isHomeDirCreated(identity auth.Identity) (bool, error) {
 	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
@@ -592,7 +563,7 @@ func (s *local) stageFile(source string, dest string, size int64) (err error) {
 
 func (s *local) stageDir(source string, dest string) (err error) {
 	// create dest dir
-	err = os.MkdirAll(dest, DIR_PERM)
+	err = os.MkdirAll(dest, DirPerm)
 	if err != nil {
 		return err
 	}
@@ -746,7 +717,7 @@ func (c *capabilities) VerifyClientChecksum() bool    { return true }
 func (c *capabilities) SendChecksum() bool            { return false }
 func (c *capabilities) CreateUserHomeDirectory() bool { return true }
 func (c *capabilities) SupportedChecksum() string {
-	return SUPPORTED_CHECKSUM
+	return SupportedChecksum
 }
 
 // storageInfo represents the information obtainable local filesystem.
