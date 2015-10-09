@@ -744,7 +744,7 @@ func (c *capabilities) RestoreDeletedResource() bool  { return false }
 func (c *capabilities) PurgeDeletedResource() bool    { return false }
 func (c *capabilities) VerifyClientChecksum() bool    { return true }
 func (c *capabilities) SendChecksum() bool            { return false }
-func (c *capabilities) CreateUserHomeDirectory() bool { return false }
+func (c *capabilities) CreateUserHomeDirectory() bool { return true }
 func (c *capabilities) SupportedChecksum() string {
 	return SUPPORTED_CHECKSUM
 }
