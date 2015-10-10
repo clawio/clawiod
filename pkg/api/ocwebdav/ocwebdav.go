@@ -432,7 +432,9 @@ func (a *OCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", meta.MimeType())
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
-	w.Header().Set("Last-Modified", fmt.Sprintf("%d", meta.Modified))
+	t := time.Unix(int64(meta.Modified()), 0)
+	lastModifiedString := t.Format(time.RFC1123)
+	w.Header().Set("Last-Modified", lastModifiedString)
 	w.Header().Set("ETag", meta.ETag())
 	w.WriteHeader(http.StatusOK)
 }
@@ -1030,6 +1032,13 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		// in our case this is ok and we create a new file
 		switch err.(type) {
 		case *storage.NotExistError:
+			// validate If-Match header
+			if match := r.Header.Get("If-Match"); match != "" && match != meta.ETag() {
+				log.Warning("apiocwebdav: etags do not match. cetag:" + match + " setag:" + meta.ETag())
+				http.Error(w,
+					http.StatusText(http.StatusPreconditionFailed),
+					http.StatusPreconditionFailed)
+			}
 			err = a.PutObject(identity, resourcePath, r.Body, r.ContentLength,
 				checksum)
 
