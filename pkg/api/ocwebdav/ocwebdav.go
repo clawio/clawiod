@@ -388,6 +388,9 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", meta.MimeType())
 	w.Header().Set("ETag", meta.ETag())
+	t := time.Unix(int64(meta.Modified()), 0)
+	lastModifiedString := t.Format(time.RFC1123)
+	w.Header().Set("Last-Modified", lastModifiedString)
 	w.WriteHeader(http.StatusOK)
 	_, err = io.Copy(w, reader)
 	if err != nil {
@@ -779,10 +782,10 @@ func getResponseFromMeta(a *OCWebDAV,
 	meta storage.MetaData) (*responseXML, error) {
 
 	/*
-			t := time.Unix(int64(meta.Modified), 0)
 
 		quotaUsedBytes := propertyXML{xml.Name{Space: "", Local: "d:quota-used-bytes"}, "", []byte("0")}
 		quotaAvailableBytes := propertyXML{xml.Name{Space: "", Local: "d:quota-available-bytes"}, "", []byte("1000000000")}
+		t := time.Unix(int64(meta.Modified), 0)
 		lasModifiedString := t.Format(time.RFC1123)
 		getContentLegnth := propertyXML{xml.Name{Space: "", Local: "d:getcontentlength"}, "", []byte(fmt.Sprintf("%d", meta.Size))}
 
@@ -1075,6 +1078,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 			}
 
 			w.Header().Set("ETag", meta.ETag())
+			w.Header().Set("OC-X-MTime", "accepted")
 			w.WriteHeader(http.StatusCreated)
 			return
 
@@ -1143,6 +1147,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	}
 
 	w.Header().Set("ETag", meta.ETag())
+	w.Header().Set("OC-X-MTime", "accepted")
 	w.WriteHeader(http.StatusNoContent)
 }
 
