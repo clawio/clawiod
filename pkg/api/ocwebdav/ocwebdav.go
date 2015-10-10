@@ -1038,6 +1038,8 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 				http.Error(w,
 					http.StatusText(http.StatusPreconditionFailed),
 					http.StatusPreconditionFailed)
+				
+				return
 			}
 			err = a.PutObject(identity, resourcePath, r.Body, r.ContentLength,
 				checksum)
@@ -1085,7 +1087,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 					return
 				}
 			}
-
+			w.Header().Set("OC-FileId", meta.ID())
 			w.Header().Set("ETag", meta.ETag())
 			w.Header().Set("OC-X-MTime", "accepted")
 			w.WriteHeader(http.StatusCreated)
@@ -1155,6 +1157,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
+	w.Header().Set("OC-FileId", meta.ID())
 	w.Header().Set("ETag", meta.ETag())
 	w.Header().Set("OC-X-MTime", "accepted")
 	w.WriteHeader(http.StatusNoContent)
