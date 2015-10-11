@@ -194,8 +194,8 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
-	resourcePath := a.getResourcePath(r)
+	idt := ctx.Value("idt").(auth.Identity)
+	rsp := a.getResourcePath(r)
 
 	destination := r.Header.Get("Destination")
 	overwrite := r.Header.Get("Overwrite")
@@ -229,11 +229,11 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	_, err = a.Stat(identity, destination, false)
+	_, err = a.Stat(idt, destination, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.Copy(identity, resourcePath, destination)
+			err = a.Copy(idt, rsp, destination)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -271,7 +271,7 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.Copy(identity, resourcePath, destination)
+	err = a.Copy(idt, rsp, destination)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -293,11 +293,11 @@ func (a *OCWebDAV) delete(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
-	_, err := a.Stat(identity, resourcePath, false)
+	_, err := a.Stat(idt, rsp, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -314,7 +314,7 @@ func (a *OCWebDAV) delete(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	err = a.Remove(identity, resourcePath, true)
+	err = a.Remove(idt, rsp, true)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -338,11 +338,11 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
-	meta, err := a.Stat(identity, resourcePath, false)
+	meta, err := a.Stat(idt, rsp, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -369,7 +369,7 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	reader, err := a.GetObject(identity, resourcePath)
+	reader, err := a.GetObject(idt, rsp, nil)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -402,11 +402,11 @@ func (a *OCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
-	meta, err := a.Stat(identity, resourcePath, false)
+	meta, err := a.Stat(idt, rsp, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -473,9 +473,9 @@ func (a *OCWebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
 	// MKCOL with weird body must fail with 415 (RFC2518:8.3.1)
 	if r.ContentLength > 0 {
@@ -486,7 +486,7 @@ func (a *OCWebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err := a.CreateContainer(identity, resourcePath)
+	err := a.CreateContainer(idt, rsp)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -516,9 +516,9 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
 	destination := r.Header.Get("Destination")
 	overwrite := r.Header.Get("Overwrite")
@@ -552,11 +552,11 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	_, err = a.Stat(identity, destination, false)
+	_, err = a.Stat(idt, destination, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.Rename(identity, resourcePath, destination)
+			err = a.Rename(idt, rsp, destination)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -594,7 +594,7 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.Rename(identity, resourcePath, destination)
+	err = a.Rename(idt, rsp, destination)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -618,11 +618,11 @@ func (a *OCWebDAV) options(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
-	meta, err := a.Stat(identity, resourcePath, false)
+	meta, err := a.Stat(idt, rsp, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -657,9 +657,9 @@ func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
+	idt := ctx.Value("idt").(auth.Identity)
 
-	resourcePath := a.getResourcePath(r)
+	rsp := a.getResourcePath(r)
 
 	var children bool
 	depth := r.Header.Get("Depth")
@@ -667,7 +667,7 @@ func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 		children = true
 	}
 
-	meta, err := a.Stat(identity, resourcePath, children)
+	meta, err := a.Stat(idt, rsp, children)
 
 	if err != nil {
 		switch err.(type) {
@@ -948,8 +948,8 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
-	identity := ctx.Value("identity").(auth.Identity)
-	resourcePath := a.getResourcePath(r)
+	idt := ctx.Value("idt").(auth.Identity)
+	rsp := a.getResourcePath(r)
 
 	/*
 	   Content-Range is dangerous for PUT requests:  PUT per definition
@@ -1026,7 +1026,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 
 	checksum := a.getChecksum(ctx, r)
 
-	meta, err := a.Stat(identity, resourcePath, false)
+	meta, err := a.Stat(idt, rsp, false)
 	if err != nil {
 		// stat will fail if the file does not exists
 		// in our case this is ok and we create a new file
@@ -1041,7 +1041,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 				
 				return
 			}
-			err = a.PutObject(identity, resourcePath, r.Body, r.ContentLength,
+			err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
 				checksum)
 
 			if err != nil {
@@ -1068,7 +1068,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 					return
 				}
 			}
-			meta, err = a.Stat(identity, resourcePath, false)
+			meta, err = a.Stat(idt, rsp, false)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -1110,7 +1110,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.PutObject(identity, resourcePath, r.Body, r.ContentLength,
+	err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
 		checksum)
 
 	if err != nil {
@@ -1138,7 +1138,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	meta, err = a.Stat(identity, resourcePath, false)
+	meta, err = a.Stat(idt, rsp, false)
 	if err != nil {
 		switch err.(type) {
 
@@ -1194,9 +1194,9 @@ func (a *OCWebDAV) getChecksum(ctx context.Context,
 }
 
 func (a *OCWebDAV) getResourcePath(r *http.Request) string {
-	resourcePath := strings.TrimPrefix(r.URL.Path,
+	rsp := strings.TrimPrefix(r.URL.Path,
 		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/"))
 
-	return resourcePath
+	return rsp
 }

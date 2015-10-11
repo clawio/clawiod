@@ -44,27 +44,27 @@ func (s *root) Prefix() string {
 	return s.storagePrefix
 }
 
-func (s *root) CreateUserHomeDirectory(identity auth.Identity) error {
+func (s *root) CreateUserHomeDirectory(idt auth.Identity) error {
 	return &storage.NotImplementedError{
 		"create user home directory not implemented in root storage",
 	}
 }
 
-func (s *root) PutObject(identity auth.Identity, resourcePath string,
+func (s *root) PutObject(idt auth.Identity, rsp string,
 	r io.Reader, size int64, checksum storage.Checksum) error {
 
 	return &storage.NotImplementedError{
 		"put object not implemented in root storage",
 	}
 }
-func (s *root) GetObject(identity auth.Identity,
-	resourcePath string) (io.Reader, error) {
+func (s *root) GetObject(idt auth.Identity,
+	rsp string, r *storage.Range) (io.Reader, error) {
 
 	return nil, &storage.NotImplementedError{
 		"get object not implemented in root storage",
 	}
 }
-func (s *root) Stat(identity auth.Identity, resourcePath string,
+func (s *root) Stat(idt auth.Identity, rsp string,
 	children bool) (storage.MetaData, error) {
 
 	ts := time.Now().UnixNano()
@@ -97,19 +97,19 @@ func (s *root) Stat(identity auth.Identity, resourcePath string,
 	return parentMeta, nil
 }
 
-func (s *root) Remove(identity auth.Identity, resourcePath string, recursive bool) error {
+func (s *root) Remove(idt auth.Identity, rsp string, recursive bool) error {
 	return &storage.NotImplementedError{"remove not implemented in root storage"}
 }
 
-func (s *root) CreateContainer(identity auth.Identity, resourcePath string) error {
+func (s *root) CreateContainer(idt auth.Identity, rsp string) error {
 	return &storage.NotImplementedError{"create container not implemented in root storage"}
 }
 
-func (s *root) Copy(identity auth.Identity, fromPath, toPath string) error {
+func (s *root) Copy(idt auth.Identity, fromPath, toPath string) error {
 	return &storage.NotImplementedError{"copy not implemented in root storage"}
 }
 
-func (s *root) Rename(identity auth.Identity, fromPath, toPath string) error {
+func (s *root) Rename(idt auth.Identity, fromPath, toPath string) error {
 	return &storage.NotImplementedError{"rename not implemented in root storage"}
 }
 
@@ -117,7 +117,7 @@ func (s *root) StartChunkedUpload() (string, error) {
 	return "", &storage.NotImplementedError{"start chunk upload not implemented in root storage"}
 }
 
-func (s *root) PutChunkedObject(identity auth.Identity, r io.Reader, size int64, start int64, chunkID string) error {
+func (s *root) PutChunkedObject(idt auth.Identity, r io.Reader, size int64, start int64, chunkID string) error {
 	return &storage.NotImplementedError{"put chunked object not implemented in root storage"}
 }
 
@@ -129,11 +129,11 @@ func (s *root) CommitChunkedUpload(
 	}
 }
 
-func (s *root) Capabilities(identity auth.Identity) storage.Capabilities {
+func (s *root) Capabilities(idt auth.Identity) storage.Capabilities {
 	return &capabilities{}
 }
-func (s *root) getPathWithoutStoragePrefix(resourcePath string) string {
-	parts := strings.Split(resourcePath, "/")
+func (s *root) getPathWithoutStoragePrefix(rsp string) string {
+	parts := strings.Split(rsp, "/")
 	if len(parts) == 1 {
 		return ""
 	} else {

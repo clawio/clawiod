@@ -26,6 +26,8 @@ import (
 	"mime"
 	"os"
 	"path"
+	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -67,7 +69,7 @@ func (s *local) Prefix() string {
 	return s.storagePrefix
 }
 
-func (s *local) Capabilities(identity auth.Identity) storage.Capabilities {
+func (s *local) Capabilities(idt auth.Identity) storage.Capabilities {
 	// TOOD: Maybe in the future depending on the user one can give some
 	//  capabilities or not. This can be helpful to test new things like
 	// allowing some users access to edge features.
@@ -75,51 +77,51 @@ func (s *local) Capabilities(identity auth.Identity) storage.Capabilities {
 	return &cap
 }
 
-func (s *local) CreateUserHomeDirectory(identity auth.Identity) error {
-	return s.createUserHomeDirectory(identity)
+func (s *local) CreateUserHomeDirectory(idt auth.Identity) error {
+	return s.createUserHomeDirectory(idt)
 }
 
-func (s *local) PutObject(identity auth.Identity, resourcePath string,
+func (s *local) PutObject(idt auth.Identity, rsp string,
 	r io.Reader, size int64, checksum storage.Checksum) error {
 
-	return s.putObject(identity, resourcePath, r, size, checksum)
+	return s.putObject(idt, rsp, r, size, checksum)
 
 }
 
-func (s *local) Stat(identity auth.Identity, resourcePath string,
+func (s *local) Stat(idt auth.Identity, rsp string,
 	children bool) (storage.MetaData, error) {
 
-	return s.stat(identity, resourcePath, children)
+	return s.stat(idt, rsp, children)
 }
 
-func (s *local) GetObject(identity auth.Identity,
-	resourcePath string) (io.Reader, error) {
+func (s *local) GetObject(idt auth.Identity,rsp string,
+	 r *storage.Range) (io.Reader, error) {
 
-	return s.getObject(identity, resourcePath)
+	return s.getObject(idt, rsp, r)
 }
 
-func (s *local) Remove(identity auth.Identity, resourcePath string,
+func (s *local) Remove(idt auth.Identity, rsp string,
 	recursive bool) error {
 
-	return s.remove(identity, resourcePath, recursive)
+	return s.remove(idt, rsp, recursive)
 }
 
-func (s *local) CreateContainer(identity auth.Identity,
-	resourcePath string) error {
+func (s *local) CreateContainer(idt auth.Identity,
+	rsp string) error {
 
-	return s.createContainer(identity, resourcePath)
+	return s.createContainer(idt, rsp)
 }
 
-func (s *local) Copy(identity auth.Identity, fromPath, toPath string) error {
-	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, identity)
-	_, toAbsPath := s.getRelAndAbsPaths(toPath, identity)
+func (s *local) Copy(idt auth.Identity, fromPath, toPath string) error {
+	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, idt)
+	_, toAbsPath := s.getRelAndAbsPaths(toPath, idt)
 
 	tmpPath := s.getTmpPath()
 
 	s.Info("local: copy " + fromAbsPath + " to " + toAbsPath)
 
 	// Is it a container ?
-	meta, err := s.Stat(identity, fromPath, false)
+	meta, err := s.Stat(idt, fromPath, false)
 	if err != nil {
 		return err
 	}
@@ -141,15 +143,15 @@ func (s *local) Copy(identity auth.Identity, fromPath, toPath string) error {
 	return s.convertError(os.Rename(tmpPath, toAbsPath))
 }
 
-func (s *local) Rename(identity auth.Identity, fromPath, toPath string) error {
-	return s.rename(identity, fromPath, toPath)
+func (s *local) Rename(idt auth.Identity, fromPath, toPath string) error {
+	return s.rename(idt, fromPath, toPath)
 }
 
 func (s *local) StartChunkedUpload() (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 
-func (s *local) PutChunkedObject(identity auth.Identity, r io.Reader,
+func (s *local) PutChunkedObject(idt auth.Identity, r io.Reader,
 	size int64, start int64, chunkID string) error {
 
 	return fmt.Errorf("not implemented")
@@ -160,24 +162,24 @@ func (s *local) CommitChunkedUpload(checksum storage.Checksum) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *local) rename(identity auth.Identity, fromPath, toPath string) error {
-	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, identity)
-	_, toAbsPath := s.getRelAndAbsPaths(toPath, identity)
+func (s *local) rename(idt auth.Identity, fromPath, toPath string) error {
+	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, idt)
+	_, toAbsPath := s.getRelAndAbsPaths(toPath, idt)
 
 	s.Info("local: rename " + fromAbsPath + " to " + toAbsPath)
 
 	return s.convertError(os.Rename(fromAbsPath, toAbsPath))
 }
-func (s *local) copy(identity auth.Identity, fromPath, toPath string) error {
-	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, identity)
-	_, toAbsPath := s.getRelAndAbsPaths(toPath, identity)
+func (s *local) copy(idt auth.Identity, fromPath, toPath string) error {
+	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, idt)
+	_, toAbsPath := s.getRelAndAbsPaths(toPath, idt)
 
 	tmpPath := s.getTmpPath()
 
 	s.Info("local: copy " + fromAbsPath + " to " + toAbsPath)
 
 	// Is it a container ?
-	meta, err := s.Stat(identity, fromPath, false)
+	meta, err := s.Stat(idt, fromPath, false)
 	if err != nil {
 		return err
 	}
@@ -199,25 +201,32 @@ func (s *local) copy(identity auth.Identity, fromPath, toPath string) error {
 	return s.convertError(os.Rename(tmpPath, toAbsPath))
 }
 
-func (s *local) getObject(identity auth.Identity,
-	resourcePath string) (io.Reader, error) {
+func (s *local) getObject(idt auth.Identity,
+	rsp string, r *storage.Range) (io.Reader, error) {
 
-	_, absPath := s.getRelAndAbsPaths(resourcePath, identity)
+	_, ap := s.getRelAndAbsPaths(rsp, idt)
 
-	s.Info("local: get " + absPath)
+	s.Info("local: get " + ap)
 
-	file, err := os.Open(absPath)
+	file, err := os.Open(ap)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
-	return file, nil
+	if r == nil {
+		return file, nil
+	}
+	_, err = file.Seek(int64(r.Start), 0)
+	if err != nil {
+		return nil, err
+	}
+	return io.LimitReader(file, int64(r.Size)), nil
 }
-func (s *local) putObject(identity auth.Identity, resourcePath string,
+func (s *local) putObject(idt auth.Identity, rsp string,
 	r io.Reader, size int64, checksum storage.Checksum) error {
 
-	_, absPath := s.getRelAndAbsPaths(resourcePath, identity)
+	_, ap := s.getRelAndAbsPaths(rsp, idt)
 
-	s.Info("local: put " + absPath)
+	s.Info("local: put " + ap)
 
 	tmpPath := s.getTmpPath()
 
@@ -228,7 +237,7 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 	defer func() {
 		if err := fd.Close(); err != nil {
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
-				absPath, err.Error())
+				ap, err.Error())
 
 			s.Warning(msg)
 		}
@@ -240,7 +249,7 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 	var computedChecksum string
 
 	// Select hasher based on capabilities. TODO: add more
-	srvChk := s.Capabilities(identity).SupportedChecksum()
+	srvChk := s.Capabilities(idt).SupportedChecksum()
 	switch srvChk {
 	case "md5":
 		hasher = md5.New()
@@ -268,7 +277,7 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 		// checksums are given in hexadecimal format.
 		computedChecksum = fmt.Sprintf("%x", string(hasher.Sum(nil)))
 
-		if s.Capabilities(identity).VerifyClientChecksum() &&
+		if s.Capabilities(idt).VerifyClientChecksum() &&
 			checksum.Type() == srvChk && checksum.Value() != "" {
 
 			isCorrupted := computedChecksum != checksum.Value()
@@ -294,13 +303,13 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 	err = xattr.SetXAttr(tmpPath, XAttrID, []byte(resourceID), xattr.XAttrCreate)
 
 	// Atomic move from tmp file to target file.
-	err = s.commitPutFile(tmpPath, absPath)
+	err = s.commitPutFile(tmpPath, ap)
 	if err != nil {
 		return s.convertError(err)
 	}
 
 	// Propagate changes.
-	err = s.aero.PutRecord(resourcePath, resourceID)
+	err = s.aero.PutRecord(rsp, resourceID)
 	if err != nil {
 		return err
 	}
@@ -308,28 +317,28 @@ func (s *local) putObject(identity auth.Identity, resourcePath string,
 	return nil
 }
 
-func (s *local) remove(identity auth.Identity, resourcePath string,
+func (s *local) remove(idt auth.Identity, rsp string,
 	recursive bool) error {
 
-	_, absPath := s.getRelAndAbsPaths(resourcePath, identity)
+	_, ap := s.getRelAndAbsPaths(rsp, idt)
 
-	s.Info("local: remove " + absPath)
+	s.Info("local: remove " + ap)
 
 	if recursive == false {
-		return s.convertError(os.Remove(absPath))
+		return s.convertError(os.Remove(ap))
 	}
-	return s.convertError(os.RemoveAll(absPath))
+	return s.convertError(os.RemoveAll(ap))
 }
 
-func (s *local) getMergedMetaData(resourcePath string,
-	identity auth.Identity) (*meta, error) {
+func (s *local) getMergedMetaData(rsp string,
+	idt auth.Identity) (*meta, error) {
 
-	m, err := s.getFSInfo(resourcePath, identity)
+	m, err := s.getFSInfo(rsp, idt)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
-	rec, err := s.aero.GetOrCreateRecord(resourcePath)
+	rec, err := s.aero.GetOrCreateRecord(rsp)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
@@ -340,10 +349,10 @@ func (s *local) getMergedMetaData(resourcePath string,
 
 }
 
-func (s *local) stat(identity auth.Identity, resourcePath string,
+func (s *local) stat(idt auth.Identity, rsp string,
 	children bool) (storage.MetaData, error) {
 
-	m, err := s.getMergedMetaData(resourcePath, identity)
+	m, err := s.getMergedMetaData(rsp, idt)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
@@ -353,15 +362,15 @@ func (s *local) stat(identity auth.Identity, resourcePath string,
 	}
 
 	// fns is just the base name
-	fns, err := s.getFSChildrenNames(resourcePath, identity)
+	fns, err := s.getFSChildrenNames(rsp, idt)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
 	childrenMeta := []storage.MetaData{}
 	for _, fn := range fns {
-		p := path.Join(resourcePath, path.Clean(fn))
-		m, err := s.getMergedMetaData(p, identity)
+		p := path.Join(rsp, path.Clean(fn))
+		m, err := s.getMergedMetaData(p, idt)
 		if err != nil {
 			// just log the error
 			s.Err(err.Error())
@@ -374,28 +383,28 @@ func (s *local) stat(identity auth.Identity, resourcePath string,
 	return m, nil
 }
 
-func (s *local) getFSInfo(resourcePath string,
-	identity auth.Identity) (*meta, error) {
+func (s *local) getFSInfo(rsp string,
+	idt auth.Identity) (*meta, error) {
 
-	relPath, absPath := s.getRelAndAbsPaths(resourcePath, identity)
+	rp, ap := s.getRelAndAbsPaths(rsp, idt)
 
-	s.Info("local: stat " + absPath)
+	s.Info("local: stat " + ap)
 
 	// Get storage file info.
-	finfo, err := os.Stat(absPath)
+	finfo, err := os.Stat(ap)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
-	id, err := xattr.GetXAttr(absPath, XAttrID)
+	id, err := xattr.GetXAttr(ap, XAttrID)
 	if err != nil {
 		if err == syscall.ENODATA {
 			id = []byte(uuid.New())
-			err = xattr.SetXAttr(absPath, XAttrID, []byte(id), xattr.XAttrCreate)
+			err = xattr.SetXAttr(ap, XAttrID, []byte(id), xattr.XAttrCreate)
 			if err != nil {
 				return nil, err
 			}
-			err := s.aero.PutRecord(resourcePath, string(id))
+			err := s.aero.PutRecord(rsp, string(id))
 			if err != nil {
 				return nil, err
 			}
@@ -405,11 +414,11 @@ func (s *local) getFSInfo(resourcePath string,
 	}
 	if len(id) == 0 { // xattr is empty but is set
 		id = []byte(uuid.New())
-		err = xattr.SetXAttr(absPath, XAttrID, []byte(id), xattr.XAttrCreateOrReplace)
+		err = xattr.SetXAttr(ap, XAttrID, []byte(id), xattr.XAttrCreateOrReplace)
 		if err != nil {
 			return nil, err
 		}
-		err := s.aero.PutRecord(resourcePath, string(id))
+		err := s.aero.PutRecord(rsp, string(id))
 		if err != nil {
 			return nil, err
 		}
@@ -417,7 +426,7 @@ func (s *local) getFSInfo(resourcePath string,
 
 	mimeType := s.getMimeType(finfo)
 	perm := s.getPermissions(finfo)
-	parentPath := s.pathWithPrefix(relPath)
+	parentPath := s.pathWithPrefix(rp)
 	if finfo.IsDir() {
 		parentPath += "/" // container' path ends with slash
 	}
@@ -434,19 +443,19 @@ func (s *local) getFSInfo(resourcePath string,
 	return &m, nil
 }
 
-func (s *local) getFSChildrenNames(resourcePath string,
-	identity auth.Identity) ([]string, error) {
+func (s *local) getFSChildrenNames(rsp string,
+	idt auth.Identity) ([]string, error) {
 
-	_, absPath := s.getRelAndAbsPaths(resourcePath, identity)
+	_, ap := s.getRelAndAbsPaths(rsp, idt)
 
-	fd, err := os.Open(absPath)
+	fd, err := os.Open(ap)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 	defer func() {
 		if err := fd.Close(); err != nil {
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
-				absPath, err.Error())
+				ap, err.Error())
 
 			s.Warning(msg)
 		}
@@ -459,30 +468,30 @@ func (s *local) getFSChildrenNames(resourcePath string,
 	return fns, nil
 }
 
-func (s *local) createContainer(identity auth.Identity,
-	resourcePath string) error {
+func (s *local) createContainer(idt auth.Identity,
+	rsp string) error {
 
-	_, absPath := s.getRelAndAbsPaths(resourcePath, identity)
+	_, ap := s.getRelAndAbsPaths(rsp, idt)
 
-	s.Info("local: createcontainer " + absPath)
+	s.Info("local: createcontainer " + ap)
 
-	err := os.Mkdir(absPath, DirPerm)
+	err := os.Mkdir(ap, DirPerm)
 	if err != nil {
 		return s.convertError(err)
 	}
 
 	// Set xattrs, on moves they are preserved.
 	resourceID := uuid.New()
-	err = xattr.SetXAttr(absPath, XAttrID, []byte(resourceID), xattr.XAttrCreate)
+	err = xattr.SetXAttr(ap, XAttrID, []byte(resourceID), xattr.XAttrCreate)
 	if err != nil {
 		return err
 	}
 
-	return s.aero.PutRecord(resourcePath, resourceID)
+	return s.aero.PutRecord(rsp, resourceID)
 }
 
-func (s *local) createUserHomeDirectory(identity auth.Identity) error {
-	exists, err := s.isHomeDirCreated(identity)
+func (s *local) createUserHomeDirectory(idt auth.Identity) error {
+	exists, err := s.isHomeDirCreated(idt)
 	if err != nil {
 		return s.convertError(err)
 	}
@@ -490,13 +499,13 @@ func (s *local) createUserHomeDirectory(identity auth.Identity) error {
 		return nil
 	}
 	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(identity.AuthTypeID(), identity.PID()))
+		path.Join(idt.AuthTypeID(), idt.PID()))
 
 	return s.convertError(os.MkdirAll(homeDir, DirPerm))
 }
-func (s *local) isHomeDirCreated(identity auth.Identity) (bool, error) {
+func (s *local) isHomeDirCreated(idt auth.Identity) (bool, error) {
 	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(identity.AuthTypeID(), identity.PID()))
+		path.Join(idt.AuthTypeID(), idt.PID()))
 
 	_, err := os.Stat(homeDir)
 	if err == nil {
@@ -604,20 +613,20 @@ func (s *local) stageDir(source string, dest string) (err error) {
 	return
 }
 
-func (s *local) sanitizePath(resourcePath string) string {
-	return resourcePath
+func (s *local) sanitizePath(rsp string) string {
+	return rsp
 }
 
-func (s *local) pathWithoutPrefix(resourcePath string) string {
-	parts := strings.Split(resourcePath, "/")
+func (s *local) pathWithoutPrefix(rsp string) string {
+	parts := strings.Split(rsp, "/")
 	if len(parts) == 1 {
 		return ""
 	} else {
 		return strings.Join(parts[1:], "/")
 	}
 }
-func (s *local) pathWithPrefix(relPath string) string {
-	return path.Join(s.Prefix(), path.Clean(relPath))
+func (s *local) pathWithPrefix(rp string) string {
+	return path.Join(s.Prefix(), path.Clean(rp))
 }
 
 func (s *local) getMimeType(fi os.FileInfo) string {
@@ -641,14 +650,14 @@ func (s *local) getPermissions(fi os.FileInfo) storage.ResourceMode {
 
 // getRelAndAbsPaths returns the relativePath (without storage prefix)
 // and the absolutePath (the fs path)
-func (s *local) getRelAndAbsPaths(resourcePath string,
-	identity auth.Identity) (string, string) {
+func (s *local) getRelAndAbsPaths(rsp string,
+	idt auth.Identity) (string, string) {
 
-	relPath := s.pathWithoutPrefix(resourcePath)
-	absPath := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(identity.AuthTypeID(), identity.PID(), relPath))
+	rp := s.pathWithoutPrefix(rsp)
+	ap := path.Join(s.GetDirectives().LocalStorageRootDataDir,
+		path.Join(idt.AuthTypeID(), idt.PID(), rp))
 
-	return relPath, absPath
+	return rp, ap
 }
 
 // meta represents the metadata associated with a resources.
@@ -726,4 +735,44 @@ type storageInfo struct {
 	MimeType     string
 	Permissions  storage.ResourceMode
 	ResourcePath string
+}
+
+type chunkPathInfo struct {
+	ResourcePath string
+	TransferID   string
+	TotalChunks  uint64
+	CurrentChunk uint64
+}
+
+// isChunked determines if an upload is chunked or not.
+func isChunked(rsp string) (bool, error) {
+	return regexp.MatchString(`-chunking-\w+-[0-9]+-[0-9]+`, rsp)
+}
+
+// getChunkPathInfo obtains the different parts of a chunk from the path.
+func getChunkPathInfo(rsp string) (*chunkPathInfo, error) {
+	parts := strings.Split(rsp, "-chunking-")
+	tail := strings.Split(parts[1], "-")
+
+	totalChunks, err := strconv.ParseUint(tail[1], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	currentChunk, err := strconv.ParseUint(tail[2], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	
+	if currentChunk +1 >= totalChunks {
+		return nil, fmt.Errorf("current chunk:%d exceeds total chunks:%d.", currentChunk, totalChunks)
+	}	
+
+
+	info := &chunkPathInfo{}
+	info.ResourcePath = parts[0]
+	info.TransferID = tail[0]
+	info.TotalChunks = totalChunks
+	info.CurrentChunk = currentChunk
+
+	return info, nil
 }

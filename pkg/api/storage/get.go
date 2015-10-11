@@ -26,10 +26,10 @@ func (a *Storage) get(ctx context.Context, w http.ResponseWriter,
 	log := ctx.Value("log").(logger.Logger)
 	identity := ctx.Value("identity").(auth.Identity)
 
-	resourcePath := strings.TrimPrefix(r.URL.Path,
+	rsp := strings.TrimPrefix(r.URL.Path,
 		strings.Join([]string{a.GetDirectives().APIRoot, a.ID(), "get/"}, "/"))
 
-	meta, err := a.Stat(identity, resourcePath, false)
+	meta, err := a.Stat(identity, rsp, false)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -56,7 +56,7 @@ func (a *Storage) get(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	reader, err := a.GetObject(identity, resourcePath)
+	reader, err := a.GetObject(identity, rsp, nil)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:

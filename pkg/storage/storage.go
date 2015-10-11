@@ -167,6 +167,11 @@ func (ck Checksum) String() string {
 	return string(ck)
 }
 
+type Range struct {
+	Start uint64
+	Size uint64
+}	
+
 // MetaData represents the metadata information about a resource.
 type MetaData interface {
 	// The id of this resource.
@@ -264,52 +269,52 @@ func (m ResourceMode) IsStatable() bool {
 type Storage interface {
 
 	// GetCapabilities returns the capabilities of this storage.
-	Capabilities(identity auth.Identity) Capabilities
+	Capabilities(idt auth.Identity) Capabilities
 
 	// CommitChunkedUpload commits the transaction
-	CommitChunkedUpload(checksum Checksum) error
+	CommitChunkedUpload(chk Checksum) error
 
-	// Copy copies a resource from one resourcePath to another.
-	// If resourcePaths belong to different storages this is a third party copy.
-	Copy(identity auth.Identity, fromPath, toPath string) error
+	// Copy copies a resource from one rsp to another.
+	// If rsps belong to different storages this is a third party copy.
+	Copy(idt auth.Identity, src, dst string) error
 
 	// CreateContainer creates a container in the storage
-	// defined by resourcePath.
-	CreateContainer(identity auth.Identity, resourcePath string) error
+	// defined by rsp.
+	CreateContainer(idt auth.Identity, rsp string) error
 
 	// CreateUserHomeDirectory creates the user home directory in the storage.
-	CreateUserHomeDirectory(identity auth.Identity) error
+	CreateUserHomeDirectory(idt auth.Identity) error
 
 	// GetObject gets an object from the storage defined by
 	// the uri or by the resourceID.
-	GetObject(identity auth.Identity, resourcePath string) (io.Reader, error)
+	GetObject(idt auth.Identity, rsp string, r *Range) (io.Reader, error)
 
 	// Prefix returns the prefix of this storage.
 	Prefix() string
 
 	// PutChunkedObject uploads the chunk defined by start and
 	// size of an object.
-	PutChunkedObject(identity auth.Identity, r io.Reader, size int64,
+	PutChunkedObject(idt auth.Identity, r io.Reader, size int64,
 		start int64, chunkID string) error
 
-	// PutObject puts an object into the storage defined by resourcePath.
-	PutObject(identity auth.Identity, resourcePath string, r io.Reader,
+	// PutObject puts an object into the storage defined by rsp.
+	PutObject(idt auth.Identity, rsp string, r io.Reader,
 		size int64, checksum Checksum) error
 
-	// Remove removes a resource from the storage defined by resourcePath.
-	Remove(identity auth.Identity, resourcePath string,
+	// Remove removes a resource from the storage defined by rsp.
+	Remove(idt auth.Identity, rsp string,
 		recursive bool) error
 
-	// Rename renames/move a resource from one resourcePath to another.
-	// If resourcePaths belong to different storages this is
+	// Rename renames/move a resource from one rsp to another.
+	// If rsps belong to different storages this is
 	//  a third party rename.
-	Rename(identity auth.Identity, fromPath, toPath string) error
+	Rename(idt auth.Identity, src, dst string) error
 
 	// StartChunkedUpload starts a transaction for putting an object in chunks.
 	StartChunkedUpload() (string, error)
 
 	// Stat returns metadata information about the resources and its children.
-	Stat(identity auth.Identity, resourcePath string,
+	Stat(idt auth.Identity, rsp string,
 		children bool) (MetaData, error)
 }
 

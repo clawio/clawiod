@@ -23,29 +23,29 @@ import (
 // Pat dispatchs storage operations.
 type Pat interface {
 	AddStorage(s storage.Storage) error
-	GetStorage(resourcePath string) (storage.Storage, bool)
+	GetStorage(rsp string) (storage.Storage, bool)
 	GetAllStorages() []storage.Storage
-	Capabilities(identity auth.Identity,
-		prefix string) (storage.Capabilities, error)
+	Capabilities(idt auth.Identity,
+		prfx string) (storage.Capabilities, error)
 
-	CommitChunkedUpload(chunkID string, checksum storage.Checksum) error
-	Copy(identity auth.Identity, fromPath, toPath string) error
-	CreateContainer(identity auth.Identity, resourcePath string) error
-	CreateUserHomeDirectory(identity auth.Identity, resourcePath string) error
-	GetObject(identity auth.Identity, resourcePath string) (io.Reader, error)
-	PutChunkedObject(identity auth.Identity, r io.Reader, size int64,
-		start int64, chunkID, resourcePath string) error
+	CommitChunkedUpload(chunkID string, chk storage.Checksum) error
+	Copy(idt auth.Identity, src, dst string) error
+	CreateContainer(idt auth.Identity, rsp string) error
+	CreateUserHomeDirectory(idt auth.Identity, rsp string) error
+	GetObject(idt auth.Identity, rsp string, r *storage.Range) (io.Reader, error)
+	PutChunkedObject(idt auth.Identity, r io.Reader, size int64,
+		start int64, chunkID, rsp string) error
 
-	PutObject(identity auth.Identity, resourcePath string, r io.Reader,
-		size int64, checksum storage.Checksum) error
+	PutObject(idt auth.Identity, rsp string, r io.Reader,
+		size int64, chk storage.Checksum) error
 
-	Remove(identity auth.Identity, resourcePath string,
+	Remove(idt auth.Identity, rsp string,
 		recursive bool) error
 
-	Rename(identity auth.Identity, fromPath, toPath string) error
-	StartChunkedUpload(prefix string) (string, error)
+	Rename(idt auth.Identity, src, dst string) error
+	StartChunkedUpload(prfx string) (string, error)
 
-	Stat(identity auth.Identity, resourcePath string,
+	Stat(idt auth.Identity, rsp string,
 		children bool) (storage.MetaData, error)
 }
 
@@ -83,117 +83,117 @@ func (p *pat) GetAllStorages() []storage.Storage {
 func (p *pat) Prefix() string {
 	return ""
 }
-func (p *pat) Capabilities(identity auth.Identity,
-	resourcePath string) (storage.Capabilities, error) {
+func (p *pat) Capabilities(idt auth.Identity,
+	rsp string) (storage.Capabilities, error) {
 
-	s, err := p.getStorageFromPath(resourcePath)
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return nil, err
 	}
-	return s.Capabilities(identity), nil
+	return s.Capabilities(idt), nil
 }
-func (p *pat) CreateUserHomeDirectory(identity auth.Identity, resourcePath string) error {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) CreateUserHomeDirectory(idt auth.Identity, rsp string) error {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return err
 	}
-	return s.CreateUserHomeDirectory(identity)
+	return s.CreateUserHomeDirectory(idt)
 }
-func (p *pat) PutObject(identity auth.Identity, resourcePath string, r io.Reader, size int64, checksum storage.Checksum) error {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) PutObject(idt auth.Identity, rsp string, r io.Reader, size int64, chk storage.Checksum) error {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return err
 	}
-	return s.PutObject(identity, resourcePath, r, size, checksum)
+	return s.PutObject(idt, rsp, r, size, chk)
 }
-func (p *pat) StartChunkedUpload(prefix string) (string, error) {
-	s, err := p.getStorageFromPath(prefix)
+func (p *pat) StartChunkedUpload(prfx string) (string, error) {
+	s, err := p.getStorageFromPath(prfx)
 	if err != nil {
 		return "", err
 	}
 	return s.StartChunkedUpload()
 }
-func (p *pat) PutChunkedObject(identity auth.Identity, r io.Reader, size int64,
-	start int64, chunkID, resourcePath string) error {
+func (p *pat) PutChunkedObject(idt auth.Identity, r io.Reader, size int64,
+	start int64, chunkID, rsp string) error {
 
-	s, err := p.getStorageFromPath(resourcePath)
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return err
 	}
-	return s.PutChunkedObject(identity, r, size, start, chunkID)
+	return s.PutChunkedObject(idt, r, size, start, chunkID)
 }
-func (p *pat) CommitChunkedUpload(resourcePath string, checksum storage.Checksum) error {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) CommitChunkedUpload(rsp string, chk storage.Checksum) error {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return err
 	}
-	return s.CommitChunkedUpload(checksum)
+	return s.CommitChunkedUpload(chk)
 }
-func (p *pat) GetObject(identity auth.Identity, resourcePath string) (io.Reader, error) {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) GetObject(idt auth.Identity, rsp string, r *storage.Range) (io.Reader, error) {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetObject(identity, resourcePath)
+	return s.GetObject(idt, rsp, r)
 }
-func (p *pat) Stat(identity auth.Identity, resourcePath string, children bool) (storage.MetaData, error) {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) Stat(idt auth.Identity, rsp string, children bool) (storage.MetaData, error) {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return nil, err
 	}
-	return s.Stat(identity, resourcePath, children)
+	return s.Stat(idt, rsp, children)
 }
-func (p *pat) Remove(identity auth.Identity, resourcePath string, recursive bool) error {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) Remove(idt auth.Identity, rsp string, recursive bool) error {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return err
 	}
-	return s.Remove(identity, resourcePath, recursive)
+	return s.Remove(idt, rsp, recursive)
 }
-func (p *pat) CreateContainer(identity auth.Identity, resourcePath string) error {
-	s, err := p.getStorageFromPath(resourcePath)
+func (p *pat) CreateContainer(idt auth.Identity, rsp string) error {
+	s, err := p.getStorageFromPath(rsp)
 	if err != nil {
 		return err
 	}
-	return s.CreateContainer(identity, resourcePath)
+	return s.CreateContainer(idt, rsp)
 }
-func (p *pat) Rename(identity auth.Identity, fromPath, toPath string) error {
-	fromStorage, err := p.getStorageFromPath(fromPath)
+func (p *pat) Rename(idt auth.Identity, src, dst string) error {
+	srcStrg, err := p.getStorageFromPath(src)
 	if err != nil {
 		return err
 	}
-	toStorage, err := p.getStorageFromPath(toPath)
+	dstStrg, err := p.getStorageFromPath(dst)
 	if err != nil {
 		return err
 	}
-	if fromStorage.Prefix() != toStorage.Prefix() {
-		return fmt.Errorf("third party rename from %s to %s not enabled yet", fromStorage.Prefix(), toStorage.Prefix())
+	if srcStrg.Prefix() != dstStrg.Prefix() {
+		return fmt.Errorf("third party rename from %s to %s not enabled yet", srcStrg.Prefix(), dstStrg.Prefix())
 	}
-	return fromStorage.Rename(identity, fromPath, toPath)
-}
-
-func (p *pat) Copy(identity auth.Identity, fromPath, toPath string) error {
-	fromStorage, err := p.getStorageFromPath(fromPath)
-	if err != nil {
-		return err
-	}
-	toStorage, err := p.getStorageFromPath(toPath)
-	if err != nil {
-		return err
-	}
-	if fromStorage.Prefix() != toStorage.Prefix() {
-		return fmt.Errorf("third party copy from %s to %s not enabled yet", fromStorage.Prefix(), toStorage.Prefix())
-	}
-	return fromStorage.Rename(identity, fromPath, toPath)
+	return srcStrg.Rename(idt, src, dst)
 }
 
-// getStorageFromPath returns the storage implementation with the storage prefix used in resourcePath.
-func (p *pat) getStorageFromPath(resourcePath string) (storage.Storage, error) {
-	resourcePath = strings.TrimPrefix(resourcePath, "/")
-	parts := strings.Split(resourcePath, "/")
+func (p *pat) Copy(idt auth.Identity, src, dst string) error {
+	srcStrg, err := p.getStorageFromPath(src)
+	if err != nil {
+		return err
+	}
+	dstStrg, err := p.getStorageFromPath(dst)
+	if err != nil {
+		return err
+	}
+	if srcStrg.Prefix() != dstStrg.Prefix() {
+		return fmt.Errorf("third party copy from %s to %s not enabled yet", srcStrg.Prefix(), dstStrg.Prefix())
+	}
+	return srcStrg.Rename(idt, src, dst)
+}
+
+// getStorageFromPath returns the storage implementation with the storage prfx used in rsp.
+func (p *pat) getStorageFromPath(rsp string) (storage.Storage, error) {
+	rsp = strings.TrimPrefix(rsp, "/")
+	parts := strings.Split(rsp, "/")
 	s, ok := p.GetStorage(parts[0])
 	if !ok {
-		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered for resourcePath:%s", parts[0], resourcePath)}
+		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered for rsp:%s", parts[0], rsp)}
 	}
 	return s, nil
 }
