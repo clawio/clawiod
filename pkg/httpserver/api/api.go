@@ -34,6 +34,7 @@ import (
 	"github.com/clawio/clawiod/Godeps/_workspace/src/github.com/tylerb/graceful"
 )
 
+
 type apiServer struct {
 	appLogWriter io.Writer
 	reqLogWriter io.Writer
@@ -44,17 +45,23 @@ type apiServer struct {
 	config.Config
 }
 
+type NewParams struct {
+	AppLog 	logger.Logger
+	ReqLogFd   io.Writer
+	APIPat     apidisp.Pat
+	AuthPat    authdisp.Pat
+	StoragePat storagedisp.Pat
+	Config     config.Config
+}
 // New returns a new HTTPServer
-func New(appLogWriter io.Writer, reqLogWriter io.Writer, apidisp apidisp.Pat,
-	adisp authdisp.Pat, sdisp storagedisp.Pat,
-	cfg config.Config) (httpserver.HTTPServer, error) {
+func New(p *NewParams) (httpserver.HTTPServer, error) {
 
 	srv := &graceful.Server{
 		NoSignalHandling: true,
 		Timeout: time.Duration(time.Second *
-			time.Duration(cfg.GetDirectives().ShutdownTimeout)),
+			time.Duration(p.Config.GetDirectives().ShutdownTimeout)),
 		Server: &http.Server{
-			Addr: fmt.Sprintf(":%d", cfg.GetDirectives().Port),
+			Addr: fmt.Sprintf(":%d", p.Config.GetDirectives().Port),
 		},
 	}
 	return &apiServer{appLogWriter: appLogWriter, reqLogWriter: reqLogWriter,

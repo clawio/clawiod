@@ -16,32 +16,51 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-type LocalSuite struct {}
+type LocalSuite struct{}
 
 var _ = Suite(&LocalSuite{})
 
-var fns = []string{
-	"test-chunking-aljsd938429-32-32",
-	 "/docs/thesis.pdf-chunking-__abc123__-10-0",
-}	
+var tests = map[string]*chunkPathInfo{
+	"test-chunking-aljsd938429-32-31": &chunkPathInfo{
+		ResourcePath: "test",
+		TotalChunks:  32,
+		CurrentChunk: 31,
+		TransferID:   "aljsd938429",
+	},
+	"/docs/thesis.pdf-chunking-__abc123__-10-0": &chunkPathInfo{
+		ResourcePath: "/docs/thesis.pdf",
+		TotalChunks:  10,
+		CurrentChunk: 0,
+		TransferID:   "__abc123__",
+	},
+	"local/test-chunking-tid-2-0": &chunkPathInfo{
+		ResourcePath: "local/test",
+		TotalChunks:  2,
+		CurrentChunk: 0,
+		TransferID:   "tid",
+	},
+}
 
 func (s *LocalSuite) TestIsChunked(c *C) {
-	for _, p := range fns {
-		ok, err := isChunked(p)
+	for p := range tests {
+		ok, err := IsChunked(p)
 		if err != nil || !ok {
-			c.Error("is should be chunked:", err)
+			c.Error("it should be chunked:", err)
 			return
 		}
 	}
 }
 
 func (s *LocalSuite) TestGetChunkPathInfo(c *C) {
-	for _, p := range fns {
-		info, err := getChunkPathInfo(p)
+	for p, i := range tests {
+		info, err := GetChunkPathInfo(p)
 		if err != nil {
 			c.Error(err)
 			return
 		}
-		c.Log(info)
+		c.Assert(info.ResourcePath, Equals, i.ResourcePath)
+		c.Assert(info.TotalChunks, Equals, i.TotalChunks)
+		c.Assert(info.CurrentChunk, Equals, i.CurrentChunk)
+		c.Assert(info.TransferID, Equals, i.TransferID)
 	}
 }

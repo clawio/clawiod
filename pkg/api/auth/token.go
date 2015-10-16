@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/logger"
+	"github.com/clawio/clawiod/pkg/storage"
 	"net/http"
 )
 
@@ -37,12 +38,17 @@ func (a *auth) token(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// Check if we have to create the user homedir in the storages.
-	storages := a.sdisp.GetAllStorages()
+
+	storages := a.sdisp.GetAllStorages(nil)
 	for _, s := range storages {
-		if s.Capabilities(identity).CreateUserHomeDirectory() {
-			err := a.sdisp.CreateUserHomeDirectory(identity, s.Prefix())
+		cp := &storage.CapabilitiesParams{}
+		cp.Idt = identity
+		if s.Capabilities(cp).CreateUserHomeDir {
+			cuhdp := &storage.CreateUserHomeDirParams{}
+			cuhdp.BaseParams = cp.BaseParams
+			err := a.sdisp.CreateUserHomeDir(cuhdp, s.Prefix())
 			if err != nil {
-				msg := "apiauth: creation of user home failed. err:%s"
+				msg := "token: creation of user home failed because err:%s"
 				log.Err(fmt.Sprintf(msg, err.Error()))
 				http.Error(w, http.StatusText(http.StatusInternalServerError),
 					http.StatusInternalServerError)
@@ -77,6 +83,6 @@ func (a *auth) token(ctx context.Context, w http.ResponseWriter,
 
 	_, err = w.Write(tokenJSON)
 	if err != nil {
-		log.Err("apiauth: error sending reponse. err:" + err.Error())
+		log.Err("token: error sending reponse. err:" + err.Error())
 	}
 }

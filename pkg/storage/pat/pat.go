@@ -12,7 +12,6 @@ package pat
 
 import (
 	"fmt"
-	"github.com/clawio/clawiod/pkg/auth"
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
@@ -20,187 +19,288 @@ import (
 	"strings"
 )
 
-// Pat dispatchs storage operations.
+// BaseParams are the params used in Pat operations.
+type BaseParams struct {
+	LID   string
+	Extra interface{}
+}
+
+// AddStorageParams are the params used by the AddStorage method.
+type AddStorageParams struct {
+	BaseParams
+	Storage storage.Storage
+}
+
+// GetStorageParams are the params used by the GetStorage method.
+type GetStorageParams struct {
+	BaseParams
+	Rsp string
+}
+
+// GetAllStoragesParams are the params used by the GetAllStorages method.
+type GetAllStoragesParams struct {
+	BaseParams
+}
+
+// Pat dispatchs storage operations to concrete storage implementations based
+// on the storage prefix.
 type Pat interface {
-	AddStorage(s storage.Storage) error
-	GetStorage(rsp string) (storage.Storage, bool)
-	GetAllStorages() []storage.Storage
-	Capabilities(idt auth.Identity,
-		prfx string) (storage.Capabilities, error)
+	AddStorage(p *AddStorageParams) error
+	GetStorage(p *GetStorageParams) (storage.Storage, bool)
+	GetAllStorages(p *GetAllStoragesParams) []storage.Storage
 
-	CommitChunkedUpload(chunkID string, chk storage.Checksum) error
-	Copy(idt auth.Identity, src, dst string) error
-	CreateContainer(idt auth.Identity, rsp string) error
-	CreateUserHomeDirectory(idt auth.Identity, rsp string) error
-	GetObject(idt auth.Identity, rsp string, r *storage.Range) (io.Reader, error)
-	PutChunkedObject(idt auth.Identity, r io.Reader, size int64,
-		start int64, chunkID, rsp string) error
+	Capabilities(p *storage.CapabilitiesParams,
+		pfx string) (*storage.Capabilities, error)
+	CommitChunkedUpload(p *storage.CommitChunkUploadParams,
+		rsp string) error
+	Copy(p *storage.CopyParams) error
+	CreateContainer(p *storage.CreateContainerParams) error
+	CreateUserHomeDir(p *storage.CreateUserHomeDirParams, pfx string) error
+	GetObject(ip *storage.GetObjectParams) (io.Reader, error)
+	PutChunkedObject(p *storage.PutChunkedObjectParams) error
+	PutObject(p *storage.PutObjectParams) error
+	Remove(p *storage.RemoveParams) error
+	Rename(p *storage.RenameParams) error
+	StartChunkedUpload(p *storage.StartChunkUploadParams,
+		pfx string) (string, error)
+	Stat(p *storage.StatParams) (*storage.MetaData, error)
+}
 
-	PutObject(idt auth.Identity, rsp string, r io.Reader,
-		size int64, chk storage.Checksum) error
+// pat implements the Pat interface.
+type pat struct {
+	storages map[string]storage.Storage
+	log      logger.Logger
+	cfg      config.Config
+}
 
-	Remove(idt auth.Identity, rsp string,
-		recursive bool) error
-
-	Rename(idt auth.Identity, src, dst string) error
-	StartChunkedUpload(prfx string) (string, error)
-
-	Stat(idt auth.Identity, rsp string,
-		children bool) (storage.MetaData, error)
+// NewParams are the params used by the New method.
+type NewParams struct {
+	Config config.Config
+	Log    logger.Logger
 }
 
 // New creates a Pat.
-func New(cfg config.Config, log logger.Logger) Pat {
-	m := pat{storages: make(map[string]storage.Storage), Config: cfg,
-		Logger: log}
-
+func New(p *NewParams) Pat {
+	m := pat{
+		storages: make(map[string]storage.Storage),
+		cfg:      p.Config,
+		log:      p.Log,
+	}
 	return &m
 }
 
-func (p *pat) AddStorage(s storage.Storage) error {
-	if _, ok := p.storages[s.Prefix()]; ok {
-		return fmt.Errorf("pat: storage %s is already registered", s.Prefix())
+func (pt *pat) AddStorage(p *AddStorageParams) error {
+	if _, ok := pt.storages[p.Storage.Prefix()]; ok {
+		return fmt.Errorf("AddStorage: storage %s is already registered",
+			p.Storage.Prefix())
 	}
-	p.storages[s.Prefix()] = s
+	pt.storages[p.Storage.Prefix()] = p.Storage
 	return nil
 }
 
-// GetStorage returns the storage with storageScheme and an boolean indicating if was found
-func (p *pat) GetStorage(storageScheme string) (storage.Storage, bool) {
-	sp, ok := p.storages[storageScheme]
-	return sp, ok
+// GetStorage returns the storage with storageScheme
+// and an boolean indicating if was found
+func (pt *pat) GetStorage(p *GetStorageParams) (storage.Storage, bool) {
+	s, ok := pt.storages[p.Rsp]
+	return s, ok
 }
 
 // GetAllStorages returns all the storages registered.
-func (p *pat) GetAllStorages() []storage.Storage {
+func (pt *pat) GetAllStorages(p *GetAllStoragesParams) []storage.Storage {
 	var storages []storage.Storage
-	for _, s := range p.storages {
+	for _, s := range pt.storages {
 		storages = append(storages, s)
 	}
 	return storages
 }
 
-func (p *pat) Prefix() string {
-	return ""
-}
-func (p *pat) Capabilities(idt auth.Identity,
-	rsp string) (storage.Capabilities, error) {
+func (pt *pat) Capabilities(p *storage.CapabilitiesParams,
+	pfx string) (*storage.Capabilities,
+	error) {
 
-	s, err := p.getStorageFromPath(rsp)
+	s, err := pt.getStorageFromPath(pfx)
 	if err != nil {
 		return nil, err
 	}
-	return s.Capabilities(idt), nil
+	return s.Capabilities(p), nil
 }
-func (p *pat) CreateUserHomeDirectory(idt auth.Identity, rsp string) error {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) CreateUserHomeDir(p *storage.CreateUserHomeDirParams,
+	pfx string) error {
+
+	s, err := pt.getStorageFromPath(pfx)
 	if err != nil {
 		return err
 	}
-	return s.CreateUserHomeDirectory(idt)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).CreateUserHomeDir {
+		return &storage.NotImplementedError{
+			Err: "CreateUserHomeDir not implemented",
+		}
+	}
+	return s.CreateUserHomeDir(p)
 }
-func (p *pat) PutObject(idt auth.Identity, rsp string, r io.Reader, size int64, chk storage.Checksum) error {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) PutObject(p *storage.PutObjectParams) error {
+	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
-	return s.PutObject(idt, rsp, r, size, chk)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).PutObject {
+		return &storage.NotImplementedError{
+			Err: "PutObject not implemented",
+		}
+	}
+	return s.PutObject(p)
 }
-func (p *pat) StartChunkedUpload(prfx string) (string, error) {
-	s, err := p.getStorageFromPath(prfx)
+func (pt *pat) StartChunkedUpload(p *storage.StartChunkUploadParams,
+	pfx string) (string, error) {
+
+	s, err := pt.getStorageFromPath(pfx)
 	if err != nil {
 		return "", err
 	}
-	return s.StartChunkedUpload()
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).PutObjectInChunks {
+		return "", &storage.NotImplementedError{
+			Err: "StartChunkedUpload not implemented",
+		}
+	}
+	return s.StartChunkedUpload(p)
 }
-func (p *pat) PutChunkedObject(idt auth.Identity, r io.Reader, size int64,
-	start int64, chunkID, rsp string) error {
+func (pt *pat) PutChunkedObject(p *storage.PutChunkedObjectParams) error {
 
-	s, err := p.getStorageFromPath(rsp)
+	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
-	return s.PutChunkedObject(idt, r, size, start, chunkID)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).PutObjectInChunks {
+		return &storage.NotImplementedError{
+			Err: "PutChunkedObject not implemented",
+		}
+	}
+	return s.PutChunkedObject(p)
 }
-func (p *pat) CommitChunkedUpload(rsp string, chk storage.Checksum) error {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) CommitChunkedUpload(p *storage.CommitChunkUploadParams,
+	pfx string) error {
+
+	s, err := pt.getStorageFromPath(pfx)
 	if err != nil {
 		return err
 	}
-	return s.CommitChunkedUpload(chk)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).PutObjectInChunks {
+		return &storage.NotImplementedError{
+			Err: "PutObjectInChunks not implemented",
+		}
+	}
+	return s.CommitChunkedUpload(p)
 }
-func (p *pat) GetObject(idt auth.Identity, rsp string, r *storage.Range) (io.Reader, error) {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) GetObject(p *storage.GetObjectParams) (io.Reader, error) {
+	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return nil, err
 	}
-	return s.GetObject(idt, rsp, r)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).GetObject {
+		return nil, &storage.NotImplementedError{
+			Err: "GetObject not implemented",
+		}
+	}
+	return s.GetObject(p)
 }
-func (p *pat) Stat(idt auth.Identity, rsp string, children bool) (storage.MetaData, error) {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) Stat(p *storage.StatParams) (*storage.MetaData, error) {
+	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return nil, err
 	}
-	return s.Stat(idt, rsp, children)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).Stat {
+		return nil, &storage.NotImplementedError{
+			Err: "Stat not implemented",
+		}
+	}
+	return s.Stat(p)
 }
-func (p *pat) Remove(idt auth.Identity, rsp string, recursive bool) error {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) Remove(p *storage.RemoveParams) error {
+	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
-	return s.Remove(idt, rsp, recursive)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).Remove {
+		return &storage.NotImplementedError{
+			Err: "Remove not implemented",
+		}
+	}
+	return s.Remove(p)
 }
-func (p *pat) CreateContainer(idt auth.Identity, rsp string) error {
-	s, err := p.getStorageFromPath(rsp)
+func (pt *pat) CreateContainer(p *storage.CreateContainerParams) error {
+	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
-	return s.CreateContainer(idt, rsp)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !s.Capabilities(cp).CreateContainer {
+		return &storage.NotImplementedError{
+			Err: "CreateContainer not implemented",
+		}
+	}
+	return s.CreateContainer(p)
 }
-func (p *pat) Rename(idt auth.Identity, src, dst string) error {
-	srcStrg, err := p.getStorageFromPath(src)
+func (pt *pat) Rename(p *storage.RenameParams) error {
+	srcStrg, err := pt.getStorageFromPath(p.Src)
 	if err != nil {
 		return err
 	}
-	dstStrg, err := p.getStorageFromPath(dst)
+	dstStrg, err := pt.getStorageFromPath(p.Dst)
 	if err != nil {
 		return err
 	}
 	if srcStrg.Prefix() != dstStrg.Prefix() {
-		return fmt.Errorf("third party rename from %s to %s not enabled yet", srcStrg.Prefix(), dstStrg.Prefix())
+		return fmt.Errorf("Third party rename from %s to %s not enabled yet",
+			srcStrg.Prefix(), dstStrg.Prefix())
 	}
-	return srcStrg.Rename(idt, src, dst)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !srcStrg.Capabilities(cp).Rename {
+		return &storage.NotImplementedError{
+			Err: "Rename not implemented",
+		}
+	}
+	return srcStrg.Rename(p)
 }
 
-func (p *pat) Copy(idt auth.Identity, src, dst string) error {
-	srcStrg, err := p.getStorageFromPath(src)
+func (pt *pat) Copy(p *storage.CopyParams) error {
+	srcStrg, err := pt.getStorageFromPath(p.Src)
 	if err != nil {
 		return err
 	}
-	dstStrg, err := p.getStorageFromPath(dst)
+	dstStrg, err := pt.getStorageFromPath(p.Dst)
 	if err != nil {
 		return err
 	}
 	if srcStrg.Prefix() != dstStrg.Prefix() {
-		return fmt.Errorf("third party copy from %s to %s not enabled yet", srcStrg.Prefix(), dstStrg.Prefix())
+		return fmt.Errorf("third party copy from %s to %s not enabled yet",
+			srcStrg.Prefix(), dstStrg.Prefix())
 	}
-	return srcStrg.Rename(idt, src, dst)
+	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
+	if !srcStrg.Capabilities(cp).Copy {
+		return &storage.NotImplementedError{
+			Err: "Copy not implemented",
+		}
+	}
+	return srcStrg.Copy(p)
 }
 
-// getStorageFromPath returns the storage implementation with the storage prfx used in rsp.
-func (p *pat) getStorageFromPath(rsp string) (storage.Storage, error) {
+// getStorageFromPath returns the storage implementation with the storage prfx used in rspt.
+func (pt *pat) getStorageFromPath(rsp string) (storage.Storage, error) {
 	rsp = strings.TrimPrefix(rsp, "/")
 	parts := strings.Split(rsp, "/")
-	s, ok := p.GetStorage(parts[0])
+	p := &GetStorageParams{}
+	p.Rsp = parts[0]
+	s, ok := pt.GetStorage(p)
 	if !ok {
 		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered for rsp:%s", parts[0], rsp)}
 	}
 	return s, nil
-}
-
-// pat patchs storage operations to the correct storage
-type pat struct {
-	storages map[string]storage.Storage
-	config.Config
-	logger.Logger
 }

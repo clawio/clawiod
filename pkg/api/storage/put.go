@@ -39,7 +39,7 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter,
 		case *storage.NotExistError:
 
 			err = a.PutObject(identity, resourcePath, r.Body,
-				r.ContentLength, checksum)
+				r.ContentLength, checksum, nil)
 
 			if err != nil {
 				switch err.(type) {
@@ -127,7 +127,9 @@ func (a *Storage) put(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.PutObject(identity, resourcePath, r.Body, r.ContentLength, checksum)
+	err = a.PutObject(identity, resourcePath, r.Body, r.ContentLength,
+		checksum, nil)
+
 	if err != nil {
 		if err != nil {
 			switch err.(type) {

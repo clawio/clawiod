@@ -193,6 +193,7 @@ func (d *pat) ValidateRequestHandler(ctx context.Context, w http.ResponseWriter,
 
 	identity, err := d.ValidateRequest(r)
 	if err != nil {
+		d.Err("apat: " + err.Error())
 		if sendBasicChallenge {
 			w.Header().Set(
 				"WWW-Authenticate", "Basic Realm='ClawIO credentials'",
@@ -204,7 +205,7 @@ func (d *pat) ValidateRequestHandler(ctx context.Context, w http.ResponseWriter,
 
 		return
 	}
-	ctx = context.WithValue(ctx, "identity", identity)
+	ctx = context.WithValue(ctx, "idt", identity)
 	next(ctx, w, r)
 }
 

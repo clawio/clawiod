@@ -22,6 +22,7 @@ import (
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
+	"github.com/clawio/clawiod/pkg/storage/local"
 	sdisp "github.com/clawio/clawiod/pkg/storage/pat"
 	"io"
 	"net/http"
@@ -431,7 +432,7 @@ func (a *OCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 	}
 
 	w.Header().Set("Content-Type", meta.MimeType())
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size()))
 	t := time.Unix(int64(meta.Modified()), 0)
 	lastModifiedString := t.Format(time.RFC1123)
 	w.Header().Set("Last-Modified", lastModifiedString)
@@ -1025,93 +1026,97 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	}
 
 	checksum := a.getChecksum(ctx, r)
+	chunkInfo := getChunkInfo(ctx, r)
 
-	meta, err := a.Stat(idt, rsp, false)
-	if err != nil {
-		// stat will fail if the file does not exists
-		// in our case this is ok and we create a new file
-		switch err.(type) {
-		case *storage.NotExistError:
-			// validate If-Match header
-			if match := r.Header.Get("If-Match"); match != "" && match != meta.ETag() {
-				log.Warning("apiocwebdav: etags do not match. cetag:" + match + " setag:" + meta.ETag())
-				http.Error(w,
-					http.StatusText(http.StatusPreconditionFailed),
-					http.StatusPreconditionFailed)
-				
-				return
-			}
-			err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
-				checksum)
-
-			if err != nil {
-				switch err.(type) {
-				case *storage.NotExistError:
-					log.Debug(err.Error())
-					http.Error(w, http.StatusText(http.StatusNotFound),
-						http.StatusNotFound)
-
-					return
-				case *storage.BadChecksumError:
-					log.Err("apiocwebdav: data corruption. err:" + err.Error())
+	// TODO(labkode) Double check that the sync client does not do stat on chunks
+	// Chunk upload doesn't need to stat before.
+	if !chunkInfo.OCChunked {
+		meta, err := a.Stat(idt, rsp, false)
+		if err != nil {
+			// stat will fail if the file does not exists
+			// in our case this is ok and we create a new file
+			switch err.(type) {
+			case *storage.NotExistError:
+				// validate If-Match header
+				if match := r.Header.Get("If-Match"); match != "" && match != meta.ETag() {
+					log.Warning("apiocwebdav: etags do not match. cetag:" + match + " setag:" + meta.ETag())
 					http.Error(w,
 						http.StatusText(http.StatusPreconditionFailed),
 						http.StatusPreconditionFailed)
 
 					return
-				default:
-					log.Err("Cannot put object. err:" + err.Error())
-					http.Error(w,
-						http.StatusText(http.StatusInternalServerError),
-						http.StatusInternalServerError)
-
-					return
 				}
-			}
-			meta, err = a.Stat(idt, rsp, false)
-			if err != nil {
-				switch err.(type) {
-				case *storage.NotExistError:
-					log.Debug(err.Error())
-					http.Error(w, http.StatusText(http.StatusNotFound),
-						http.StatusNotFound)
+				err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
+					checksum, chunkInfo)
 
-					return
-				default:
-					msg := "apiocwebdav: cannot stat resource. err:" + err.Error()
-					log.Err(msg)
-					http.Error(w,
-						http.StatusText(http.StatusInternalServerError),
-						http.StatusInternalServerError)
+				if err != nil {
+					switch err.(type) {
+					case *storage.NotExistError:
+						log.Debug(err.Error())
+						http.Error(w, http.StatusText(http.StatusNotFound),
+							http.StatusNotFound)
 
-					return
+						return
+					case *storage.BadChecksumError:
+						log.Err("apiocwebdav: data corruption. err:" + err.Error())
+						http.Error(w,
+							http.StatusText(http.StatusPreconditionFailed),
+							http.StatusPreconditionFailed)
+
+						return
+					default:
+						log.Err("Cannot put object. err:" + err.Error())
+						http.Error(w,
+							http.StatusText(http.StatusInternalServerError),
+							http.StatusInternalServerError)
+
+						return
+					}
 				}
+				meta, err = a.Stat(idt, rsp, false)
+				if err != nil {
+					switch err.(type) {
+					case *storage.NotExistError:
+						log.Debug(err.Error())
+						http.Error(w, http.StatusText(http.StatusNotFound),
+							http.StatusNotFound)
+
+						return
+					default:
+						msg := "apiocwebdav: cannot stat resource. err:" + err.Error()
+						log.Err(msg)
+						http.Error(w,
+							http.StatusText(http.StatusInternalServerError),
+							http.StatusInternalServerError)
+
+						return
+					}
+				}
+				w.Header().Set("OC-FileId", meta.ID())
+				w.Header().Set("ETag", meta.ETag())
+				w.Header().Set("OC-X-MTime", "accepted")
+				w.WriteHeader(http.StatusCreated)
+				return
+
+			default:
+				log.Err("apiocwebdav: cannot stat resource. err:" + err.Error())
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+
+				return
 			}
-			w.Header().Set("OC-FileId", meta.ID())
-			w.Header().Set("ETag", meta.ETag())
-			w.Header().Set("OC-X-MTime", "accepted")
-			w.WriteHeader(http.StatusCreated)
-			return
-
-		default:
-			log.Err("apiocwebdav: cannot stat resource. err:" + err.Error())
-			http.Error(w, http.StatusText(http.StatusInternalServerError),
-				http.StatusInternalServerError)
-
+		}
+		if meta.IsContainer() {
+			msg := "apiocwebdav: cannot put an object where there is a container."
+			msg += " err:" + err.Error()
+			log.Err(msg)
+			http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 			return
 		}
 	}
 
-	if meta.IsContainer() {
-		msg := "apiocwebdav: cannot put an object where there is a container."
-		msg += " err:" + err.Error()
-		log.Err(msg)
-		http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
-		return
-	}
-
-	err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
-		checksum)
+	err := a.PutObject(idt, rsp, r.Body, r.ContentLength,
+		checksum, chunkInfo)
 
 	if err != nil {
 		if err != nil {
@@ -1138,7 +1143,49 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	meta, err = a.Stat(idt, rsp, false)
+	// The PutObject method just return an error to indicate if the upload
+	// (plain or chunked) was successful or not. In order to not pollute the
+	// Storage interface a stat after every upload operation is done.
+	// If the Stat fails and the upload is chunked return 201
+	if chunkInfo.OCChunked {
+		chunkPathInfo, err := local.GetChunkPathInfo(rsp)
+		if err != nil {
+			log.Err(err.Error())
+			http.Error(w, http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError)
+
+			return
+		}
+		meta, err := a.Stat(idt, chunkPathInfo.ResourcePath, false)
+		if err != nil {
+			switch err.(type) {
+
+			// When stating the assembled file after each chunk upload, if it is
+			// not yet assembled, the stat will fail, but return 201 to say that
+			// the chunk has been created.
+			case *storage.NotExistError:
+				log.Debug(err.Error())
+				//http.Error(w, http.StatusText(http.StatusNotFound),
+				//	http.StatusNotFound)
+
+				w.WriteHeader(http.StatusCreated)
+				return
+			default:
+				log.Err("apiocwebdav: cannot stat resource. err:" + err.Error())
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+
+				return
+			}
+		}
+
+		w.Header().Set("OC-FileId", meta.ID())
+		w.Header().Set("ETag", meta.ETag())
+		w.Header().Set("OC-X-MTime", "accepted")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	meta, err := a.Stat(idt, rsp, false)
 	if err != nil {
 		switch err.(type) {
 
@@ -1199,4 +1246,20 @@ func (a *OCWebDAV) getResourcePath(r *http.Request) string {
 			REMOTE_URL}, "/"))
 
 	return rsp
+}
+
+func getChunkInfo(ctx context.Context,
+	r *http.Request) *local.ChunkHeaderInfo {
+
+	info := &local.ChunkHeaderInfo{}
+	if r.Header.Get("OC-Chunked") == "1" {
+		info.OCChunked = true
+		if size, err := strconv.ParseUint(r.Header.Get("OC-Chunk-Size"), 10, 64); err != nil {
+			info.OCChunkSize = size
+		}
+		if total, err := strconv.ParseUint(r.Header.Get("OC-Total-Length"), 10, 64); err != nil {
+			info.OCTotalLength = total
+		}
+	}
+	return info
 }

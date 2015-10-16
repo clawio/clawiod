@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	DEFAULT_OBJECT_MIMETYPE    = "application/octet-stream"
-	DEFAULT_CONTAINER_MIMETYPE = "application/container"
+	// DefaultObjectMimeType is the default mime type for objects.
+	DefaultObjectMimeType = "application/octet-stream"
+	// DefaultContainerMimeType is the default mime type for containers.
+	DefaultContainerMimeType = "application/container"
 )
 
 // The first 16 bits are reserved and are part of the public API.
@@ -75,87 +77,90 @@ const (
 // Capabilities represents the capabilities of a storage.
 // Clients should ask for the capabilities of a storage
 // before doing any operation.
-type Capabilities interface {
+type Capabilities struct {
 	// Can upload a full object.
-	PutObject() bool
+	PutObject bool `json:"putobject"`
 
 	// Can upload an object in chunks
-	PutObjectInChunks() bool
+	PutObjectInChunks bool `json:"putobjectinchunks"`
 
 	// Can download a full object.
-	GetObject() bool
+	GetObject bool `json:"getobject"`
 
 	// Can download parts of an object
-	GetObjectByByteRange() bool
+	GetObjectByByteRange bool `json:"getobjectbybyterange"`
 
 	// Can get resource metadata.
-	Stat() bool
+	Stat bool `json:"stat"`
 
 	// Can remove resources.
-	Remove() bool
+	Remove bool `json:"remove"`
 
 	// Can create container.
-	CreateContainer() bool
+	CreateContainer bool `json:"createcontainer"`
 
 	// Can copy resources inside the same storage.
-	Copy() bool
+	Copy bool `json:"copy"`
 
 	// Can rename resources inside the same storage.
-	Rename() bool
+	Rename bool `json:"rename"`
 
 	// Can do third party copies.
-	ThirdPartyCopy() bool
+	ThirdPartyCopy bool `json:"thirdpartycopy"`
 
 	// Can do third party renames.
-	ThirdPartyRename() bool
+	ThirdPartyRename bool `json:"thridpartyrename"`
 
 	// Can list the versions of a resource.
-	ListVersions() bool
+	ListVersions bool `json:"listversions"`
 
 	// Can download a version.
-	GetVersion() bool
+	GetVersion bool `json:"getversion"`
 
 	// Can create versions.
-	CreateVersion() bool
+	CreateVersion bool `json:"createversion"`
 
 	// Can rollback to a previous version.
-	RollbackVersion() bool
+	RollbackVersion bool `json:"rollbackversion"`
 
 	// Can list deleted resources.
-	ListDeletedResources() bool
+	ListDeletedResources bool `json:"listdeletedresources"`
 
 	// Can restore a resource from the junk.
-	RestoreDeletedResource() bool
+	RestoreDeletedResource bool `json:"restoredeletedresource"`
 
 	// Can purge a resource.
-	PurgeDeletedResource() bool
+	PurgeDeletedResource bool `json:"purgedeletedresource"`
 
 	// Can send checksums to the client
-	SendChecksum() bool
+	//SendChecksum bool
 
 	// The checksum supported on the server.
 	// If empty the server does not computes the checksum.
 	// If this paremeter is set, the server will compute the checksum
 	// independently of the value of VerifyClientChecksum.
-	SupportedChecksum() string
+	SupportedChecksum string `json:"supportedchecksum"`
 
 	// Can verify client checksums.
 	// When it is enabled and SupportedChecksum is defined,
 	// the server will compare the client´s supplied checksum against
 	// the server checksum.
-	VerifyClientChecksum() bool
+	VerifyClientChecksum bool `json:"verifyclientchecksum"`
 
 	// Create user home directory on login
-	CreateUserHomeDirectory() bool
+	CreateUserHomeDir bool `json:"createuserhomedir"`
 }
 
+// Checksum represents the hexadecimal checksum.
 type Checksum string
 
+// Type returns the checksum type. Ex: md5
 func (ck Checksum) Type() string {
 	parts := strings.Split(ck.String(), ":")
 	return parts[0]
 }
 
+// Value returns the value of the checksum. Ex: d71aa9d377eb509a82fe0511c4b7db50
 func (ck Checksum) Value() string {
 	parts := strings.Split(ck.String(), ":")
 	if len(parts[0]) > 0 {
@@ -163,53 +168,61 @@ func (ck Checksum) Value() string {
 	}
 	return ""
 }
+
+// String returns the string representation of the checksum.
 func (ck Checksum) String() string {
 	return string(ck)
 }
 
+// Range represents a byte-range.
 type Range struct {
-	Start uint64
-	Size uint64
-}	
+	Offset uint64
+	Size   uint64
+}
 
 // MetaData represents the metadata information about a resource.
-type MetaData interface {
+type MetaData struct {
 	// The id of this resource.
-	ID() string
+	ID string `json:"id"`
 
 	// The path of this resource.
 	//It must be the full path with storage prefix like /home/cars/ford.png
-	Path() string
+	Path string `json:"path"`
 
 	// The size of this resource.
-	Size() uint64
+	Size uint64 `json:"size"`
 
 	// Indicates if the resource is a container.
-	IsContainer() bool
+	IsContainer bool `json:"iscontainer"`
 
 	// The mimetype of the resource.
-	MimeType() string
+	MimeType string `json:"mimetype"`
 
 	// The checksum of the resource.
-	Checksum() Checksum
+	Checksum Checksum `json:"checksum"`
 
 	// The latest time the resource has been modified.
-	Modified() uint64
+	Modified uint64 `json:"modified"`
 
 	// The ETag http://en.wikipedia.org/wiki/HTTP_ETag.
-	ETag() string
+	ETag string `json:"etag"`
 
 	// The permissions for the resource.
-	Permissions() ResourceMode
+	Permissions ResourceMode `json:"permissions"`
 
 	// If this resource is a container contains all the children´s metadata.
-	Children() []MetaData
+	Children []*MetaData `json:"children"`
 
 	// Contains extra attributes defined by the storage backend implementation.
 	// It can be useful to create custom applications.
 	// An example could be the download redirection based on the user done
 	// in CERNBox.
-	Extra() interface{}
+	Extra interface{} `json:"extra"`
+}
+
+// String returns the string representation of the metadata.
+func (m *MetaData) String() string {
+	return fmt.Sprintf("meta:(%+v)", *m)
 }
 
 // A ResourceMode represents a resource's permission bits.
@@ -264,58 +277,151 @@ func (m ResourceMode) IsStatable() bool {
 	return m&PSTAT != 0
 }
 
+// BaseParams represents the base parameters for storage operations.
+type BaseParams struct {
+	// The Identity doing the operation.
+	Idt auth.Identity
+	// The LogID for use in the storage operations. Is is useful to have user
+	// audits based on the request ID.
+	LID string
+	// Extra represents custom information to sent to the storage.
+	Extra interface{}
+}
+
+// CapabilitiesParams are the params used by the Capabilities method.
+type CapabilitiesParams struct {
+	BaseParams
+}
+
+// CommitChunkUploadParams are the params used by ChunkUpload method.
+type CommitChunkUploadParams struct {
+	BaseParams
+	Checksum Checksum
+}
+
+// CopyRenameParams are the common params used by Copy and Rename methods.
+type CopyRenameParams struct {
+	BaseParams
+	Src string
+	Dst string
+}
+
+// CopyParams are the params used by the Copy method.
+type CopyParams struct {
+	CopyRenameParams
+}
+
+// CreateContainerParams are the params used by the CreateContainer method.
+type CreateContainerParams struct {
+	BaseParams
+	Rsp string
+}
+
+// CreateUserHomeDirParams are the params used by the CreateUserHomeDir method.
+type CreateUserHomeDirParams struct {
+	BaseParams
+}
+
+// GetObjectParams are the params used by the GetObject method.
+type GetObjectParams struct {
+	BaseParams
+	Rsp   string
+	Range *Range
+}
+
+// PutObjectCommonParams are the params used by the PutObject and
+// PutChunkedObject methods.
+type PutObjectCommonParams struct {
+	BaseParams
+	io.Reader
+	Rsp  string
+	Size uint64
+}
+
+// PutChunkedObjectParams are the params used by the PutChunkedObject method.
+type PutChunkedObjectParams struct {
+	PutObjectCommonParams
+	TransferID string
+}
+
+// PutObjectParams are the params used by the PutObject method.
+type PutObjectParams struct {
+	PutObjectCommonParams
+	Checksum *Checksum
+}
+
+// RemoveParams are the params used by the Remove method.
+type RemoveParams struct {
+	BaseParams
+	Rsp       string
+	Recursive bool
+}
+
+// RenameParams are the params used by the Rename method.
+type RenameParams struct {
+	CopyRenameParams
+}
+
+// StartChunkUploadParams are the params used by the StartChunkUpload method.
+type StartChunkUploadParams struct {
+	BaseParams
+}
+
+// StatParams are the params used by the StatParams method.
+type StatParams struct {
+	BaseParams
+	Rsp      string
+	Children bool
+}
+
 // Storage is the interface that all the storage backends must implement
 // to be used by the storage multiplexer.
 type Storage interface {
 
 	// GetCapabilities returns the capabilities of this storage.
-	Capabilities(idt auth.Identity) Capabilities
+	Capabilities(p *CapabilitiesParams) *Capabilities
 
 	// CommitChunkedUpload commits the transaction
-	CommitChunkedUpload(chk Checksum) error
+	CommitChunkedUpload(p *CommitChunkUploadParams) error
 
 	// Copy copies a resource from one rsp to another.
 	// If rsps belong to different storages this is a third party copy.
-	Copy(idt auth.Identity, src, dst string) error
+	Copy(p *CopyParams) error
 
 	// CreateContainer creates a container in the storage
 	// defined by rsp.
-	CreateContainer(idt auth.Identity, rsp string) error
+	CreateContainer(p *CreateContainerParams) error
 
-	// CreateUserHomeDirectory creates the user home directory in the storage.
-	CreateUserHomeDirectory(idt auth.Identity) error
+	// CreateUserHomeDir creates the user home directory in the storage.
+	CreateUserHomeDir(p *CreateUserHomeDirParams) error
 
 	// GetObject gets an object from the storage defined by
 	// the uri or by the resourceID.
-	GetObject(idt auth.Identity, rsp string, r *Range) (io.Reader, error)
+	GetObject(p *GetObjectParams) (io.Reader, error)
 
 	// Prefix returns the prefix of this storage.
 	Prefix() string
 
 	// PutChunkedObject uploads the chunk defined by start and
 	// size of an object.
-	PutChunkedObject(idt auth.Identity, r io.Reader, size int64,
-		start int64, chunkID string) error
+	PutChunkedObject(p *PutChunkedObjectParams) error
 
 	// PutObject puts an object into the storage defined by rsp.
-	PutObject(idt auth.Identity, rsp string, r io.Reader,
-		size int64, checksum Checksum) error
+	PutObject(p *PutObjectParams) error
 
 	// Remove removes a resource from the storage defined by rsp.
-	Remove(idt auth.Identity, rsp string,
-		recursive bool) error
+	Remove(p *RemoveParams) error
 
 	// Rename renames/move a resource from one rsp to another.
 	// If rsps belong to different storages this is
-	//  a third party rename.
-	Rename(idt auth.Identity, src, dst string) error
+	// a third party rename.
+	Rename(p *RenameParams) error
 
 	// StartChunkedUpload starts a transaction for putting an object in chunks.
-	StartChunkedUpload() (string, error)
+	StartChunkedUpload(p *StartChunkUploadParams) (string, error)
 
 	// Stat returns metadata information about the resources and its children.
-	Stat(idt auth.Identity, rsp string,
-		children bool) (MetaData, error)
+	Stat(p *StatParams) (*MetaData, error)
 }
 
 // AlreadyExistError represents the error
@@ -341,15 +447,21 @@ type BadChecksumError struct {
 	Computed string
 }
 
+// Error returns the string representation of the error.
 func (e *BadChecksumError) Error() string {
 	msg := "data corrrupted. computed:%s and expected:%s"
 	return fmt.Sprintf(msg, e.Computed, e.Expected)
 }
 
+// NotImplementedError represents the error of an un-implemented feature.
+// Normally, the Storage Dispatcher will query the capabilities of a concrete
+// storage before trigger the operation.
+// The use of this error it should be due to custom logic in the storage.
 type NotImplementedError struct {
 	Err string
 }
 
+// Error returns the string representation of the error.
 func (e *NotImplementedError) Error() string {
 	return e.Err
 }

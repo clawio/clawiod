@@ -82,10 +82,18 @@ func (s *local) CreateUserHomeDirectory(idt auth.Identity) error {
 }
 
 func (s *local) PutObject(idt auth.Identity, rsp string,
-	r io.Reader, size int64, checksum storage.Checksum) error {
+	r io.Reader, size int64, checksum storage.Checksum, extra interface{}) error {
 
-	return s.putObject(idt, rsp, r, size, checksum)
-
+	// decide where it is a OC chunk upload or not
+	// now we decide based on path. Header OC-Chunked = 1 could be used also.
+	chunked, err := IsChunked(rsp)
+	if err != nil {
+		return s.convertError(err)
+	}
+	if chunked {
+		return s.putOCChunkObject(idt, rsp, r, size, checksum, extra)
+	}
+	return s.putObject(idt, rsp, r, size, checksum, extra)
 }
 
 func (s *local) Stat(idt auth.Identity, rsp string,
@@ -94,8 +102,8 @@ func (s *local) Stat(idt auth.Identity, rsp string,
 	return s.stat(idt, rsp, children)
 }
 
-func (s *local) GetObject(idt auth.Identity,rsp string,
-	 r *storage.Range) (io.Reader, error) {
+func (s *local) GetObject(idt auth.Identity, rsp string,
+	r *storage.Range) (io.Reader, error) {
 
 	return s.getObject(idt, rsp, r)
 }
@@ -222,7 +230,7 @@ func (s *local) getObject(idt auth.Identity,
 	return io.LimitReader(file, int64(r.Size)), nil
 }
 func (s *local) putObject(idt auth.Identity, rsp string,
-	r io.Reader, size int64, checksum storage.Checksum) error {
+	r io.Reader, size int64, checksum storage.Checksum, extra interface{}) error {
 
 	_, ap := s.getRelAndAbsPaths(rsp, idt)
 
@@ -317,6 +325,231 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 	return nil
 }
 
+func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
+	r io.Reader, size int64, checksum storage.Checksum, extra interface{}) error {
+
+	// TODO(labkode) Check if r.ContentLength should be changed by
+	// chunkInfo.OCChunkSize in chunk uploads
+
+	_, ap := s.getRelAndAbsPaths(rsp, idt)
+
+	// cast to ChunkInfo
+	//chunkInfo, ok := extra.(*ChunkHeaderInfo)
+	//if !ok {
+	//	return fmt.Errorf("local: chunk upload without header chunk info")
+	//}
+	chunkPathInfo, err := GetChunkPathInfo(rsp)
+	if err != nil {
+		return s.convertError(err)
+	}
+	s.Info("putOCChunkObject: getted " + chunkPathInfo.String())
+	tmpPath := s.getTmpPath()
+
+	fd, err := os.Create(tmpPath)
+	if err != nil {
+		return s.convertError(err)
+	}
+	defer func() {
+		if err := fd.Close(); err != nil {
+			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
+				ap, err.Error())
+
+			s.Warning(msg)
+		}
+	}()
+	s.Info("putOCChunkObject: created tmpPath for chunk at " + tmpPath)
+
+	/* TODO(labkode) Configurable checksuming of individual chunks
+	var mw io.Writer
+	var hasher hash.Hash
+	var isChecksumed bool
+	var computedChecksum string
+
+	// Select hasher based on capabilities. TODO: add more
+	srvChk := s.Capabilities(idt).SupportedChecksum()
+	switch srvChk {
+	case "md5":
+		hasher = md5.New()
+		isChecksumed = true
+		mw = io.MultiWriter(fd, hasher)
+	case "sha1":
+		hasher = sha1.New()
+		isChecksumed = true
+		mw = io.MultiWriter(fd, hasher)
+	case "adler32":
+		hasher = adler32.New()
+		isChecksumed = true
+		mw = io.MultiWriter(fd, hasher)
+	default:
+		mw = io.MultiWriter(fd)
+	}
+
+	// Write to tmp file
+	_, err = io.CopyN(mw, r, size)
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	if isChecksumed {
+		// checksums are given in hexadecimal format.
+		computedChecksum = fmt.Sprintf("%x", string(hasher.Sum(nil)))
+
+		if s.Capabilities(idt).VerifyClientChecksum() &&
+			checksum.Type() == srvChk && checksum.Value() != "" {
+
+			isCorrupted := computedChecksum != checksum.Value()
+
+			if isCorrupted {
+				err := &storage.BadChecksumError{
+					Computed: checksum.Type() + ":" + computedChecksum,
+					Expected: checksum.String()}
+
+				s.Err(err.Error())
+				return s.convertError(err)
+			}
+		}
+		err = xattr.SetXAttr(tmpPath, XAttrChecksum,
+			[]byte(srvChk+":"+computedChecksum), xattr.XAttrCreateOrReplace)
+
+		if err != nil {
+			return s.convertError(err)
+		}
+	}
+	*/
+
+	_, err = io.CopyN(fd, r, size)
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	s.Debug("putOCChunkObject: copied r.Body to " + tmpPath)
+
+	// At this point the chunk is in the tmp folder.
+	// The chunk folder has to be created
+
+	chunkFolder, err := s.getChunkFolder(chunkPathInfo)
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	s.Debug("putOCChunkObject: created chunkFolder at " + chunkFolder)
+
+	chunkDst := path.Join(
+		chunkFolder,
+		path.Clean(strconv.FormatUint(chunkPathInfo.CurrentChunk, 10)))
+
+	err = os.Rename(tmpPath, chunkDst)
+
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	s.Debug("putOCChunkObject: moved chunk from " + tmpPath + " to " + chunkDst)
+
+	// Check that all chunks are uploaded.
+	// This is very inefficient, the server has to check that it has all the
+	// chunks after each uploaded chunk.
+	// A two-phase upload like DropBox is better, because the server will
+	// assembly the chunks when the client asks for it.
+
+	fdChunkFolder, err := os.Open(chunkFolder)
+	if err != nil {
+		return s.convertError(err)
+	}
+	defer fdChunkFolder.Close()
+	s.Info("putOCChunkObject: open " + chunkFolder)
+
+	fns, err := fdChunkFolder.Readdirnames(-1)
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	s.Info(fmt.Sprintf("putOCChunkObject: %d out of %d chunks", len(fns),
+		chunkPathInfo.TotalChunks))
+
+	if len(fns) < int(chunkPathInfo.TotalChunks) {
+		return nil
+	}
+
+	// here len(fns) is >= total chunks.
+	// if there are more chunks that the ones in chunkPathInfo.TotalChunks
+	// means that the client sent the wrong chunk number.
+	// When reconstructing, iterate sequentially over all chunks
+	// from 0 to chunkPathInfo.chunkPathInfo
+
+	tp := s.getTmpPath()
+	//fdAssembly, err := os.OpenFile(tp, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	fdAssembly, err := os.OpenFile(tp, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return s.convertError(err)
+	}
+	defer fdAssembly.Close()
+
+	s.Info("putOCChunkObject: opened tmp file assembly at " + tp)
+
+	for chunk := 0; chunk < int(chunkPathInfo.TotalChunks); chunk++ {
+		cp := path.Join(chunkFolder,
+			strconv.FormatInt(int64(chunk), 10))
+
+		fdChunk, err := os.Open(cp)
+		if err != nil {
+			return s.convertError(err)
+		}
+		s.Info("putOCChunkObject: opened chunk file at " + cp)
+
+		_, err = io.Copy(fdAssembly, fdChunk)
+		if err != nil {
+			return s.convertError(err)
+		}
+		s.Info("putOCChunkObject: copied from " + cp + " to " + tp)
+	}
+
+	resourceID := uuid.New()
+	err = xattr.SetXAttr(tp, XAttrID, []byte(resourceID), xattr.XAttrCreate)
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	s.Info(fmt.Sprintf("putOCChunkObject: setted xattr %s to %s at %s",
+		XAttrID, resourceID, tp))
+
+	// TODO(labkode) Check that the assembled file size is == to OC-Total-Length
+	// TODO(labkode) Compute checksum and put it in xattrs
+	// Atomic move from tmp file to target file after all chunks are uploaded.
+	_, dst := s.getRelAndAbsPaths(chunkPathInfo.ResourcePath, idt)
+
+	err = s.commitPutFile(tp, dst)
+	if err != nil {
+		return s.convertError(err)
+	}
+
+	s.Info(fmt.Sprintf("putOCChunkObject: moved %s to %s",
+		tp, dst))
+
+	// Propagate changes.
+	err = s.aero.PutRecord(rsp, resourceID)
+	if err != nil {
+		return err
+	}
+
+	s.Info(fmt.Sprintf("putOCChunkObject: assigned xattr:%s to %s with value %s",
+		XAttrID, rsp, resourceID))
+
+	return nil
+}
+
+func (s *local) getChunkFolder(i *chunkPathInfo) (string, error) {
+	// not using the resource path in the chunk folder name allows uploading
+	// to the same folder after a move without having to restart the chunk
+	// upload
+	p := path.Join(s.GetDirectives().LocalStorageRootTmpDir,
+		i.UploadID())
+
+	if err := os.MkdirAll(p, DirPerm); err != nil {
+		return "", err
+	}
+	return p, nil
+}
 func (s *local) remove(idt auth.Identity, rsp string,
 	recursive bool) error {
 
@@ -744,13 +977,32 @@ type chunkPathInfo struct {
 	CurrentChunk uint64
 }
 
-// isChunked determines if an upload is chunked or not.
-func isChunked(rsp string) (bool, error) {
+func (c *chunkPathInfo) UploadID() string {
+	return "chunking-" + c.TransferID + "-" + strconv.FormatUint(c.TotalChunks, 10)
+}
+
+type ChunkHeaderInfo struct {
+	// OC-Chunked = 1
+	OCChunked bool
+
+	// OC-Chunk-Size
+	OCChunkSize uint64
+
+	// OC-Total-Length
+	OCTotalLength uint64
+}
+
+func (c *chunkPathInfo) String() string {
+	return fmt.Sprintf("chunkPathInfo: (%+v)", *c)
+}
+
+// IsChunked determines if an upload is chunked or not.
+func IsChunked(rsp string) (bool, error) {
 	return regexp.MatchString(`-chunking-\w+-[0-9]+-[0-9]+`, rsp)
 }
 
-// getChunkPathInfo obtains the different parts of a chunk from the path.
-func getChunkPathInfo(rsp string) (*chunkPathInfo, error) {
+// GetChunkPathInfo obtains the different parts of a chunk from the path.
+func GetChunkPathInfo(rsp string) (*chunkPathInfo, error) {
 	parts := strings.Split(rsp, "-chunking-")
 	tail := strings.Split(parts[1], "-")
 
@@ -762,11 +1014,10 @@ func getChunkPathInfo(rsp string) (*chunkPathInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	
-	if currentChunk +1 >= totalChunks {
-		return nil, fmt.Errorf("current chunk:%d exceeds total chunks:%d.", currentChunk, totalChunks)
-	}	
 
+	if currentChunk >= totalChunks {
+		return nil, fmt.Errorf("current chunk:%d exceeds total chunks:%d.", currentChunk, totalChunks)
+	}
 
 	info := &chunkPathInfo{}
 	info.ResourcePath = parts[0]
