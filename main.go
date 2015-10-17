@@ -237,6 +237,7 @@ func main() {
 	srvParams.AppLogWriter = appWriter
 	srvParams.ReqLogWriter = reqWriter
 	srvParams.Config = cfg
+	srvParams.APIPat = apiPat
 	srvParams.IDMPat = idmPat
 	srvParams.StoragePat = strgPat
 
