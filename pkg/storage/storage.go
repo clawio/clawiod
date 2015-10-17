@@ -12,6 +12,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/clawio/clawiod/pkg/auth"
 	"io"
 	"strings"
@@ -222,7 +223,7 @@ type MetaData struct {
 
 // String returns the string representation of the metadata.
 func (m *MetaData) String() string {
-	return fmt.Sprintf("meta:(%+v)", *m)
+	return fmt.Sprintf("meta(%+v)", *m)
 }
 
 // A ResourceMode represents a resource's permission bits.
@@ -280,10 +281,7 @@ func (m ResourceMode) IsStatable() bool {
 // BaseParams represents the base parameters for storage operations.
 type BaseParams struct {
 	// The Identity doing the operation.
-	Idt auth.Identity
-	// The LogID for use in the storage operations. Is is useful to have user
-	// audits based on the request ID.
-	LID string
+	Idt *idm.Identity
 	// Extra represents custom information to sent to the storage.
 	Extra interface{}
 }
@@ -327,6 +325,7 @@ type GetObjectParams struct {
 	BaseParams
 	Rsp   string
 	Range *Range
+	Size  uint64
 }
 
 // PutObjectCommonParams are the params used by the PutObject and
@@ -347,7 +346,7 @@ type PutChunkedObjectParams struct {
 // PutObjectParams are the params used by the PutObject method.
 type PutObjectParams struct {
 	PutObjectCommonParams
-	Checksum *Checksum
+	Checksum Checksum
 }
 
 // RemoveParams are the params used by the Remove method.
@@ -379,49 +378,49 @@ type StatParams struct {
 type Storage interface {
 
 	// GetCapabilities returns the capabilities of this storage.
-	Capabilities(p *CapabilitiesParams) *Capabilities
+	Capabilities(ctx context.Context, p *CapabilitiesParams) *Capabilities
 
 	// CommitChunkedUpload commits the transaction
-	CommitChunkedUpload(p *CommitChunkUploadParams) error
+	CommitChunkedUpload(ctx context.Context, p *CommitChunkUploadParams) error
 
 	// Copy copies a resource from one rsp to another.
 	// If rsps belong to different storages this is a third party copy.
-	Copy(p *CopyParams) error
+	Copy(ctx context.Context, p *CopyParams) error
 
 	// CreateContainer creates a container in the storage
 	// defined by rsp.
-	CreateContainer(p *CreateContainerParams) error
+	CreateContainer(ctx context.Context, p *CreateContainerParams) error
 
 	// CreateUserHomeDir creates the user home directory in the storage.
-	CreateUserHomeDir(p *CreateUserHomeDirParams) error
+	CreateUserHomeDir(ctx context.Context, p *CreateUserHomeDirParams) error
 
 	// GetObject gets an object from the storage defined by
 	// the uri or by the resourceID.
-	GetObject(p *GetObjectParams) (io.Reader, error)
+	GetObject(ctx context.Context, p *GetObjectParams) (io.Reader, error)
 
 	// Prefix returns the prefix of this storage.
 	Prefix() string
 
 	// PutChunkedObject uploads the chunk defined by start and
 	// size of an object.
-	PutChunkedObject(p *PutChunkedObjectParams) error
+	PutChunkedObject(ctx context.Context, p *PutChunkedObjectParams) error
 
 	// PutObject puts an object into the storage defined by rsp.
-	PutObject(p *PutObjectParams) error
+	PutObject(ctx context.Context, p *PutObjectParams) error
 
 	// Remove removes a resource from the storage defined by rsp.
-	Remove(p *RemoveParams) error
+	Remove(ctx context.Context, p *RemoveParams) error
 
 	// Rename renames/move a resource from one rsp to another.
 	// If rsps belong to different storages this is
 	// a third party rename.
-	Rename(p *RenameParams) error
+	Rename(ctx context.Context, p *RenameParams) error
 
 	// StartChunkedUpload starts a transaction for putting an object in chunks.
-	StartChunkedUpload(p *StartChunkUploadParams) (string, error)
+	StartChunkedUpload(ctx context.Context, p *StartChunkUploadParams) (string, error)
 
 	// Stat returns metadata information about the resources and its children.
-	Stat(p *StatParams) (*MetaData, error)
+	Stat(ctx context.Context, p *StatParams) (*MetaData, error)
 }
 
 // AlreadyExistError represents the error

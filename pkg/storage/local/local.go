@@ -15,7 +15,8 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/code.google.com/p/go-uuid/uuid"
-	"github.com/clawio/clawiod/pkg/auth"
+	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+	auth "github.com/clawio/clawiod/pkg/auth"
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
@@ -44,99 +45,109 @@ const ()
 // local is the implementation of the Storage interface to use a local
 // filesystem as the storage backend.
 type local struct {
-	storagePrefix string
-	aero          *Aero
-	config.Config
-	logger.Logger
+	prefix string
+	aero   *Aero
+	cfg    config.Config
+}
+
+type NewParams struct {
+	Prefix string
+	Config config.Config
 }
 
 // New creates a local object or returns an error.
-func New(storagePrefix string, cfg config.Config,
-	log logger.Logger) (storage.Storage, error) {
+func New(p *NewParams) (storage.Storage, error) {
 
-	aero, err := NewAero(cfg, log)
+	aero, err := NewAero(p.Config)
 	if err != nil {
 		return nil, err
 	}
 
-	s := &local{storagePrefix: storagePrefix, aero: aero,
-		Config: cfg, Logger: log}
+	s := &local{prefix: p.Prefix, aero: aero,
+		cfg: p.Config}
 
 	return s, nil
 }
 
 func (s *local) Prefix() string {
-	return s.storagePrefix
+	return s.prefix
 }
 
-func (s *local) Capabilities(idt auth.Identity) storage.Capabilities {
+func (s *local) Capabilities(ctx context.Context, p *storage.CapabilitiesParams) *storage.Capabilities {
 	// TOOD: Maybe in the future depending on the user one can give some
 	//  capabilities or not. This can be helpful to test new things like
 	// allowing some users access to edge features.
-	cap := capabilities{}
+	cap := storage.Capabilities{}
+	cap.Copy = true
+	cap.CreateContainer = true
+	cap.CreateUserHomeDir = true
+	cap.GetObject = true
+	cap.GetObjectByByteRange = true
+	cap.PutObject = true
+	cap.Remove = true
+	cap.Rename = true
+	cap.Stat = true
+	cap.SupportedChecksum = "md5"
+	cap.VerifyClientChecksum = true
 	return &cap
 }
 
-func (s *local) CreateUserHomeDirectory(idt auth.Identity) error {
-	return s.createUserHomeDirectory(idt)
+func (s *local) CreateUserHomeDir(ctx context.Context, p *storage.CreateUserHomeDirParams) error {
+	return s.createUserHomeDirectory(ctx, p)
 }
 
-func (s *local) PutObject(idt auth.Identity, rsp string,
-	r io.Reader, size int64, checksum storage.Checksum, extra interface{}) error {
-
+func (s *local) PutObject(ctx context.Context, p *storage.PutObjectParams) error {
 	// decide where it is a OC chunk upload or not
 	// now we decide based on path. Header OC-Chunked = 1 could be used also.
-	chunked, err := IsChunked(rsp)
+	chunked, err := IsChunked(p.Rsp)
 	if err != nil {
 		return s.convertError(err)
 	}
 	if chunked {
-		return s.putOCChunkObject(idt, rsp, r, size, checksum, extra)
+		return s.putOCChunkObject(ctx, p)
 	}
-	return s.putObject(idt, rsp, r, size, checksum, extra)
+	return s.putObject(ctx, p)
 }
 
-func (s *local) Stat(idt auth.Identity, rsp string,
-	children bool) (storage.MetaData, error) {
-
-	return s.stat(idt, rsp, children)
+func (s *local) Stat(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error) {
+	return s.stat(ctx, p)
 }
 
-func (s *local) GetObject(idt auth.Identity, rsp string,
-	r *storage.Range) (io.Reader, error) {
-
-	return s.getObject(idt, rsp, r)
+func (s *local) GetObject(ctx context.Context, p *storage.GetObjectParams) (io.Reader, error) {
+	return s.getObject(ctx, p)
 }
 
-func (s *local) Remove(idt auth.Identity, rsp string,
-	recursive bool) error {
-
-	return s.remove(idt, rsp, recursive)
+func (s *local) Remove(ctx context.Context, p *storage.RemoveParams) error {
+	return s.remove(ctx, p)
 }
 
-func (s *local) CreateContainer(idt auth.Identity,
-	rsp string) error {
-
-	return s.createContainer(idt, rsp)
+func (s *local) CreateContainer(ctx context.Context, p *storage.CreateContainerParams) error {
+	return s.createContainer(ctx, p)
 }
 
-func (s *local) Copy(idt auth.Identity, fromPath, toPath string) error {
-	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, idt)
-	_, toAbsPath := s.getRelAndAbsPaths(toPath, idt)
+func (s *local) Copy(ctx context.Context, p *storage.CopyParams) error {
+	log := logger.MustFromContext(ctx)
+
+	_, fromAbsPath := s.getRelAndAbsPaths(p.Src, p.Idt)
+	_, toAbsPath := s.getRelAndAbsPaths(p.Dst, p.Idt)
 
 	tmpPath := s.getTmpPath()
 
-	s.Info("local: copy " + fromAbsPath + " to " + toAbsPath)
+	log.Info("local: copy " + fromAbsPath + " to " + toAbsPath)
 
 	// Is it a container ?
-	meta, err := s.Stat(idt, fromPath, false)
+	statParams := &storage.StatParams{}
+	statParams.BaseParams = p.BaseParams
+	statParams.Rsp = p.Src
+
+	meta, err := s.Stat(ctx, statParams)
 	if err != nil {
 		return err
 	}
 
 	// If it is an object, just copy it.
-	if !meta.IsContainer() {
-		err = s.stageFile(fromAbsPath, tmpPath, int64(meta.Size()))
+	if !meta.IsContainer {
+		err = s.stageFile(ctx, fromAbsPath, tmpPath, int64(meta.Size))
 		if err != nil {
 			return s.convertError(err)
 		}
@@ -144,57 +155,62 @@ func (s *local) Copy(idt auth.Identity, fromPath, toPath string) error {
 	}
 
 	// It is a container, so the copy is recursive.
-	err = s.stageDir(fromAbsPath, tmpPath)
+	err = s.stageDir(ctx, fromAbsPath, tmpPath)
 	if err != nil {
 		return s.convertError(err)
 	}
 	return s.convertError(os.Rename(tmpPath, toAbsPath))
 }
 
-func (s *local) Rename(idt auth.Identity, fromPath, toPath string) error {
-	return s.rename(idt, fromPath, toPath)
+func (s *local) Rename(ctx context.Context, p *storage.RenameParams) error {
+	return s.rename(ctx, p)
 }
 
-func (s *local) StartChunkedUpload() (string, error) {
+func (s *local) StartChunkedUpload(ctx context.Context, p *storage.StartChunkUploadParams) (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 
-func (s *local) PutChunkedObject(idt auth.Identity, r io.Reader,
-	size int64, start int64, chunkID string) error {
-
+func (s *local) PutChunkedObject(ctx context.Context, p *storage.PutChunkedObjectParams) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *local) CommitChunkedUpload(checksum storage.Checksum) error {
-
+func (s *local) CommitChunkedUpload(ctx context.Context, p *storage.CommitChunkUploadParams) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *local) rename(idt auth.Identity, fromPath, toPath string) error {
-	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, idt)
-	_, toAbsPath := s.getRelAndAbsPaths(toPath, idt)
+func (s *local) rename(ctx context.Context, p *storage.RenameParams) error {
+	log := logger.MustFromContext(ctx)
 
-	s.Info("local: rename " + fromAbsPath + " to " + toAbsPath)
+	_, fromAbsPath := s.getRelAndAbsPaths(p.Src, p.Idt)
+	_, toAbsPath := s.getRelAndAbsPaths(p.Dst, p.Idt)
+
+	log.Info("local: rename " + fromAbsPath + " to " + toAbsPath)
 
 	return s.convertError(os.Rename(fromAbsPath, toAbsPath))
 }
-func (s *local) copy(idt auth.Identity, fromPath, toPath string) error {
-	_, fromAbsPath := s.getRelAndAbsPaths(fromPath, idt)
-	_, toAbsPath := s.getRelAndAbsPaths(toPath, idt)
+func (s *local) copy(ctx context.Context, p *storage.CopyParams) error {
+	log := logger.MustFromContext(ctx)
+
+	_, fromAbsPath := s.getRelAndAbsPaths(p.Src, p.Idt)
+	_, toAbsPath := s.getRelAndAbsPaths(p.Dst, p.Idt)
 
 	tmpPath := s.getTmpPath()
 
-	s.Info("local: copy " + fromAbsPath + " to " + toAbsPath)
+	log.Info("local: copy " + fromAbsPath + " to " + toAbsPath)
 
 	// Is it a container ?
-	meta, err := s.Stat(idt, fromPath, false)
+	statParams := &storage.StatParams{}
+	statParams.BaseParams = p.BaseParams
+	statParams.Rsp = fromAbsPath
+
+	meta, err := s.Stat(ctx, statParams)
 	if err != nil {
 		return err
 	}
 
 	// If it is an object, just copy it.
-	if !meta.IsContainer() {
-		err = s.stageFile(fromAbsPath, tmpPath, int64(meta.Size()))
+	if !meta.IsContainer {
+		err = s.stageFile(ctx, fromAbsPath, tmpPath, int64(meta.Size))
 		if err != nil {
 			return s.convertError(err)
 		}
@@ -202,39 +218,39 @@ func (s *local) copy(idt auth.Identity, fromPath, toPath string) error {
 	}
 
 	// It is a container, so the copy is recursive.
-	err = s.stageDir(fromAbsPath, tmpPath)
+	err = s.stageDir(ctx, fromAbsPath, tmpPath)
 	if err != nil {
 		return s.convertError(err)
 	}
 	return s.convertError(os.Rename(tmpPath, toAbsPath))
 }
 
-func (s *local) getObject(idt auth.Identity,
-	rsp string, r *storage.Range) (io.Reader, error) {
+func (s *local) getObject(ctx context.Context, p *storage.GetObjectParams) (io.Reader, error) {
+	log := logger.MustFromContext(ctx)
 
-	_, ap := s.getRelAndAbsPaths(rsp, idt)
+	_, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
-	s.Info("local: get " + ap)
+	log.Info("local: get " + ap)
 
 	file, err := os.Open(ap)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
-	if r == nil {
+	if p.Range == nil {
 		return file, nil
 	}
-	_, err = file.Seek(int64(r.Start), 0)
+	_, err = file.Seek(int64(p.Range.Offset), 0)
 	if err != nil {
 		return nil, err
 	}
-	return io.LimitReader(file, int64(r.Size)), nil
+	return io.LimitReader(file, int64(p.Size)), nil
 }
-func (s *local) putObject(idt auth.Identity, rsp string,
-	r io.Reader, size int64, checksum storage.Checksum, extra interface{}) error {
+func (s *local) putObject(ctx context.Context, p *storage.PutObjectParams) error {
+	log := logger.MustFromContext(ctx)
 
-	_, ap := s.getRelAndAbsPaths(rsp, idt)
+	_, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
-	s.Info("local: put " + ap)
+	log.Info("local: put " + ap)
 
 	tmpPath := s.getTmpPath()
 
@@ -247,7 +263,7 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
 				ap, err.Error())
 
-			s.Warning(msg)
+			log.Warning(msg)
 		}
 	}()
 
@@ -257,7 +273,9 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 	var computedChecksum string
 
 	// Select hasher based on capabilities. TODO: add more
-	srvChk := s.Capabilities(idt).SupportedChecksum()
+	capParams := &storage.CapabilitiesParams{}
+	capParams.BaseParams = p.BaseParams
+	srvChk := s.Capabilities(ctx, capParams).SupportedChecksum
 	switch srvChk {
 	case "md5":
 		hasher = md5.New()
@@ -276,7 +294,7 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 	}
 
 	// Write to tmp file
-	_, err = io.CopyN(mw, r, size)
+	_, err = io.CopyN(mw, p.Reader, int64(p.Size))
 	if err != nil {
 		return s.convertError(err)
 	}
@@ -285,17 +303,17 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 		// checksums are given in hexadecimal format.
 		computedChecksum = fmt.Sprintf("%x", string(hasher.Sum(nil)))
 
-		if s.Capabilities(idt).VerifyClientChecksum() &&
-			checksum.Type() == srvChk && checksum.Value() != "" {
+		if s.Capabilities(ctx, capParams).VerifyClientChecksum &&
+			p.Checksum.Type() == srvChk && p.Checksum.Value() != "" {
 
-			isCorrupted := computedChecksum != checksum.Value()
+			isCorrupted := computedChecksum != p.Checksum.Value()
 
 			if isCorrupted {
 				err := &storage.BadChecksumError{
-					Computed: checksum.Type() + ":" + computedChecksum,
-					Expected: checksum.String()}
+					Computed: p.Checksum.Type() + ":" + computedChecksum,
+					Expected: p.Checksum.String()}
 
-				s.Err(err.Error())
+				log.Err(err.Error())
 				return s.convertError(err)
 			}
 		}
@@ -317,7 +335,7 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 	}
 
 	// Propagate changes.
-	err = s.aero.PutRecord(rsp, resourceID)
+	err = s.aero.PutRecord(p.Rsp, resourceID)
 	if err != nil {
 		return err
 	}
@@ -325,24 +343,23 @@ func (s *local) putObject(idt auth.Identity, rsp string,
 	return nil
 }
 
-func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
-	r io.Reader, size int64, checksum storage.Checksum, extra interface{}) error {
-
+func (s *local) putOCChunkObject(ctx context.Context, p *storage.PutObjectParams) error {
 	// TODO(labkode) Check if r.ContentLength should be changed by
 	// chunkInfo.OCChunkSize in chunk uploads
+	log := logger.MustFromContext(ctx)
 
-	_, ap := s.getRelAndAbsPaths(rsp, idt)
+	_, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
 	// cast to ChunkInfo
 	//chunkInfo, ok := extra.(*ChunkHeaderInfo)
 	//if !ok {
 	//	return fmt.Errorf("local: chunk upload without header chunk info")
 	//}
-	chunkPathInfo, err := GetChunkPathInfo(rsp)
+	chunkPathInfo, err := GetChunkPathInfo(p.Rsp)
 	if err != nil {
 		return s.convertError(err)
 	}
-	s.Info("putOCChunkObject: getted " + chunkPathInfo.String())
+	log.Info("putOCChunkObject: getted " + chunkPathInfo.String())
 	tmpPath := s.getTmpPath()
 
 	fd, err := os.Create(tmpPath)
@@ -354,10 +371,10 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
 				ap, err.Error())
 
-			s.Warning(msg)
+			log.Warning(msg)
 		}
 	}()
-	s.Info("putOCChunkObject: created tmpPath for chunk at " + tmpPath)
+	log.Info("putOCChunkObject: created tmpPath for chunk at " + tmpPath)
 
 	/* TODO(labkode) Configurable checksuming of individual chunks
 	var mw io.Writer
@@ -404,7 +421,7 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 					Computed: checksum.Type() + ":" + computedChecksum,
 					Expected: checksum.String()}
 
-				s.Err(err.Error())
+				log.Err(err.Error())
 				return s.convertError(err)
 			}
 		}
@@ -417,12 +434,12 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 	}
 	*/
 
-	_, err = io.CopyN(fd, r, size)
+	_, err = io.CopyN(fd, p.Reader, int64(p.Size))
 	if err != nil {
 		return s.convertError(err)
 	}
 
-	s.Debug("putOCChunkObject: copied r.Body to " + tmpPath)
+	log.Debug("putOCChunkObject: copied r.Body to " + tmpPath)
 
 	// At this point the chunk is in the tmp folder.
 	// The chunk folder has to be created
@@ -432,7 +449,7 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 		return s.convertError(err)
 	}
 
-	s.Debug("putOCChunkObject: created chunkFolder at " + chunkFolder)
+	log.Debug("putOCChunkObject: created chunkFolder at " + chunkFolder)
 
 	chunkDst := path.Join(
 		chunkFolder,
@@ -444,7 +461,7 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 		return s.convertError(err)
 	}
 
-	s.Debug("putOCChunkObject: moved chunk from " + tmpPath + " to " + chunkDst)
+	log.Debug("putOCChunkObject: moved chunk from " + tmpPath + " to " + chunkDst)
 
 	// Check that all chunks are uploaded.
 	// This is very inefficient, the server has to check that it has all the
@@ -457,14 +474,14 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 		return s.convertError(err)
 	}
 	defer fdChunkFolder.Close()
-	s.Info("putOCChunkObject: open " + chunkFolder)
+	log.Info("putOCChunkObject: open " + chunkFolder)
 
 	fns, err := fdChunkFolder.Readdirnames(-1)
 	if err != nil {
 		return s.convertError(err)
 	}
 
-	s.Info(fmt.Sprintf("putOCChunkObject: %d out of %d chunks", len(fns),
+	log.Info(fmt.Sprintf("putOCChunkObject: %d out of %d chunks", len(fns),
 		chunkPathInfo.TotalChunks))
 
 	if len(fns) < int(chunkPathInfo.TotalChunks) {
@@ -485,7 +502,7 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 	}
 	defer fdAssembly.Close()
 
-	s.Info("putOCChunkObject: opened tmp file assembly at " + tp)
+	log.Info("putOCChunkObject: opened tmp file assembly at " + tp)
 
 	for chunk := 0; chunk < int(chunkPathInfo.TotalChunks); chunk++ {
 		cp := path.Join(chunkFolder,
@@ -495,13 +512,13 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 		if err != nil {
 			return s.convertError(err)
 		}
-		s.Info("putOCChunkObject: opened chunk file at " + cp)
+		log.Info("putOCChunkObject: opened chunk file at " + cp)
 
 		_, err = io.Copy(fdAssembly, fdChunk)
 		if err != nil {
 			return s.convertError(err)
 		}
-		s.Info("putOCChunkObject: copied from " + cp + " to " + tp)
+		log.Info("putOCChunkObject: copied from " + cp + " to " + tp)
 	}
 
 	resourceID := uuid.New()
@@ -510,30 +527,30 @@ func (s *local) putOCChunkObject(idt auth.Identity, rsp string,
 		return s.convertError(err)
 	}
 
-	s.Info(fmt.Sprintf("putOCChunkObject: setted xattr %s to %s at %s",
+	log.Info(fmt.Sprintf("putOCChunkObject: setted xattr %s to %s at %s",
 		XAttrID, resourceID, tp))
 
 	// TODO(labkode) Check that the assembled file size is == to OC-Total-Length
 	// TODO(labkode) Compute checksum and put it in xattrs
 	// Atomic move from tmp file to target file after all chunks are uploaded.
-	_, dst := s.getRelAndAbsPaths(chunkPathInfo.ResourcePath, idt)
+	_, dst := s.getRelAndAbsPaths(chunkPathInfo.ResourcePath, p.Idt)
 
 	err = s.commitPutFile(tp, dst)
 	if err != nil {
 		return s.convertError(err)
 	}
 
-	s.Info(fmt.Sprintf("putOCChunkObject: moved %s to %s",
+	log.Info(fmt.Sprintf("putOCChunkObject: moved %s to %s",
 		tp, dst))
 
 	// Propagate changes.
-	err = s.aero.PutRecord(rsp, resourceID)
+	err = s.aero.PutRecord(p.Rsp, resourceID)
 	if err != nil {
 		return err
 	}
 
-	s.Info(fmt.Sprintf("putOCChunkObject: assigned xattr:%s to %s with value %s",
-		XAttrID, rsp, resourceID))
+	log.Info(fmt.Sprintf("putOCChunkObject: assigned xattr:%s to %s with value %s",
+		XAttrID, p.Rsp, resourceID))
 
 	return nil
 }
@@ -542,7 +559,7 @@ func (s *local) getChunkFolder(i *chunkPathInfo) (string, error) {
 	// not using the resource path in the chunk folder name allows uploading
 	// to the same folder after a move without having to restart the chunk
 	// upload
-	p := path.Join(s.GetDirectives().LocalStorageRootTmpDir,
+	p := path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir,
 		i.UploadID())
 
 	if err := os.MkdirAll(p, DirPerm); err != nil {
@@ -550,78 +567,81 @@ func (s *local) getChunkFolder(i *chunkPathInfo) (string, error) {
 	}
 	return p, nil
 }
-func (s *local) remove(idt auth.Identity, rsp string,
-	recursive bool) error {
+func (s *local) remove(ctx context.Context, p *storage.RemoveParams) error {
+	log := logger.MustFromContext(ctx)
 
-	_, ap := s.getRelAndAbsPaths(rsp, idt)
+	_, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
-	s.Info("local: remove " + ap)
+	log.Info("local: remove " + ap)
 
-	if recursive == false {
+	if p.Recursive == false {
 		return s.convertError(os.Remove(ap))
 	}
 	return s.convertError(os.RemoveAll(ap))
 }
 
-func (s *local) getMergedMetaData(rsp string,
-	idt auth.Identity) (*meta, error) {
+func (s *local) getMergedMetaData(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error) {
 
-	m, err := s.getFSInfo(rsp, idt)
+	m, err := s.getFSInfo(ctx, p)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
-	rec, err := s.aero.GetOrCreateRecord(rsp)
+	rec, err := s.aero.GetOrCreateRecord(p.Rsp)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
-	m.modified = uint64(rec.Bins["mtime"].(int))
-	m.etag = rec.Bins["etag"].(string)
+	m.Modified = uint64(rec.Bins["mtime"].(int))
+	m.ETag = rec.Bins["etag"].(string)
 	return m, nil
 
 }
 
-func (s *local) stat(idt auth.Identity, rsp string,
-	children bool) (storage.MetaData, error) {
+func (s *local) stat(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error) {
+	log := logger.MustFromContext(ctx)
 
-	m, err := s.getMergedMetaData(rsp, idt)
+	m, err := s.getMergedMetaData(ctx, p)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
-	if !m.IsContainer() || children == false {
+	if !m.IsContainer || p.Children == false {
 		return m, nil
 	}
 
 	// fns is just the base name
-	fns, err := s.getFSChildrenNames(rsp, idt)
+	fns, err := s.getFSChildrenNames(ctx, p)
 	if err != nil {
 		return nil, s.convertError(err)
 	}
 
-	childrenMeta := []storage.MetaData{}
+	childrenMeta := []*storage.MetaData{}
 	for _, fn := range fns {
-		p := path.Join(rsp, path.Clean(fn))
-		m, err := s.getMergedMetaData(p, idt)
+		pt := path.Join(p.Rsp, path.Clean(fn))
+
+		mergedParams := &storage.StatParams{}
+		mergedParams.BaseParams = p.BaseParams
+		mergedParams.Rsp = pt
+
+		m, err := s.getMergedMetaData(ctx, mergedParams)
 		if err != nil {
 			// just log the error
-			s.Err(err.Error())
+			log.Err(err.Error())
 		} else {
 			// healthy children are added to the parent
 			childrenMeta = append(childrenMeta, m)
 		}
 	}
-	m.children = childrenMeta
+	m.Children = childrenMeta
 	return m, nil
 }
 
-func (s *local) getFSInfo(rsp string,
-	idt auth.Identity) (*meta, error) {
+func (s *local) getFSInfo(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error) {
+	log := logger.MustFromContext(ctx)
+	rp, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
-	rp, ap := s.getRelAndAbsPaths(rsp, idt)
-
-	s.Info("local: stat " + ap)
+	log.Info("local: stat " + ap)
 
 	// Get storage file info.
 	finfo, err := os.Stat(ap)
@@ -637,7 +657,7 @@ func (s *local) getFSInfo(rsp string,
 			if err != nil {
 				return nil, err
 			}
-			err := s.aero.PutRecord(rsp, string(id))
+			err := s.aero.PutRecord(p.Rsp, string(id))
 			if err != nil {
 				return nil, err
 			}
@@ -651,7 +671,7 @@ func (s *local) getFSInfo(rsp string,
 		if err != nil {
 			return nil, err
 		}
-		err := s.aero.PutRecord(rsp, string(id))
+		err := s.aero.PutRecord(p.Rsp, string(id))
 		if err != nil {
 			return nil, err
 		}
@@ -664,22 +684,23 @@ func (s *local) getFSInfo(rsp string,
 		parentPath += "/" // container' path ends with slash
 	}
 
-	m := meta{
-		id:          string(id),
-		path:        parentPath,
-		size:        uint64(finfo.Size()),
-		isContainer: finfo.IsDir(),
-		mimeType:    mimeType,
-		permissions: perm,
+	m := storage.MetaData{
+		ID:          string(id),
+		Path:        parentPath,
+		Size:        uint64(finfo.Size()),
+		IsContainer: finfo.IsDir(),
+		MimeType:    mimeType,
+		Permissions: perm,
 	}
 
 	return &m, nil
 }
 
-func (s *local) getFSChildrenNames(rsp string,
-	idt auth.Identity) ([]string, error) {
+func (s *local) getFSChildrenNames(ctx context.Context, p *storage.StatParams) ([]string, error) {
 
-	_, ap := s.getRelAndAbsPaths(rsp, idt)
+	log := logger.MustFromContext(ctx)
+
+	_, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
 	fd, err := os.Open(ap)
 	if err != nil {
@@ -690,7 +711,7 @@ func (s *local) getFSChildrenNames(rsp string,
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
 				ap, err.Error())
 
-			s.Warning(msg)
+			log.Warning(msg)
 		}
 	}()
 
@@ -701,12 +722,11 @@ func (s *local) getFSChildrenNames(rsp string,
 	return fns, nil
 }
 
-func (s *local) createContainer(idt auth.Identity,
-	rsp string) error {
+func (s *local) createContainer(ctx context.Context, p *storage.CreateContainerParams) error {
+	log := logger.MustFromContext(ctx)
+	_, ap := s.getRelAndAbsPaths(p.Rsp, p.Idt)
 
-	_, ap := s.getRelAndAbsPaths(rsp, idt)
-
-	s.Info("local: createcontainer " + ap)
+	log.Info("local: createcontainer " + ap)
 
 	err := os.Mkdir(ap, DirPerm)
 	if err != nil {
@@ -720,25 +740,25 @@ func (s *local) createContainer(idt auth.Identity,
 		return err
 	}
 
-	return s.aero.PutRecord(rsp, resourceID)
+	return s.aero.PutRecord(p.Rsp, resourceID)
 }
 
-func (s *local) createUserHomeDirectory(idt auth.Identity) error {
-	exists, err := s.isHomeDirCreated(idt)
+func (s *local) createUserHomeDirectory(ctx context.Context, p *storage.CreateUserHomeDirParams) error {
+	exists, err := s.isHomeDirCreated(p.Idt)
 	if err != nil {
 		return s.convertError(err)
 	}
 	if exists {
 		return nil
 	}
-	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(idt.AuthTypeID(), idt.PID()))
+	homeDir := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir,
+		path.Join(p.Idt.IDMID, p.Idt.PID))
 
 	return s.convertError(os.MkdirAll(homeDir, DirPerm))
 }
-func (s *local) isHomeDirCreated(idt auth.Identity) (bool, error) {
-	homeDir := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(idt.AuthTypeID(), idt.PID()))
+func (s *local) isHomeDirCreated(idt *auth.Identity) (bool, error) {
+	homeDir := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir,
+		path.Join(idt.IDMID, idt.PID))
 
 	_, err := os.Stat(homeDir)
 	if err == nil {
@@ -762,13 +782,14 @@ func (s *local) convertError(err error) error {
 }
 
 func (s *local) getTmpPath() string {
-	return path.Join(s.GetDirectives().LocalStorageRootTmpDir, uuid.New())
+	return path.Join(s.cfg.GetDirectives().LocalStorageRootTmpDir, uuid.New())
 }
 func (s *local) commitPutFile(from, to string) error {
 	return os.Rename(from, to)
 }
 
-func (s *local) stageFile(source string, dest string, size int64) (err error) {
+func (s *local) stageFile(ctx context.Context, source string, dest string, size int64) (err error) {
+	log := logger.MustFromContext(ctx)
 	reader, err := os.Open(source)
 	if err != nil {
 		return err
@@ -778,7 +799,7 @@ func (s *local) stageFile(source string, dest string, size int64) (err error) {
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
 				source, err.Error())
 
-			s.Warning(msg)
+			log.Warning(msg)
 		}
 	}()
 
@@ -792,7 +813,7 @@ func (s *local) stageFile(source string, dest string, size int64) (err error) {
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
 				dest, err.Error())
 
-			s.Warning(msg)
+			log.Warning(msg)
 		}
 	}()
 
@@ -803,7 +824,8 @@ func (s *local) stageFile(source string, dest string, size int64) (err error) {
 	return nil
 }
 
-func (s *local) stageDir(source string, dest string) (err error) {
+func (s *local) stageDir(ctx context.Context, source string, dest string) (err error) {
+	log := logger.MustFromContext(ctx)
 	// create dest dir
 	err = os.MkdirAll(dest, DirPerm)
 	if err != nil {
@@ -817,7 +839,7 @@ func (s *local) stageDir(source string, dest string) (err error) {
 			msg := fmt.Sprintf("local: cannot close resource:%s err:%s",
 				source, err.Error())
 
-			s.Warning(msg)
+			log.Warning(msg)
 		}
 	}()
 
@@ -830,13 +852,13 @@ func (s *local) stageDir(source string, dest string) (err error) {
 
 		if obj.IsDir() {
 			// create sub-directories - recursively
-			err = s.stageDir(sourcefilepointer, destinationfilepointer)
+			err = s.stageDir(ctx, sourcefilepointer, destinationfilepointer)
 			if err != nil {
 				return err
 			}
 		} else {
 			// perform copy
-			err = s.stageFile(sourcefilepointer, destinationfilepointer, obj.Size())
+			err = s.stageFile(ctx, sourcefilepointer, destinationfilepointer, obj.Size())
 			if err != nil {
 				return err
 			}
@@ -864,11 +886,11 @@ func (s *local) pathWithPrefix(rp string) string {
 
 func (s *local) getMimeType(fi os.FileInfo) string {
 	if fi.IsDir() {
-		return storage.DEFAULT_CONTAINER_MIMETYPE
+		return storage.DefaultContainerMimeType
 	}
 	mimeType := mime.TypeByExtension(path.Ext(fi.Name()))
 	if mimeType == "" {
-		mimeType = storage.DEFAULT_OBJECT_MIMETYPE
+		mimeType = storage.DefaultObjectMimeType
 	}
 	return mimeType
 }
@@ -884,82 +906,13 @@ func (s *local) getPermissions(fi os.FileInfo) storage.ResourceMode {
 // getRelAndAbsPaths returns the relativePath (without storage prefix)
 // and the absolutePath (the fs path)
 func (s *local) getRelAndAbsPaths(rsp string,
-	idt auth.Identity) (string, string) {
+	idt *auth.Identity) (string, string) {
 
 	rp := s.pathWithoutPrefix(rsp)
-	ap := path.Join(s.GetDirectives().LocalStorageRootDataDir,
-		path.Join(idt.AuthTypeID(), idt.PID(), rp))
+	ap := path.Join(s.cfg.GetDirectives().LocalStorageRootDataDir,
+		path.Join(idt.IDMID, idt.PID, rp))
 
 	return rp, ap
-}
-
-// meta represents the metadata associated with a resources.
-// It the fusion of the storageInfo and the hyperInfo.
-type meta struct {
-	id          string
-	path        string
-	size        uint64
-	checksum    storage.Checksum
-	isContainer bool
-	modified    uint64
-	etag        string
-	mimeType    string
-	permissions storage.ResourceMode
-	children    []storage.MetaData
-	extra       interface{}
-}
-
-/*
-func newMeta(si *storageInfo, hi *hyperInfo) *meta {
-	m := &meta{}
-	m.id = hi.ID
-	m.path = storageInfo.ResourcePath
-	m.size = uint64(si.Size())
-	m.checksum = hi.Checksum
-	m.isContainer = si.IsDir()
-	m.modified = hi.Mtime
-	m.etag = hi.Etag
-	m.mimeType = storageInfo.MimeType
-	m.permissions = si.Permissions
-}
-*/
-func (m *meta) ID() string                        { return m.id }
-func (m *meta) Path() string                      { return m.path }
-func (m *meta) Size() uint64                      { return m.size }
-func (m *meta) IsContainer() bool                 { return m.isContainer }
-func (m *meta) Modified() uint64                  { return m.modified }
-func (m *meta) ETag() string                      { return m.etag }
-func (m *meta) MimeType() string                  { return m.mimeType }
-func (m *meta) Permissions() storage.ResourceMode { return m.permissions }
-func (m *meta) Checksum() storage.Checksum        { return m.checksum }
-func (m *meta) Children() []storage.MetaData      { return m.children }
-func (m *meta) Extra() interface{}                { return m.extra }
-
-type capabilities struct{}
-
-func (c *capabilities) PutObject() bool               { return false }
-func (c *capabilities) PutObjectInChunks() bool       { return false }
-func (c *capabilities) GetObject() bool               { return false }
-func (c *capabilities) GetObjectByByteRange() bool    { return false }
-func (c *capabilities) Stat() bool                    { return false }
-func (c *capabilities) Remove() bool                  { return false }
-func (c *capabilities) CreateContainer() bool         { return false }
-func (c *capabilities) Copy() bool                    { return false }
-func (c *capabilities) Rename() bool                  { return false }
-func (c *capabilities) ThirdPartyCopy() bool          { return false }
-func (c *capabilities) ThirdPartyRename() bool        { return false }
-func (c *capabilities) ListVersions() bool            { return false }
-func (c *capabilities) GetVersion() bool              { return false }
-func (c *capabilities) CreateVersion() bool           { return false }
-func (c *capabilities) RollbackVersion() bool         { return false }
-func (c *capabilities) ListDeletedResources() bool    { return false }
-func (c *capabilities) RestoreDeletedResource() bool  { return false }
-func (c *capabilities) PurgeDeletedResource() bool    { return false }
-func (c *capabilities) VerifyClientChecksum() bool    { return true }
-func (c *capabilities) SendChecksum() bool            { return false }
-func (c *capabilities) CreateUserHomeDirectory() bool { return true }
-func (c *capabilities) SupportedChecksum() string {
-	return SupportedChecksum
 }
 
 // storageInfo represents the information obtainable local filesystem.

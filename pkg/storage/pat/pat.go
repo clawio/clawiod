@@ -12,11 +12,13 @@ package pat
 
 import (
 	"fmt"
-	"github.com/clawio/clawiod/pkg/config"
-	"github.com/clawio/clawiod/pkg/logger"
-	"github.com/clawio/clawiod/pkg/storage"
 	"io"
 	"strings"
+
+	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+
+	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/storage"
 )
 
 // BaseParams are the params used in Pat operations.
@@ -49,34 +51,32 @@ type Pat interface {
 	GetStorage(p *GetStorageParams) (storage.Storage, bool)
 	GetAllStorages(p *GetAllStoragesParams) []storage.Storage
 
-	Capabilities(p *storage.CapabilitiesParams,
+	Capabilities(ctx context.Context, p *storage.CapabilitiesParams,
 		pfx string) (*storage.Capabilities, error)
-	CommitChunkedUpload(p *storage.CommitChunkUploadParams,
+	CommitChunkedUpload(ctx context.Context, p *storage.CommitChunkUploadParams,
 		rsp string) error
-	Copy(p *storage.CopyParams) error
-	CreateContainer(p *storage.CreateContainerParams) error
-	CreateUserHomeDir(p *storage.CreateUserHomeDirParams, pfx string) error
-	GetObject(ip *storage.GetObjectParams) (io.Reader, error)
-	PutChunkedObject(p *storage.PutChunkedObjectParams) error
-	PutObject(p *storage.PutObjectParams) error
-	Remove(p *storage.RemoveParams) error
-	Rename(p *storage.RenameParams) error
-	StartChunkedUpload(p *storage.StartChunkUploadParams,
+	Copy(ctx context.Context, p *storage.CopyParams) error
+	CreateContainer(ctx context.Context, p *storage.CreateContainerParams) error
+	CreateUserHomeDir(ctx context.Context, p *storage.CreateUserHomeDirParams, pfx string) error
+	GetObject(ctx context.Context, p *storage.GetObjectParams) (io.Reader, error)
+	PutChunkedObject(ctx context.Context, p *storage.PutChunkedObjectParams) error
+	PutObject(ctx context.Context, p *storage.PutObjectParams) error
+	Remove(ctx context.Context, p *storage.RemoveParams) error
+	Rename(ctx context.Context, p *storage.RenameParams) error
+	StartChunkedUpload(ctx context.Context, p *storage.StartChunkUploadParams,
 		pfx string) (string, error)
-	Stat(p *storage.StatParams) (*storage.MetaData, error)
+	Stat(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error)
 }
 
 // pat implements the Pat interface.
 type pat struct {
 	storages map[string]storage.Storage
-	log      logger.Logger
 	cfg      config.Config
 }
 
 // NewParams are the params used by the New method.
 type NewParams struct {
 	Config config.Config
-	Log    logger.Logger
 }
 
 // New creates a Pat.
@@ -84,7 +84,6 @@ func New(p *NewParams) Pat {
 	m := pat{
 		storages: make(map[string]storage.Storage),
 		cfg:      p.Config,
-		log:      p.Log,
 	}
 	return &m
 }
@@ -114,7 +113,7 @@ func (pt *pat) GetAllStorages(p *GetAllStoragesParams) []storage.Storage {
 	return storages
 }
 
-func (pt *pat) Capabilities(p *storage.CapabilitiesParams,
+func (pt *pat) Capabilities(ctx context.Context, p *storage.CapabilitiesParams,
 	pfx string) (*storage.Capabilities,
 	error) {
 
@@ -122,9 +121,9 @@ func (pt *pat) Capabilities(p *storage.CapabilitiesParams,
 	if err != nil {
 		return nil, err
 	}
-	return s.Capabilities(p), nil
+	return s.Capabilities(ctx, p), nil
 }
-func (pt *pat) CreateUserHomeDir(p *storage.CreateUserHomeDirParams,
+func (pt *pat) CreateUserHomeDir(ctx context.Context, p *storage.CreateUserHomeDirParams,
 	pfx string) error {
 
 	s, err := pt.getStorageFromPath(pfx)
@@ -132,27 +131,27 @@ func (pt *pat) CreateUserHomeDir(p *storage.CreateUserHomeDirParams,
 		return err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).CreateUserHomeDir {
+	if !s.Capabilities(ctx, cp).CreateUserHomeDir {
 		return &storage.NotImplementedError{
 			Err: "CreateUserHomeDir not implemented",
 		}
 	}
-	return s.CreateUserHomeDir(p)
+	return s.CreateUserHomeDir(ctx, p)
 }
-func (pt *pat) PutObject(p *storage.PutObjectParams) error {
+func (pt *pat) PutObject(ctx context.Context, p *storage.PutObjectParams) error {
 	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).PutObject {
+	if !s.Capabilities(ctx, cp).PutObject {
 		return &storage.NotImplementedError{
 			Err: "PutObject not implemented",
 		}
 	}
-	return s.PutObject(p)
+	return s.PutObject(ctx, p)
 }
-func (pt *pat) StartChunkedUpload(p *storage.StartChunkUploadParams,
+func (pt *pat) StartChunkedUpload(ctx context.Context, p *storage.StartChunkUploadParams,
 	pfx string) (string, error) {
 
 	s, err := pt.getStorageFromPath(pfx)
@@ -160,28 +159,28 @@ func (pt *pat) StartChunkedUpload(p *storage.StartChunkUploadParams,
 		return "", err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).PutObjectInChunks {
+	if !s.Capabilities(ctx, cp).PutObjectInChunks {
 		return "", &storage.NotImplementedError{
 			Err: "StartChunkedUpload not implemented",
 		}
 	}
-	return s.StartChunkedUpload(p)
+	return s.StartChunkedUpload(ctx, p)
 }
-func (pt *pat) PutChunkedObject(p *storage.PutChunkedObjectParams) error {
+func (pt *pat) PutChunkedObject(ctx context.Context, p *storage.PutChunkedObjectParams) error {
 
 	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).PutObjectInChunks {
+	if !s.Capabilities(ctx, cp).PutObjectInChunks {
 		return &storage.NotImplementedError{
 			Err: "PutChunkedObject not implemented",
 		}
 	}
-	return s.PutChunkedObject(p)
+	return s.PutChunkedObject(ctx, p)
 }
-func (pt *pat) CommitChunkedUpload(p *storage.CommitChunkUploadParams,
+func (pt *pat) CommitChunkedUpload(ctx context.Context, p *storage.CommitChunkUploadParams,
 	pfx string) error {
 
 	s, err := pt.getStorageFromPath(pfx)
@@ -189,66 +188,66 @@ func (pt *pat) CommitChunkedUpload(p *storage.CommitChunkUploadParams,
 		return err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).PutObjectInChunks {
+	if !s.Capabilities(ctx, cp).PutObjectInChunks {
 		return &storage.NotImplementedError{
 			Err: "PutObjectInChunks not implemented",
 		}
 	}
-	return s.CommitChunkedUpload(p)
+	return s.CommitChunkedUpload(ctx, p)
 }
-func (pt *pat) GetObject(p *storage.GetObjectParams) (io.Reader, error) {
+func (pt *pat) GetObject(ctx context.Context, p *storage.GetObjectParams) (io.Reader, error) {
 	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return nil, err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).GetObject {
+	if !s.Capabilities(ctx, cp).GetObject {
 		return nil, &storage.NotImplementedError{
 			Err: "GetObject not implemented",
 		}
 	}
-	return s.GetObject(p)
+	return s.GetObject(ctx, p)
 }
-func (pt *pat) Stat(p *storage.StatParams) (*storage.MetaData, error) {
+func (pt *pat) Stat(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error) {
 	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return nil, err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).Stat {
+	if !s.Capabilities(ctx, cp).Stat {
 		return nil, &storage.NotImplementedError{
 			Err: "Stat not implemented",
 		}
 	}
-	return s.Stat(p)
+	return s.Stat(ctx, p)
 }
-func (pt *pat) Remove(p *storage.RemoveParams) error {
+func (pt *pat) Remove(ctx context.Context, p *storage.RemoveParams) error {
 	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).Remove {
+	if !s.Capabilities(ctx, cp).Remove {
 		return &storage.NotImplementedError{
 			Err: "Remove not implemented",
 		}
 	}
-	return s.Remove(p)
+	return s.Remove(ctx, p)
 }
-func (pt *pat) CreateContainer(p *storage.CreateContainerParams) error {
+func (pt *pat) CreateContainer(ctx context.Context, p *storage.CreateContainerParams) error {
 	s, err := pt.getStorageFromPath(p.Rsp)
 	if err != nil {
 		return err
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !s.Capabilities(cp).CreateContainer {
+	if !s.Capabilities(ctx, cp).CreateContainer {
 		return &storage.NotImplementedError{
 			Err: "CreateContainer not implemented",
 		}
 	}
-	return s.CreateContainer(p)
+	return s.CreateContainer(ctx, p)
 }
-func (pt *pat) Rename(p *storage.RenameParams) error {
+func (pt *pat) Rename(ctx context.Context, p *storage.RenameParams) error {
 	srcStrg, err := pt.getStorageFromPath(p.Src)
 	if err != nil {
 		return err
@@ -262,15 +261,15 @@ func (pt *pat) Rename(p *storage.RenameParams) error {
 			srcStrg.Prefix(), dstStrg.Prefix())
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !srcStrg.Capabilities(cp).Rename {
+	if !srcStrg.Capabilities(ctx, cp).Rename {
 		return &storage.NotImplementedError{
 			Err: "Rename not implemented",
 		}
 	}
-	return srcStrg.Rename(p)
+	return srcStrg.Rename(ctx, p)
 }
 
-func (pt *pat) Copy(p *storage.CopyParams) error {
+func (pt *pat) Copy(ctx context.Context, p *storage.CopyParams) error {
 	srcStrg, err := pt.getStorageFromPath(p.Src)
 	if err != nil {
 		return err
@@ -284,12 +283,12 @@ func (pt *pat) Copy(p *storage.CopyParams) error {
 			srcStrg.Prefix(), dstStrg.Prefix())
 	}
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
-	if !srcStrg.Capabilities(cp).Copy {
+	if !srcStrg.Capabilities(ctx, cp).Copy {
 		return &storage.NotImplementedError{
 			Err: "Copy not implemented",
 		}
 	}
-	return srcStrg.Copy(p)
+	return srcStrg.Copy(ctx, p)
 }
 
 // getStorageFromPath returns the storage implementation with the storage prfx used in rspt.
@@ -303,4 +302,35 @@ func (pt *pat) getStorageFromPath(rsp string) (storage.Storage, error) {
 		return nil, &storage.NotExistError{Err: fmt.Sprintf("storage:%s not registered for rsp:%s", parts[0], rsp)}
 	}
 	return s, nil
+}
+
+// The key type is unexported to prevent collisions with context keys defined in
+// other packages.
+type key int
+
+// patKey is the context key for the dispatcher.  Its value of zero is
+// arbitrary.  If this package defined other context keys, they would have
+// different integer values.
+const patKey key = 0
+
+// NewContext returns a new Context carrying a storage pat.
+func NewContext(ctx context.Context, p Pat) context.Context {
+	return context.WithValue(ctx, patKey, p)
+}
+
+// FromContext extracts the storage pat from ctx, if present.
+func FromContext(ctx context.Context) (Pat, bool) {
+	// ctx.Value returns nil if ctx has no value for the key;
+	p, ok := ctx.Value(patKey).(Pat)
+	return p, ok
+}
+
+// MustFromContext extracts the storage pat from ctx.
+// If not present it panics.
+func MustFromContext(ctx context.Context) Pat {
+	l, ok := ctx.Value(patKey).(Pat)
+	if !ok {
+		panic("storage pat is not registered")
+	}
+	return l
 }

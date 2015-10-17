@@ -7,118 +7,118 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package webdav defines the WebDAV API to manage the resources using
-// the WebDAV protocol.
+// Package webdav defines the webDAV API to manage the resources using
+// the webDAV protocol.
 package webdav
 
 import (
 	"encoding/xml"
 	"fmt"
-	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
-	"github.com/clawio/clawiod/pkg/api"
-	"github.com/clawio/clawiod/pkg/auth"
-	apat "github.com/clawio/clawiod/pkg/auth/pat"
-	"github.com/clawio/clawiod/pkg/config"
-	"github.com/clawio/clawiod/pkg/logger"
-	"github.com/clawio/clawiod/pkg/storage"
-	sdisp "github.com/clawio/clawiod/pkg/storage/pat"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+
+	"github.com/clawio/clawiod/pkg/api"
+	auth "github.com/clawio/clawiod/pkg/auth"
+	idmppat "github.com/clawio/clawiod/pkg/auth/pat"
+	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/logger"
+	"github.com/clawio/clawiod/pkg/storage"
+	strgpat "github.com/clawio/clawiod/pkg/storage/pat"
 )
 
-// WebDAV is the implementation of the API interface to manage
-// resources using WebDAV.
-type WebDAV struct {
-	id   string
-	apat apat.Pat
-	sdisp.Pat
-	config.Config
-	logger.Logger
+// webDAV is the implementation of the API interface to manage
+// resources using webDAV.
+type webDAV struct {
+	*NewParams
 }
 
-// New creates a WebDAV API.
-func New(id string, apat apat.Pat, sdisp sdisp.Pat, cfg config.Config,
-	log logger.Logger) api.API {
-
-	fa := WebDAV{
-		id:     id,
-		apat:   apat,
-		Pat:    sdisp,
-		Config: cfg,
-	}
-	return &fa
+type NewParams struct {
+	Config config.Config
 }
 
-//ID returns the ID of the WebDAV API
-func (a *WebDAV) ID() string { return a.id }
+// New creates a webDAV API.
+func New(p *NewParams) api.API {
+	w := webDAV{}
+	w.NewParams = p
+	return &w
+}
+
+//ID returns the ID of the webDAV API
+func (a *webDAV) ID() string {
+	return a.NewParams.Config.GetDirectives().WebDAVAPIID
+}
 
 // HandleRequest handles the request
-func (a *WebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
+
+	idmPat := idmppat.MustFromContext(ctx)
 
 	path := r.URL.Path
 	if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "GET" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.get)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.get)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "PUT" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.put)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.put)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "MKCOL" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.mkcol)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.mkcol)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "OPTIONS" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.options)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.options)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "PROPFIND" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.propfind)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.propfind)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "LOCK" {
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.lock)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.lock)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "UNLOCK" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.unlock)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.unlock)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "DELETE" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.delete)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.delete)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "MOVE" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.move)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.move)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + "/"},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + "/"},
 			"/")) && r.Method == "COPY" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.copy)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.copy)
 
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -126,11 +126,12 @@ func (a *WebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) copy(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	destination := r.Header.Get("Destination")
@@ -151,7 +152,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 	destination = strings.TrimPrefix(destinationURL.Path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID()}, "/")+"/")
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID()}, "/")+"/")
 
 	overwrite = strings.ToUpper(overwrite)
 	if overwrite == "" {
@@ -164,21 +165,21 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter,
 
 		return
 	}
-	sp := &storage.StatParams{}
-	sp.Idt = idt
-	sp.Rsp = destination
-	sp.Children = false
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = destination
+	statParams.Children = false
 
 	copyParams := &storage.CopyParams{}
-	copyParams.BaseParams = sp.BaseParams
+	copyParams.BaseParams = statParams.BaseParams
 	copyParams.Dst = destination
 	copyParams.Src = rsp
 
-	_, err = a.Stat(sp)
+	_, err = strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.Copy(copyParams)
+			err = strgPat.Copy(ctx, copyParams)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -216,7 +217,7 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.Copy(copyParams)
+	err = strgPat.Copy(ctx, copyParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -234,12 +235,12 @@ func (a *WebDAV) copy(ctx context.Context, w http.ResponseWriter,
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-func (a *WebDAV) delete(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) delete(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	statParams := &storage.StatParams{}
@@ -247,7 +248,7 @@ func (a *WebDAV) delete(ctx context.Context, w http.ResponseWriter,
 	statParams.Children = false
 	statParams.Rsp = rsp
 
-	_, err := a.Stat(statParams)
+	_, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -269,7 +270,7 @@ func (a *WebDAV) delete(ctx context.Context, w http.ResponseWriter,
 	rmParams.Recursive = true
 	rmParams.Rsp = rsp
 
-	err = a.Remove(rmParams)
+	err = strgPat.Remove(ctx, rmParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -289,12 +290,12 @@ func (a *WebDAV) delete(ctx context.Context, w http.ResponseWriter,
 	return
 }
 
-func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) get(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	statParams := &storage.StatParams{}
@@ -302,7 +303,7 @@ func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter,
 	statParams.Children = false
 	statParams.Rsp = rsp
 
-	meta, err := a.Stat(statParams)
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -333,7 +334,7 @@ func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter,
 	getObjectParams.BaseParams = statParams.BaseParams
 	getObjectParams.Rsp = rsp
 
-	reader, err := a.GetObject(getObjectParams)
+	reader, err := strgPat.GetObject(ctx, getObjectParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -359,12 +360,12 @@ func (a *WebDAV) get(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *WebDAV) head(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) head(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	statParams := &storage.StatParams{}
@@ -372,7 +373,7 @@ func (a *WebDAV) head(ctx context.Context, w http.ResponseWriter,
 	statParams.Children = false
 	statParams.Rsp = rsp
 
-	meta, err := a.Stat(statParams)
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -403,7 +404,7 @@ func (a *WebDAV) head(ctx context.Context, w http.ResponseWriter,
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *WebDAV) lock(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) lock(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	log := ctx.Value("log").(logger.Logger)
@@ -433,12 +434,12 @@ func (a *WebDAV) lock(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	// MKCOL with weird body must fail with 415 (RFC2518:8.3.1)
@@ -454,7 +455,7 @@ func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 	createContainerParams.Idt = idt
 	createContainerParams.Rsp = rsp
 
-	err := a.CreateContainer(createContainerParams)
+	err := strgPat.CreateContainer(ctx, createContainerParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -480,12 +481,12 @@ func (a *WebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) move(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	destination := r.Header.Get("Destination")
@@ -506,7 +507,7 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter,
 	}
 
 	destination = strings.TrimPrefix(destinationURL.Path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID()}, "/")+"/")
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID()}, "/")+"/")
 
 	overwrite = strings.ToUpper(overwrite)
 	if overwrite == "" {
@@ -530,11 +531,11 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter,
 	renameParams.Dst = destination
 	renameParams.Src = rsp
 
-	_, err = a.Stat(statParams)
+	_, err = strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.Rename(renameParams)
+			err = strgPat.Rename(ctx, renameParams)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -572,7 +573,7 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.Rename(renameParams)
+	err = strgPat.Rename(ctx, renameParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -592,12 +593,12 @@ func (a *WebDAV) move(ctx context.Context, w http.ResponseWriter,
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) options(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	statParams := &storage.StatParams{}
@@ -605,7 +606,7 @@ func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter,
 	statParams.Children = false
 	statParams.Rsp = rsp
 
-	meta, err := a.Stat(statParams)
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -636,12 +637,12 @@ func (a *WebDAV) options(ctx context.Context, w http.ResponseWriter,
 	return
 }
 
-func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	var children bool
@@ -655,7 +656,7 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	statParams.Children = children
 	statParams.Rsp = rsp
 
-	meta, err := a.Stat(statParams)
+	meta, err := strgPat.Stat(ctx, statParams)
 
 	if err != nil {
 		switch err.(type) {
@@ -673,7 +674,7 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	responses, err := getPropFindFromMeta(a, meta)
+	restatParamsonses, err := getPropFindFromMeta(a, meta)
 	if err != nil {
 		log.Err(err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -681,7 +682,7 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 
 		return
 	}
-	responsesXML, err := xml.Marshal(&responses)
+	restatParamsonsesXML, err := xml.Marshal(&restatParamsonses)
 	if err != nil {
 		log.Err("Cannot convert to XML. err:" + err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -695,38 +696,38 @@ func (a *WebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 
 	_, err = w.Write([]byte(`<?xml version="1.0" encoding="utf-8"?>
 		<d:multistatus xmlns:d="DAV:">` +
-		string(responsesXML) + `</d:multistatus>`))
+		string(restatParamsonsesXML) + `</d:multistatus>`))
 
 	if err != nil {
 		log.Err("Error sending reponse. err:" + err.Error())
 	}
 }
-func getPropFindFromMeta(a *WebDAV,
-	meta *storage.MetaData) ([]*responseXML, error) {
+func getPropFindFromMeta(a *webDAV,
+	meta *storage.MetaData) ([]*restatParamsonseXML, error) {
 
-	responses := []*responseXML{}
+	restatParamsonses := []*restatParamsonseXML{}
 
-	parentResponse, err := getResponseFromMeta(a, meta)
+	parentRestatParamsonse, err := getRestatParamsonseFromMeta(a, meta)
 	if err != nil {
 		return nil, err
 	}
 
-	responses = append(responses, parentResponse)
+	restatParamsonses = append(restatParamsonses, parentRestatParamsonse)
 	if len(meta.Children) > 0 {
 		for _, m := range meta.Children {
-			childResponse, err := getResponseFromMeta(a, m)
+			childRestatParamsonse, err := getRestatParamsonseFromMeta(a, m)
 			if err != nil {
 				return nil, err
 			}
-			responses = append(responses, childResponse)
+			restatParamsonses = append(restatParamsonses, childRestatParamsonse)
 		}
 	}
 
-	return responses, nil
+	return restatParamsonses, nil
 }
 
-func getResponseFromMeta(a *WebDAV,
-	meta *storage.MetaData) (*responseXML, error) {
+func getRestatParamsonseFromMeta(a *webDAV,
+	meta *storage.MetaData) (*restatParamsonseXML, error) {
 
 	// TODO: clean a little bit this and refactor creation of properties
 	propList := []propertyXML{}
@@ -770,40 +771,40 @@ func getResponseFromMeta(a *WebDAV,
 	propStat.Status = "HTTP/1.1 200 OK"
 	propStatList = append(propStatList, propStat)
 
-	response := responseXML{}
-	response.Href = strings.Join([]string{a.GetDirectives().APIRoot, a.ID(),
+	restatParamsonse := restatParamsonseXML{}
+	restatParamsonse.Href = strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID(),
 		meta.Path}, "/")
 
-	response.Propstat = propStatList
+	restatParamsonse.Propstat = propStatList
 
-	return &response, nil
+	return &restatParamsonse, nil
 
 }
 
-type responseXML struct {
-	XMLName             xml.Name      `xml:"d:response"`
-	Href                string        `xml:"d:href"`
-	Propstat            []propstatXML `xml:"d:propstat"`
-	Status              string        `xml:"d:status,omitempty"`
-	Error               *errorXML     `xml:"d:error"`
-	ResponseDescription string        `xml:"d:responsedescription,omitempty"`
+type restatParamsonseXML struct {
+	XMLName                     xml.Name      `xml:"d:restatParamsonse"`
+	Href                        string        `xml:"d:href"`
+	Propstat                    []propstatXML `xml:"d:propstat"`
+	Status                      string        `xml:"d:status,omitempty"`
+	Error                       *errorXML     `xml:"d:error"`
+	RestatParamsonseDescription string        `xml:"d:restatParamsonsedescription,omitempty"`
 }
 
-// http://www.webdav.org/specs/rfc4918.html#ELEMENT_propstat
+// http://www.webdav.org/statParamsecs/rfc4918.html#ELEMENT_propstat
 type propstatXML struct {
-	// Prop requires DAV: to be the default namespace in the enclosing
+	// Prop requires DAV: to be the default namestatParamsace in the enclosing
 	// XML. This is due to the standard encoding/xml package currently
-	// not honoring namespace declarations inside a xmltag with a
+	// not honoring namestatParamsace declarations inside a xmltag with a
 	// parent element for anonymous slice elements.
 	// Use of multistatusWriter takes care of this.
-	Prop                []propertyXML `xml:"d:prop>_ignored_"`
-	Status              string        `xml:"d:status"`
-	Error               *errorXML     `xml:"d:error"`
-	ResponseDescription string        `xml:"d:responsedescription,omitempty"`
+	Prop                        []propertyXML `xml:"d:prop>_ignored_"`
+	Status                      string        `xml:"d:status"`
+	Error                       *errorXML     `xml:"d:error"`
+	RestatParamsonseDescription string        `xml:"d:restatParamsonsedescription,omitempty"`
 }
 
 // Property represents a single DAV resource property as defined in RFC 4918.
-// http://www.webdav.org/specs/rfc4918.html#data.model.for.resource.properties
+// http://www.webdav.org/statParamsecs/rfc4918.html#data.model.for.resource.properties
 type propertyXML struct {
 	// XMLName is the fully qualified name that identifies this property.
 	XMLName xml.Name
@@ -812,27 +813,28 @@ type propertyXML struct {
 	Lang string `xml:"xml:lang,attr,omitempty"`
 
 	// InnerXML contains the XML representation of the property value.
-	// See http://www.webdav.org/specs/rfc4918.html#property_values
+	// See http://www.webdav.org/statParamsecs/rfc4918.html#property_values
 	//
 	// Property values of complex type or mixed-content must have fully
-	// expanded XML namespaces or be self-contained with according
-	// XML namespace declarations. They must not rely on any XML
-	// namespace declarations within the scope of the XML document,
-	// even including the DAV: namespace.
+	// expanded XML namestatParamsaces or be self-contained with according
+	// XML namestatParamsace declarations. They must not rely on any XML
+	// namestatParamsace declarations within the scope of the XML document,
+	// even including the DAV: namestatParamsace.
 	InnerXML []byte `xml:",innerxml"`
 }
 
-// http://www.webdav.org/specs/rfc4918.html#ELEMENT_error
+// http://www.webdav.org/statParamsecs/rfc4918.html#ELEMENT_error
 type errorXML struct {
 	XMLName  xml.Name `xml:"d:error"`
 	InnerXML []byte   `xml:",innerxml"`
 }
 
-func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) put(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
+	log := logger.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	/*
@@ -845,16 +847,16 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 	     PUT as a full representation).  Partial content updates are possible
 	     by targeting a separately identified resource with state that
 	     overlaps a portion of the larger resource, or by using a different
-	     method that has been specifically defined for partial updates (for
+	     method that has been statParamsecifically defined for partial updates (for
 	     example, the PATCH method defined in [RFC5789]).
 	   This clarifies RFC2616 section 9.6:
 	     The recipient of the entity MUST NOT ignore any Content-*
 	     (e.g. Content-Range) headers that it does not understand or implement
-	     and MUST return a 501 (Not Implemented) response in such cases.
+	     and MUST return a 501 (Not Implemented) restatParamsonse in such cases.
 	   OTOH is a PUT request with a Content-Range currently the only way to
 	   continue an aborted upload request and is supported by curl, mod_dav,
 	   Tomcat and others.  Since some clients do use this feature which results
-	   in unexpected behaviour (cf PEAR::HTTP_WebDAV_Client 1.0.1), we reject
+	   in unexpected behaviour (cf PEAR::HTTP_webDAV_Client 1.0.1), we reject
 	   all PUT requests with a Content-Range for now.
 	*/
 	if r.Header.Get("Content-Range") != "" {
@@ -921,13 +923,13 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 	putObjectParams.Size = uint64(r.ContentLength)
 	putObjectParams.Checksum = checksum
 
-	meta, err := a.Stat(statParams)
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		// stat will fail if the file does not exists
 		// in our case this is ok and we create a new file
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.PutObject(putObjectParams)
+			err = strgPat.PutObject(ctx, putObjectParams)
 
 			if err != nil {
 				switch err.(type) {
@@ -953,7 +955,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 					return
 				}
 			}
-			meta, err = a.Stat(idt, rsp, false)
+			meta, err = strgPat.Stat(ctx, statParams)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -973,7 +975,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 				}
 			}
 
-			w.Header().Set("ETag", meta.ETag())
+			w.Header().Set("ETag", meta.ETag)
 			w.WriteHeader(http.StatusCreated)
 			return
 
@@ -986,7 +988,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	if meta.IsContainer() {
+	if meta.IsContainer {
 		msg := "apiwebdav: cannot put an object where there is a container."
 		msg += " err:" + err.Error()
 		log.Err(msg)
@@ -994,9 +996,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
-		checksum, nil)
-
+	err = strgPat.PutObject(ctx, putObjectParams)
 	if err != nil {
 		if err != nil {
 			switch err.(type) {
@@ -1022,7 +1022,7 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	meta, err = a.Stat(idt, rsp, false)
+	meta, err = strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 
@@ -1041,11 +1041,11 @@ func (a *WebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	w.Header().Set("ETag", meta.ETag())
+	w.Header().Set("ETag", meta.ETag)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *WebDAV) unlock(ctx context.Context, w http.ResponseWriter,
+func (a *webDAV) unlock(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
@@ -1057,26 +1057,26 @@ func (a *WebDAV) unlock(ctx context.Context, w http.ResponseWriter,
 // X-Checksum and the content must be: // <checksumtype>:<checksum>.
 // If the info is sent in the URL the name of the query param is checksum
 // and thas the same format as in the header.
-func (a *WebDAV) getChecksum(ctx context.Context,
+func (a *webDAV) getChecksum(ctx context.Context,
 	r *http.Request) storage.Checksum {
 
 	// 1. Get checksum info from query params
-	checksumInfo := r.URL.Query().Get(a.GetDirectives().ChecksumQueryParamName)
+	checksumInfo := r.URL.Query().Get(a.Config.GetDirectives().ChecksumQueryParamName)
 	if checksumInfo != "" {
 		return storage.Checksum(checksumInfo)
 	}
 
 	// 2. Get checksum info from header
-	checksumInfo = r.Header.Get(a.GetDirectives().ChecksumHeaderName)
+	checksumInfo = r.Header.Get(a.Config.GetDirectives().ChecksumHeaderName)
 	if checksumInfo != "" {
 		return storage.Checksum(checksumInfo)
 	}
 
 	return storage.Checksum("")
 }
-func (a *WebDAV) getResourcePath(r *http.Request) string {
+func (a *webDAV) getResourcePath(r *http.Request) string {
 	rsp := strings.TrimPrefix(r.URL.Path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID(), "/"}, "/"))
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID(), "/"}, "/"))
 
 	return rsp
 }

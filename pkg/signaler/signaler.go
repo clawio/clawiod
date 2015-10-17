@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"github.com/clawio/clawiod/pkg/config"
 	"github.com/clawio/clawiod/pkg/httpserver"
-	"github.com/clawio/clawiod/pkg/logger"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,18 +26,26 @@ type Signaler interface {
 }
 
 type signalone struct {
-	srv  httpserver.HTTPServer
+	*NewParams
 	sigc chan os.Signal
 	endc chan bool
-	cfg  config.Config
-	log  logger.Logger
 }
 
-func New(srv httpserver.HTTPServer, cfg config.Config, log logger.Logger) Signaler {
+type NewParams struct {
+	Server httpserver.HTTPServer
+	Config config.Config
+}
+
+func New(p *NewParams) Signaler {
 	sigc := make(chan os.Signal, 1)
 	endc := make(chan bool, 1)
-	return &signalone{cfg: cfg, srv: srv, sigc: sigc, endc: endc, log: log}
+	s := &signalone{}
+	s.NewParams = p
+	s.sigc = sigc
+	s.endc = endc
+	return s
 }
+
 func (s *signalone) Start() <-chan bool {
 	go func() {
 		signal.Notify(s.sigc,
@@ -53,27 +60,27 @@ func (s *signalone) Start() <-chan bool {
 			switch sig {
 			case syscall.SIGHUP:
 				func() {
-					s.cfg.Reload() // reload can panic
+					s.Config.Reload() // reload can panic
 					defer func() {
 						err := recover()
 						if err != nil {
-							s.log.Err(fmt.Sprint("signaler: SIGHUP received. Reload failed. err: ", err))
+							fmt.Fprintf(os.Stderr, fmt.Sprint("signaler: SIGHUP received. Reload failed. err: ", err))
 						}
-						s.log.Info("signaler: SIGHUP received. Configuration reloaded")
+						fmt.Fprintf(os.Stderr, "signaler: SIGHUP received. Configuration reloaded")
 					}()
 				}()
 
 			case syscall.SIGINT:
-				s.log.Info("signaler: SIGINT received. Hard shutdown")
+				fmt.Fprintf(os.Stderr, "signaler: SIGINT received. Hard shutdown")
 				s.endc <- true
 			case syscall.SIGTERM:
-				s.log.Info("signaler: SIGTERM received: Hard shutdown")
+				fmt.Fprintf(os.Stderr, "signaler: SIGTERM received: Hard shutdown")
 				s.endc <- true
 			case syscall.SIGQUIT:
-				stop := s.srv.StopChan()
-				s.srv.Stop()
+				stop := s.Server.StopChan()
+				s.Server.Stop()
 				<-stop
-				s.log.Info("signaler: SIGQUIT received. Graceful shutdown")
+				fmt.Fprintf(os.Stderr, "signaler: SIGQUIT received. Graceful shutdown")
 				s.endc <- true
 			}
 		}

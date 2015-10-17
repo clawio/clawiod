@@ -17,20 +17,24 @@ import (
 	"io"
 )
 
+type NewParams struct {
+	Writer io.Writer
+	Config config.Config
+	ReqID  string
+}
+
 // New returns a logrus logger
-func New(w io.Writer, rid string, cfg config.Config) (logger.Logger, error) {
+func New(p *NewParams) (logger.Logger, error) {
 	rus := lgrus.New()
-	rus.Out = w
-	rus.Level = lgrus.Level(cfg.GetDirectives().LogLevel + 2) // Added +2 because logrus has more log levels (Fatal and Panic)
+	rus.Out = p.Writer
+	rus.Level = lgrus.Level(p.Config.GetDirectives().LogLevel + 2) // Added +2 because logrus has more log levels (Fatal and Panic)
 	rus.Formatter = &lgrus.JSONFormatter{}
-	return &rusLogger{w: w, log: rus, rid: rid, cfg: cfg}, nil
+	return &rusLogger{log: rus, rid: p.ReqID}, nil
 }
 
 type rusLogger struct {
-	w   io.Writer
 	log *lgrus.Logger
 	rid string
-	cfg config.Config
 }
 
 func (l *rusLogger) RID() string {

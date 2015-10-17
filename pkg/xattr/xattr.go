@@ -8,7 +8,6 @@
 // (at your option) any later version. See file COPYNG.
 
 // Package xattr handles the manipulation of Linux extended attributes.
-// On most Linux systems the user xattrs has the prefix "user".
 package xattr
 
 import (
@@ -52,7 +51,6 @@ func GetXAttr(path, name string) ([]byte, error) {
 // By default (no flags), the extended attribute will be created if need be,
 // or will simply replace the value if the attribute exists.
 func SetXAttr(path, name string, val []byte, flags int) error {
-
 	err := syscall.Setxattr(path, name, val, flags)
 	if err != nil {
 		return err

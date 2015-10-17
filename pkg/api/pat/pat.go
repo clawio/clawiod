@@ -31,14 +31,19 @@ type Pat interface {
 // It keeps a map with all the APIs.
 type pat struct {
 	apis map[string]api.API
-	config.Config
-	logger.Logger
+	*NewParams
+}
+
+type NewParams struct {
+	Config config.Config
 }
 
 // New creates a new pat object or return an error
-func New(cfg config.Config, log logger.Logger) Pat {
-	m := &pat{apis: map[string]api.API{}, Config: cfg, Logger: log}
-	return m
+func New(p *NewParams) Pat {
+	pat := &pat{}
+	pat.NewParams = p
+	pat.apis = map[string]api.API{}
+	return pat
 }
 
 // AddAPI register an API into the pat so it can be used.
@@ -62,9 +67,11 @@ func (p *pat) GetAPI(apiID string) (api.API, bool) {
 func (p *pat) HandleRequest(ctx context.Context,
 	w http.ResponseWriter, r *http.Request) {
 
+	log := logger.MustFromContext(ctx)
+
 	api, ok, err := p.getAPIFromURL(r)
 	if err != nil {
-		p.Err(err.Error())
+		log.Err(err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 
@@ -78,10 +85,10 @@ func (p *pat) HandleRequest(ctx context.Context,
 }
 func (p *pat) getAPIFromURL(r *http.Request) (api.API, bool, error) {
 	path := r.URL.Path
-	if len(path) <= len(p.GetDirectives().APIRoot) {
+	if len(path) <= len(p.Config.GetDirectives().APIRoot) {
 		return nil, false, nil
 	}
-	withoutAPIRoot := path[len(p.GetDirectives().APIRoot):]
+	withoutAPIRoot := path[len(p.Config.GetDirectives().APIRoot):]
 	urlParts := strings.Split(withoutAPIRoot, "/")
 	if len(urlParts) < 2 {
 		return nil, false, nil

@@ -7,23 +7,14 @@
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version. See file COPYNG.
 
-// Package ocwebdav defines the OCWebDAV API to manage the resources using
-// the OCWebDAV protocol.
+// Package ocwebdav defines the oCWebDAV API to manage the resources using
+// the oCWebDAV protocol.
 package ocwebdav
 
 import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
-	"github.com/clawio/clawiod/pkg/api"
-	"github.com/clawio/clawiod/pkg/auth"
-	apat "github.com/clawio/clawiod/pkg/auth/pat"
-	"github.com/clawio/clawiod/pkg/config"
-	"github.com/clawio/clawiod/pkg/logger"
-	"github.com/clawio/clawiod/pkg/storage"
-	"github.com/clawio/clawiod/pkg/storage/local"
-	sdisp "github.com/clawio/clawiod/pkg/storage/pat"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,113 +22,122 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+
+	"github.com/clawio/clawiod/pkg/api"
+	auth "github.com/clawio/clawiod/pkg/auth"
+	idmpat "github.com/clawio/clawiod/pkg/auth/pat"
+	"github.com/clawio/clawiod/pkg/config"
+	"github.com/clawio/clawiod/pkg/logger"
+	"github.com/clawio/clawiod/pkg/storage"
+	"github.com/clawio/clawiod/pkg/storage/local"
+	strgpat "github.com/clawio/clawiod/pkg/storage/pat"
 )
 
 const STATUS_URL = "/status.php"
 const REMOTE_URL = "/remote.php/webdav/"
 const CAPABILITIES_URL = "/ocs/v1.php/cloud/capabilities"
 
-// OCWebDAV is the implementation of the API interface to manage
-// resources using OCWebDAV.
-type OCWebDAV struct {
-	id   string
-	apat apat.Pat
-	sdisp.Pat
-	config.Config
-	logger.Logger
+// oCWebDAV is the implementation of the API interface to manage
+// resources using oCWebDAV.
+type oCWebDAV struct {
+	*NewParams
 }
 
-// New creates a OCWebDAV API.
-func New(id string, apat apat.Pat, sdisp sdisp.Pat, cfg config.Config,
-	log logger.Logger) api.API {
-
-	fa := OCWebDAV{
-		id:     id,
-		apat:   apat,
-		Pat:    sdisp,
-		Config: cfg,
-	}
-	return &fa
+type NewParams struct {
+	Config config.Config
 }
 
-//ID returns the ID of the OCWebDAV API
-func (a *OCWebDAV) ID() string { return a.id }
+// New creates a oCWebDAV API.
+func New(p *NewParams) api.API {
+	w := &oCWebDAV{}
+	w.NewParams = p
+	return w
+}
 
-func (a *OCWebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
+//ID returns the ID of the oCWebDAV API
+func (a *oCWebDAV) ID() string {
+	return a.NewParams.Config.GetDirectives().OCWebDAVAPIID
+}
+
+func (a *oCWebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
+
+	idmPat := idmpat.MustFromContext(ctx)
 
 	path := r.URL.Path
 	if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() + STATUS_URL},
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() + STATUS_URL},
 			"/")) && r.Method == "GET" {
 
 		a.status(ctx, w, r)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			CAPABILITIES_URL}, "/")) && r.Method == "GET" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.capabilities)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.capabilities)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "GET" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.get)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.get)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "PUT" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.put)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.put)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "MKCOL" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.mkcol)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.mkcol)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "OPTIONS" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.options)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.options)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "PROPFIND" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.propfind)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.propfind)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "LOCK" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.lock)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.lock)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "UNLOCK" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.unlock)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.unlock)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "DELETE" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.delete)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.delete)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "MOVE" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.move)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.move)
 
 	} else if strings.HasPrefix(path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/")) && r.Method == "COPY" {
 
-		a.apat.ValidateRequestHandler(ctx, w, r, true, a.copy)
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.copy)
 
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -145,10 +145,10 @@ func (a *OCWebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *OCWebDAV) capabilities(ctx context.Context,
+func (a *oCWebDAV) capabilities(ctx context.Context,
 	w http.ResponseWriter, r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
+	log := logger.MustFromContext(ctx)
 
 	capabilities := `
 	{
@@ -191,11 +191,12 @@ func (a *OCWebDAV) capabilities(ctx context.Context,
 
 }
 
-func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	destination := r.Header.Get("Destination")
@@ -216,7 +217,7 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 	destination = strings.TrimPrefix(destinationURL.Path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID()}, "/")+"/")
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID()}, "/")+"/")
 
 	overwrite = strings.ToUpper(overwrite)
 	if overwrite == "" {
@@ -230,11 +231,20 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	_, err = a.Stat(idt, destination, false)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	copyParams := &storage.CopyParams{}
+	copyParams.BaseParams = statParams.BaseParams
+	copyParams.Dst = destination
+	copyParams.Src = rsp
+
+	_, err = strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.Copy(idt, rsp, destination)
+			err = strgPat.Copy(ctx, copyParams)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -272,7 +282,7 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.Copy(idt, rsp, destination)
+	err = strgPat.Copy(ctx, copyParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -290,15 +300,19 @@ func (a *OCWebDAV) copy(ctx context.Context, w http.ResponseWriter,
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-func (a *OCWebDAV) delete(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) delete(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
-	_, err := a.Stat(idt, rsp, false)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	_, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -315,7 +329,12 @@ func (a *OCWebDAV) delete(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	err = a.Remove(idt, rsp, true)
+	removeParams := &storage.RemoveParams{}
+	removeParams.Idt = idt
+	removeParams.Rsp = rsp
+	removeParams.Recursive = true
+
+	err = strgPat.Remove(ctx, removeParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -335,15 +354,19 @@ func (a *OCWebDAV) delete(ctx context.Context, w http.ResponseWriter,
 	return
 }
 
-func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
-	meta, err := a.Stat(idt, rsp, false)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -361,7 +384,7 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	if meta.IsContainer() {
+	if meta.IsContainer {
 		// TODO: here we could do the zip based download for folders
 		log.Warning("apiocwebdav: download of containers not implemented")
 		http.Error(w, http.StatusText(http.StatusNotImplemented),
@@ -370,7 +393,11 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	reader, err := a.GetObject(idt, rsp, nil)
+	getObjectParams := &storage.GetObjectParams{}
+	getObjectParams.BaseParams = statParams.BaseParams
+	getObjectParams.Rsp = rsp
+
+	reader, err := strgPat.GetObject(ctx, getObjectParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -387,9 +414,9 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	w.Header().Set("Content-Type", meta.MimeType())
-	w.Header().Set("ETag", meta.ETag())
-	t := time.Unix(int64(meta.Modified()), 0)
+	w.Header().Set("Content-Type", meta.MimeType)
+	w.Header().Set("ETag", meta.ETag)
+	t := time.Unix(int64(meta.Modified), 0)
 	lastModifiedString := t.Format(time.RFC1123)
 	w.Header().Set("Last-Modified", lastModifiedString)
 	w.WriteHeader(http.StatusOK)
@@ -399,15 +426,19 @@ func (a *OCWebDAV) get(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *OCWebDAV) head(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
-	meta, err := a.Stat(idt, rsp, false)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -425,25 +456,25 @@ func (a *OCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	if meta.IsContainer() {
+	if meta.IsContainer {
 		log.Warning("apiocwebdav: download of containers is not implemented")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	w.Header().Set("Content-Type", meta.MimeType())
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size()))
-	t := time.Unix(int64(meta.Modified()), 0)
+	w.Header().Set("Content-Type", meta.MimeType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
+	t := time.Unix(int64(meta.Modified), 0)
 	lastModifiedString := t.Format(time.RFC1123)
 	w.Header().Set("Last-Modified", lastModifiedString)
-	w.Header().Set("ETag", meta.ETag())
+	w.Header().Set("ETag", meta.ETag)
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *OCWebDAV) lock(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) lock(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
+	log := logger.MustFromContext(ctx)
 
 	xml := `<?xml version="1.0" encoding="utf-8"?>
 	<prop xmlns="DAV:">
@@ -470,12 +501,12 @@ func (a *OCWebDAV) lock(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *OCWebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	// MKCOL with weird body must fail with 415 (RFC2518:8.3.1)
@@ -487,7 +518,11 @@ func (a *OCWebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err := a.CreateContainer(idt, rsp)
+	createContainerParams := &storage.CreateContainerParams{}
+	createContainerParams.Idt = idt
+	createContainerParams.Rsp = rsp
+
+	err := strgPat.CreateContainer(ctx, createContainerParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -513,12 +548,12 @@ func (a *OCWebDAV) mkcol(ctx context.Context, w http.ResponseWriter,
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	destination := r.Header.Get("Destination")
@@ -539,7 +574,7 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 	}
 
 	destination = strings.TrimPrefix(destinationURL.Path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID()}, "/")+"/")
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID()}, "/")+"/")
 
 	overwrite = strings.ToUpper(overwrite)
 	if overwrite == "" {
@@ -553,11 +588,20 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	_, err = a.Stat(idt, destination, false)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	renameParams := &storage.RenameParams{}
+	renameParams.BaseParams = statParams.BaseParams
+	renameParams.Src = rsp
+	renameParams.Dst = destination
+
+	_, err = strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			err = a.Rename(idt, rsp, destination)
+			err = strgPat.Rename(ctx, renameParams)
 			if err != nil {
 				switch err.(type) {
 				case *storage.NotExistError:
@@ -595,7 +639,7 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	err = a.Rename(idt, rsp, destination)
+	err = strgPat.Rename(ctx, renameParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -615,15 +659,19 @@ func (a *OCWebDAV) move(ctx context.Context, w http.ResponseWriter,
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *OCWebDAV) options(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) options(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
-	meta, err := a.Stat(idt, rsp, false)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -642,7 +690,7 @@ func (a *OCWebDAV) options(ctx context.Context, w http.ResponseWriter,
 
 	allow := "OPTIONS, LOCK, GET, HEAD, POST, DELETE, PROPPATCH, COPY,"
 	allow += " MOVE, UNLOCK, PROPFIND"
-	if !meta.IsContainer() {
+	if !meta.IsContainer {
 		allow += ", PUT"
 	}
 
@@ -654,12 +702,12 @@ func (a *OCWebDAV) options(ctx context.Context, w http.ResponseWriter,
 	return
 }
 
-func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
-
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	var children bool
@@ -668,8 +716,12 @@ func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 		children = true
 	}
 
-	meta, err := a.Stat(idt, rsp, children)
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+	statParams.Children = children
 
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
@@ -704,7 +756,7 @@ func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	}
 
 	w.Header().Set("DAV", "1, 3, extended-mkcol")
-	w.Header().Set("ETag", meta.ETag())
+	w.Header().Set("ETag", meta.ETag)
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
 	msg := `<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" `
@@ -716,12 +768,13 @@ func (a *OCWebDAV) propfind(ctx context.Context, w http.ResponseWriter,
 	}
 }
 
-func (a *OCWebDAV) status(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	log := ctx.Value("log").(logger.Logger)
-	major := a.GetDirectives().OwnCloudVersionMajor
-	minor := a.GetDirectives().OwnCloudVersionMinor
-	micro := a.GetDirectives().OwnCloudVersionMicro
-	edition := a.GetDirectives().OwnCloudEdition
+func (a *oCWebDAV) status(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	log := logger.MustFromContext(ctx)
+
+	major := a.Config.GetDirectives().OwnCloudVersionMajor
+	minor := a.Config.GetDirectives().OwnCloudVersionMinor
+	micro := a.Config.GetDirectives().OwnCloudVersionMicro
+	edition := a.Config.GetDirectives().OwnCloudEdition
 
 	version := fmt.Sprintf("%s.%s.%s.3", major, minor, micro)
 	versionString := fmt.Sprintf("%s.%s.%s", major, minor, micro)
@@ -757,8 +810,8 @@ func (a *OCWebDAV) status(ctx context.Context, w http.ResponseWriter, r *http.Re
 
 }
 
-func getPropFindFromMeta(a *OCWebDAV,
-	meta storage.MetaData) ([]*responseXML, error) {
+func getPropFindFromMeta(a *oCWebDAV,
+	meta *storage.MetaData) ([]*responseXML, error) {
 
 	responses := []*responseXML{}
 
@@ -768,8 +821,8 @@ func getPropFindFromMeta(a *OCWebDAV,
 	}
 
 	responses = append(responses, parentResponse)
-	if len(meta.Children()) > 0 {
-		for _, m := range meta.Children() {
+	if len(meta.Children) > 0 {
+		for _, m := range meta.Children {
 			childResponse, err := getResponseFromMeta(a, m)
 			if err != nil {
 				return nil, err
@@ -781,8 +834,8 @@ func getPropFindFromMeta(a *OCWebDAV,
 	return responses, nil
 }
 
-func getResponseFromMeta(a *OCWebDAV,
-	meta storage.MetaData) (*responseXML, error) {
+func getResponseFromMeta(a *oCWebDAV,
+	meta *storage.MetaData) (*responseXML, error) {
 
 	/*
 
@@ -817,7 +870,7 @@ func getResponseFromMeta(a *OCWebDAV,
 		propStatList = append(propStatList, propStat)
 
 		response := responseXML{}
-		response.Href = path.Join("/", a.GetDirectives().APIRoot, a.ID(), REMOTE_URL, meta.Path) + "/"
+		response.Href = path.Join("/", a.Config.GetDirectives().APIRoot, a.ID(), REMOTE_URL, meta.Path) + "/"
 		response.Propstat = propStatList
 
 		return &response, nil
@@ -834,12 +887,12 @@ func getResponseFromMeta(a *OCWebDAV,
 		xml.Name{Space: "", Local: "d:quota-available-bytes"}, "",
 		[]byte("1000000000")}
 
-	t := time.Unix(int64(meta.Modified()), 0)
+	t := time.Unix(int64(meta.Modified), 0)
 	lasModifiedString := t.Format(time.RFC1123)
 
 	getContentLegnth := propertyXML{
 		xml.Name{Space: "", Local: "d:getcontentlength"},
-		"", []byte(fmt.Sprintf("%d", meta.Size()))}
+		"", []byte(fmt.Sprintf("%d", meta.Size))}
 
 	getLastModified := propertyXML{
 		xml.Name{Space: "", Local: "d:getlastmodified"},
@@ -847,13 +900,13 @@ func getResponseFromMeta(a *OCWebDAV,
 
 	getETag := propertyXML{
 		xml.Name{Space: "", Local: "d:getetag"},
-		"", []byte(meta.ETag())}
+		"", []byte(meta.ETag)}
 
 	getContentType := propertyXML{
 		xml.Name{Space: "", Local: "d:getcontenttype"},
-		"", []byte(meta.MimeType())}
+		"", []byte(meta.MimeType)}
 
-	if meta.IsContainer() {
+	if meta.IsContainer {
 		getResourceType := propertyXML{
 			xml.Name{Space: "", Local: "d:resourcetype"},
 			"", []byte("<d:collection/>")}
@@ -863,7 +916,7 @@ func getResponseFromMeta(a *OCWebDAV,
 	}
 
 	ocID := propertyXML{xml.Name{Space: "", Local: "oc:id"}, "",
-		[]byte(meta.Path())}
+		[]byte(meta.Path)}
 
 	ocDownloadURL := propertyXML{xml.Name{Space: "", Local: "oc:downloadURL"},
 		"", []byte("")}
@@ -888,8 +941,8 @@ func getResponseFromMeta(a *OCWebDAV,
 
 	response := responseXML{}
 
-	response.Href = path.Join("/", a.GetDirectives().APIRoot, a.ID(),
-		REMOTE_URL, meta.Path()) + "/"
+	response.Href = path.Join("/", a.Config.GetDirectives().APIRoot, a.ID(),
+		REMOTE_URL, meta.Path) + "/"
 
 	response.Propstat = propStatList
 
@@ -945,11 +998,12 @@ type errorXML struct {
 	InnerXML []byte   `xml:",innerxml"`
 }
 
-func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
-	idt := ctx.Value("idt").(auth.Identity)
+	log := logger.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
+	idt := auth.MustFromContext(ctx)
 	rsp := a.getResourcePath(r)
 
 	/*
@@ -971,7 +1025,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	   OTOH is a PUT request with a Content-Range currently the only way to
 	   continue an aborted upload request and is supported by curl, mod_dav,
 	   Tomcat and others.  Since some clients do use this feature which results
-	   in unexpected behaviour (cf PEAR::HTTP_OCWebDAV_Client 1.0.1), we reject
+	   in unexpected behaviour (cf PEAR::HTTP_oCWebDAV_Client 1.0.1), we reject
 	   all PUT requests with a Content-Range for now.
 	*/
 	if r.Header.Get("Content-Range") != "" {
@@ -1028,27 +1082,37 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	checksum := a.getChecksum(ctx, r)
 	chunkInfo := getChunkInfo(ctx, r)
 
+	statParams := &storage.StatParams{}
+	statParams.Idt = idt
+	statParams.Rsp = rsp
+
+	putObjectParams := &storage.PutObjectParams{}
+	putObjectParams.BaseParams = statParams.BaseParams
+	putObjectParams.Reader = r.Body
+	putObjectParams.Size = uint64(r.ContentLength)
+	putObjectParams.Checksum = checksum
+	putObjectParams.Extra = chunkInfo // pass OC chunk options as extra parameter
+
 	// TODO(labkode) Double check that the sync client does not do stat on chunks
 	// Chunk upload doesn't need to stat before.
 	if !chunkInfo.OCChunked {
-		meta, err := a.Stat(idt, rsp, false)
+
+		meta, err := strgPat.Stat(ctx, statParams)
 		if err != nil {
 			// stat will fail if the file does not exists
 			// in our case this is ok and we create a new file
 			switch err.(type) {
 			case *storage.NotExistError:
 				// validate If-Match header
-				if match := r.Header.Get("If-Match"); match != "" && match != meta.ETag() {
-					log.Warning("apiocwebdav: etags do not match. cetag:" + match + " setag:" + meta.ETag())
+				if match := r.Header.Get("If-Match"); match != "" && match != meta.ETag {
+					log.Warning("apiocwebdav: etags do not match. cetag:" + match + " setag:" + meta.ETag)
 					http.Error(w,
 						http.StatusText(http.StatusPreconditionFailed),
 						http.StatusPreconditionFailed)
 
 					return
 				}
-				err = a.PutObject(idt, rsp, r.Body, r.ContentLength,
-					checksum, chunkInfo)
-
+				err = strgPat.PutObject(ctx, putObjectParams)
 				if err != nil {
 					switch err.(type) {
 					case *storage.NotExistError:
@@ -1073,7 +1137,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 						return
 					}
 				}
-				meta, err = a.Stat(idt, rsp, false)
+				meta, err = strgPat.Stat(ctx, statParams)
 				if err != nil {
 					switch err.(type) {
 					case *storage.NotExistError:
@@ -1092,8 +1156,8 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 						return
 					}
 				}
-				w.Header().Set("OC-FileId", meta.ID())
-				w.Header().Set("ETag", meta.ETag())
+				w.Header().Set("OC-FileId", meta.ID)
+				w.Header().Set("ETag", meta.ETag)
 				w.Header().Set("OC-X-MTime", "accepted")
 				w.WriteHeader(http.StatusCreated)
 				return
@@ -1106,7 +1170,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 				return
 			}
 		}
-		if meta.IsContainer() {
+		if meta.IsContainer {
 			msg := "apiocwebdav: cannot put an object where there is a container."
 			msg += " err:" + err.Error()
 			log.Err(msg)
@@ -1115,8 +1179,7 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	err := a.PutObject(idt, rsp, r.Body, r.ContentLength,
-		checksum, chunkInfo)
+	err := strgPat.PutObject(ctx, putObjectParams)
 
 	if err != nil {
 		if err != nil {
@@ -1156,7 +1219,11 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 
 			return
 		}
-		meta, err := a.Stat(idt, chunkPathInfo.ResourcePath, false)
+		statParams := &storage.StatParams{}
+		statParams.BaseParams = putObjectParams.BaseParams
+		statParams.Rsp = chunkPathInfo.ResourcePath
+
+		meta, err := strgPat.Stat(ctx, statParams)
 		if err != nil {
 			switch err.(type) {
 
@@ -1179,13 +1246,13 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 			}
 		}
 
-		w.Header().Set("OC-FileId", meta.ID())
-		w.Header().Set("ETag", meta.ETag())
+		w.Header().Set("OC-FileId", meta.ID)
+		w.Header().Set("ETag", meta.ETag)
 		w.Header().Set("OC-X-MTime", "accepted")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	meta, err := a.Stat(idt, rsp, false)
+	meta, err := strgPat.Stat(ctx, statParams)
 	if err != nil {
 		switch err.(type) {
 
@@ -1204,13 +1271,13 @@ func (a *OCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	w.Header().Set("OC-FileId", meta.ID())
-	w.Header().Set("ETag", meta.ETag())
+	w.Header().Set("OC-FileId", meta.ID)
+	w.Header().Set("ETag", meta.ETag)
 	w.Header().Set("OC-X-MTime", "accepted")
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *OCWebDAV) unlock(ctx context.Context, w http.ResponseWriter,
+func (a *oCWebDAV) unlock(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
@@ -1222,17 +1289,17 @@ func (a *OCWebDAV) unlock(ctx context.Context, w http.ResponseWriter,
 // X-Checksum and the content must be: // <checksumtype>:<checksum>.
 // If the info is sent in the URL the name of the query param is checksum
 // and thas the same format as in the header.
-func (a *OCWebDAV) getChecksum(ctx context.Context,
+func (a *oCWebDAV) getChecksum(ctx context.Context,
 	r *http.Request) storage.Checksum {
 
 	// 1. Get checksum info from query params
-	checksumInfo := r.URL.Query().Get(a.GetDirectives().ChecksumQueryParamName)
+	checksumInfo := r.URL.Query().Get(a.Config.GetDirectives().ChecksumQueryParamName)
 	if checksumInfo != "" {
 		return storage.Checksum(checksumInfo)
 	}
 
 	// 2. Get checksum info from header
-	checksumInfo = r.Header.Get(a.GetDirectives().ChecksumHeaderName)
+	checksumInfo = r.Header.Get(a.Config.GetDirectives().ChecksumHeaderName)
 	if checksumInfo != "" {
 		return storage.Checksum(checksumInfo)
 	}
@@ -1240,9 +1307,9 @@ func (a *OCWebDAV) getChecksum(ctx context.Context,
 	return storage.Checksum("")
 }
 
-func (a *OCWebDAV) getResourcePath(r *http.Request) string {
+func (a *oCWebDAV) getResourcePath(r *http.Request) string {
 	rsp := strings.TrimPrefix(r.URL.Path,
-		strings.Join([]string{a.GetDirectives().APIRoot, a.ID() +
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
 			REMOTE_URL}, "/"))
 
 	return rsp

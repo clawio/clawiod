@@ -4,7 +4,6 @@ import (
 	as "github.com/aerospike/aerospike-client-go"
 	"github.com/clawio/clawiod/Godeps/_workspace/src/code.google.com/p/go-uuid/uuid"
 	"github.com/clawio/clawiod/pkg/config"
-	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
 	"strings"
 	"time"
@@ -15,13 +14,12 @@ import (
 // It also keeps a map of <resourceID> => <resourcePath> to make operations
 // that depend on ID faster. Sharing will use id-based operations.
 type Aero struct {
-	c *as.Client
-	config.Config
-	logger.Logger
+	c   *as.Client
+	cfg config.Config
 }
 
 // NewAero returns a new Aero client.
-func NewAero(cfg config.Config, logger logger.Logger) (*Aero, error) {
+func NewAero(cfg config.Config) (*Aero, error) {
 	c, err := as.NewClient(cfg.GetDirectives().LocalStorageAeroSpikeHost,
 		cfg.GetDirectives().LocalStorageAeroSpikePort)
 
@@ -29,7 +27,7 @@ func NewAero(cfg config.Config, logger logger.Logger) (*Aero, error) {
 		return nil, err
 	}
 
-	return &Aero{c: c, Config: cfg, Logger: logger}, nil
+	return &Aero{c: c, cfg: cfg}, nil
 }
 
 func (a *Aero) PutRecord(resourcePath, resourceID string) error {
@@ -72,8 +70,8 @@ func (a *Aero) putRecord(resourcePath, resourceID string) error {
 }
 
 func (a *Aero) getRecord(resourcePath string) (*as.Record, error) {
-	k, err := as.NewKey(a.GetDirectives().LocalStorageAeroSpikeNamespace,
-		a.GetDirectives().LocalStorageAeroSpikePropagatorSet, resourcePath)
+	k, err := as.NewKey(a.cfg.GetDirectives().LocalStorageAeroSpikeNamespace,
+		a.cfg.GetDirectives().LocalStorageAeroSpikePropagatorSet, resourcePath)
 
 	r, err := a.c.Get(nil, k)
 	if err != nil {
@@ -87,8 +85,8 @@ func (a *Aero) insertID(resourcePath, resourceID string) error {
 		as.NewBin("path", resourcePath),
 	}
 
-	k, err := as.NewKey(a.GetDirectives().LocalStorageAeroSpikeNamespace,
-		a.GetDirectives().LocalStorageAeroSpikeRID2PathSet, resourceID)
+	k, err := as.NewKey(a.cfg.GetDirectives().LocalStorageAeroSpikeNamespace,
+		a.cfg.GetDirectives().LocalStorageAeroSpikeRID2PathSet, resourceID)
 
 	if err != nil {
 		return err
@@ -139,8 +137,8 @@ func (a *Aero) propagateChanges(resourcePath string) error {
 
 func (a *Aero) updateModification(resourcePath string, bins []*as.Bin) error {
 
-	k, err := as.NewKey(a.GetDirectives().LocalStorageAeroSpikeNamespace,
-		a.GetDirectives().LocalStorageAeroSpikePropagatorSet, resourcePath)
+	k, err := as.NewKey(a.cfg.GetDirectives().LocalStorageAeroSpikeNamespace,
+		a.cfg.GetDirectives().LocalStorageAeroSpikePropagatorSet, resourcePath)
 
 	if err != nil {
 		return err

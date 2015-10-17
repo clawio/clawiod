@@ -12,10 +12,14 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/clawio/clawiod/Godeps/_workspace/src/golang.org/x/net/context"
+
+	idmpat "github.com/clawio/clawiod/pkg/auth/pat"
 	"github.com/clawio/clawiod/pkg/logger"
 	"github.com/clawio/clawiod/pkg/storage"
-	"net/http"
+	strgpat "github.com/clawio/clawiod/pkg/storage/pat"
 )
 
 // If CreateUserHomeOnLogin is enabled it triggers the creation
@@ -24,9 +28,11 @@ import (
 func (a *auth) token(ctx context.Context, w http.ResponseWriter,
 	r *http.Request) {
 
-	log := ctx.Value("log").(logger.Logger)
+	log := logger.MustFromContext(ctx)
+	idmPat := idmpat.MustFromContext(ctx)
+	strgPat := strgpat.MustFromContext(ctx)
 
-	identity, err := a.Authenticate(r, r.URL.Query().Get("authtypeid"))
+	idt, err := idmPat.Authenticate(ctx, r, r.URL.Query().Get("authtypeid"))
 	if err != nil {
 		log.Warning(err.Error())
 		// TODO: use ValidationError/ClientError to catch 400
@@ -39,14 +45,18 @@ func (a *auth) token(ctx context.Context, w http.ResponseWriter,
 
 	// Check if we have to create the user homedir in the storages.
 
-	storages := a.sdisp.GetAllStorages(nil)
+	storages := strgPat.GetAllStorages(nil)
 	for _, s := range storages {
-		cp := &storage.CapabilitiesParams{}
-		cp.Idt = identity
-		if s.Capabilities(cp).CreateUserHomeDir {
-			cuhdp := &storage.CreateUserHomeDirParams{}
-			cuhdp.BaseParams = cp.BaseParams
-			err := a.sdisp.CreateUserHomeDir(cuhdp, s.Prefix())
+
+		capParams := &storage.CapabilitiesParams{}
+		capParams.Idt = idt
+
+		if s.Capabilities(ctx, capParams).CreateUserHomeDir {
+
+			createParams := &storage.CreateUserHomeDirParams{}
+			createParams.BaseParams = capParams.BaseParams
+
+			err := strgPat.CreateUserHomeDir(ctx, createParams, s.Prefix())
 			if err != nil {
 				msg := "token: creation of user home failed because err:%s"
 				log.Err(fmt.Sprintf(msg, err.Error()))
@@ -58,7 +68,7 @@ func (a *auth) token(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	tokenString, err := a.CreateToken(identity)
+	tokenString, err := idmPat.CreateToken(ctx, idt)
 	if err != nil {
 		log.Err(err.Error())
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
