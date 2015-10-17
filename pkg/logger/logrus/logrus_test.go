@@ -39,7 +39,11 @@ func (s *ConfigSuite) SetUpSuite(c *C) {
 	}
 
 	cfg := mock.New(&config.Directives{LogLevel: 0}, false)
-	loggerInterface, err := New(logWriter, "TEST", cfg)
+	newParams := &NewParams{}
+	newParams.Config = cfg
+	newParams.Writer = logWriter
+	newParams.ReqID = "TEST"
+	loggerInterface, err := New(newParams)
 	if err != nil {
 		c.Error(err)
 	}
