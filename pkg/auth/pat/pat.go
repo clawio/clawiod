@@ -203,7 +203,7 @@ func (d *pat) ValidateRequestHandler(ctx context.Context, w http.ResponseWriter,
 
 		return
 	}
-	ctx = context.WithValue(ctx, "idt", idt)
+	ctx = idm.NewContext(ctx, idt)
 	next(ctx, w, r)
 }
 
