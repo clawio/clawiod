@@ -667,7 +667,8 @@ func (a *sto) stat(ctx context.Context, w http.ResponseWriter,
 	if err != nil {
 		switch err.(type) {
 		case *storage.NotExistError:
-			http.Error(w, err.Error(), http.StatusNotFound)
+			log.Warning("apistorage: storage not exists. err:" + err.Error())
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 
 		default:
