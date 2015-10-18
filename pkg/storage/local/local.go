@@ -549,7 +549,7 @@ func (s *local) putOCChunkObject(ctx context.Context, p *storage.PutObjectParams
 		return err
 	}
 
-	log.Info(fmt.Sprintf("putOCChunkObject: assigned resourceID:%s to %s", resourceID, chunkPathInfo.Rsp))
+	log.Info(fmt.Sprintf("putOCChunkObject: assigned resourceID:%s to %s", resourceID, chunkPathInfo.ResourcePath))
 
 	return nil
 }
@@ -608,6 +608,7 @@ func (s *local) stat(ctx context.Context, p *storage.StatParams) (*storage.MetaD
 	}
 
 	if !m.IsContainer || p.Children == false {
+		log.Debug("localstrg: op:stat meta is " + m.String())
 		return m, nil
 	}
 
@@ -635,6 +636,7 @@ func (s *local) stat(ctx context.Context, p *storage.StatParams) (*storage.MetaD
 		}
 	}
 	m.Children = childrenMeta
+	log.Debug("localstrg: op:stat meta is " + m.String())
 	return m, nil
 }
 
