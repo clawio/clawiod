@@ -106,7 +106,7 @@ func (a *Aero) insertID(resourcePath, resourceID string) error {
 func (a *Aero) propagateChanges(resourcePath string) error {
 
 	bins := []*as.Bin{
-		as.NewBin("mtime", time.Now().UnixNano()),
+		as.NewBin("mtime", time.Now().Unix()),
 		as.NewBin("etag", uuid.New()),
 	}
 
