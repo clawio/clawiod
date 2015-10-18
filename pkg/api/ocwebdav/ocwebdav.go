@@ -468,12 +468,6 @@ func (a *oCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	if meta.IsContainer {
-		log.Warning("apiocwebdav: download of containers is not implemented")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	w.Header().Set("Content-Type", meta.MimeType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
 	t := time.Unix(int64(meta.Modified), 0)
@@ -481,6 +475,7 @@ func (a *oCWebDAV) head(ctx context.Context, w http.ResponseWriter,
 	w.Header().Set("Last-Modified", lastModifiedString)
 	w.Header().Set("ETag", meta.ETag)
 	w.WriteHeader(http.StatusOK)
+	return
 }
 
 func (a *oCWebDAV) lock(ctx context.Context, w http.ResponseWriter,
@@ -1178,6 +1173,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 				}
 				w.Header().Set("OC-FileId", meta.ID)
 				w.Header().Set("ETag", meta.ETag)
+				w.Header().Set("OC-ETag", meta.ETag)
 				w.Header().Set("OC-X-MTime", "accepted")
 				w.WriteHeader(http.StatusCreated)
 				return
@@ -1268,6 +1264,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 
 		w.Header().Set("OC-FileId", meta.ID)
 		w.Header().Set("ETag", meta.ETag)
+		w.Header().Set("OC-ETag", meta.ETag)
 		w.Header().Set("OC-X-MTime", "accepted")
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -1293,6 +1290,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 
 	w.Header().Set("OC-FileId", meta.ID)
 	w.Header().Set("ETag", meta.ETag)
+	w.Header().Set("OC-ETag", meta.ETag)
 	w.Header().Set("OC-X-MTime", "accepted")
 	w.WriteHeader(http.StatusNoContent)
 }
