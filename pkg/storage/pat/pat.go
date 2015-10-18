@@ -146,7 +146,7 @@ func (pt *pat) PutObject(ctx context.Context, p *storage.PutObjectParams) error 
 	cp := &storage.CapabilitiesParams{BaseParams: p.BaseParams}
 	if !s.Capabilities(ctx, cp).PutObject {
 		return &storage.NotImplementedError{
-			Err: "PutObject not implemented",
+			Err: "PutObject not implemented in storage:" + s.Prefix() + "for path:" + p.Rsp,
 		}
 	}
 	return s.PutObject(ctx, p)

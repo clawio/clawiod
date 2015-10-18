@@ -1092,6 +1092,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 	putObjectParams.Size = uint64(r.ContentLength)
 	putObjectParams.Checksum = checksum
 	putObjectParams.Extra = chunkInfo // pass OC chunk options as extra parameter
+	putObjectParams.Rsp = rsp
 
 	// TODO(labkode) Double check that the sync client does not do stat on chunks
 	// Chunk upload doesn't need to stat before.
