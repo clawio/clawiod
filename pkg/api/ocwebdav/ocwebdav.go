@@ -1178,7 +1178,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 				}
 				w.Header().Set("OC-FileId", meta.ID)
 				w.Header().Set("ETag", meta.ETag)
-				w.Header().Set("OC-X-MTime", "accepted")
+				w.Header().Set("X-OC-MTime", "accepted")
 				w.WriteHeader(http.StatusCreated)
 				return
 
@@ -1268,7 +1268,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 
 		w.Header().Set("OC-FileId", meta.ID)
 		w.Header().Set("ETag", meta.ETag)
-		w.Header().Set("OC-X-MTime", "accepted")
+		w.Header().Set("X-OC-MTime", "accepted")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -1293,7 +1293,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 
 	w.Header().Set("OC-FileId", meta.ID)
 	w.Header().Set("ETag", meta.ETag)
-	w.Header().Set("OC-X-MTime", "accepted")
+	w.Header().Set("X-OC-MTime", "accepted")
 	w.WriteHeader(http.StatusNoContent)
 }
 
