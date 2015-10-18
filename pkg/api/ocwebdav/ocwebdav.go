@@ -171,7 +171,7 @@ func (a *oCWebDAV) capabilities(ctx context.Context,
 	          "pollinterval": 60
 	        },
 	        "files": {
-	          "bigfilechunking": false,
+	          "bigfilechunking": true,
 	          "undelete": false,
 	          "versioning": false
 	        }
