@@ -544,13 +544,12 @@ func (s *local) putOCChunkObject(ctx context.Context, p *storage.PutObjectParams
 		tp, dst))
 
 	// Propagate changes.
-	err = s.aero.PutRecord(p.Rsp, resourceID)
+	err = s.aero.PutRecord(dst, resourceID)
 	if err != nil {
 		return err
 	}
 
-	log.Info(fmt.Sprintf("putOCChunkObject: assigned xattr:%s to %s with value %s",
-		XAttrID, p.Rsp, resourceID))
+	log.Info(fmt.Sprintf("putOCChunkObject: assigned resourceID:%s to %s", resourceID, chunkPathInfo.Rsp))
 
 	return nil
 }
