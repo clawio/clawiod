@@ -139,6 +139,12 @@ func (a *oCWebDAV) HandleRequest(ctx context.Context, w http.ResponseWriter,
 
 		idmPat.ValidateRequestHandler(ctx, w, r, true, a.copy)
 
+	} else if strings.HasPrefix(path,
+		strings.Join([]string{a.Config.GetDirectives().APIRoot, a.ID() +
+			REMOTE_URL}, "/")) && r.Method == "HEAD" {
+
+		idmPat.ValidateRequestHandler(ctx, w, r, true, a.head)
+
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return

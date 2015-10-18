@@ -600,6 +600,8 @@ func (s *local) getMergedMetaData(ctx context.Context, p *storage.StatParams) (*
 
 func (s *local) stat(ctx context.Context, p *storage.StatParams) (*storage.MetaData, error) {
 	log := logger.MustFromContext(ctx)
+	
+	log.Debug(fmt.Sprintf("localstrg.stat called with %+v", *p))	
 
 	m, err := s.getMergedMetaData(ctx, p)
 	if err != nil {
