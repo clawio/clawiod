@@ -26,3 +26,6 @@ _testmain.go
 
 # cover profiles
 out
+
+# binary
+clawiod
