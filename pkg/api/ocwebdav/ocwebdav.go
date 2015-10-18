@@ -1250,7 +1250,6 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 				log.Debug(err.Error())
 				//http.Error(w, http.StatusText(http.StatusNotFound),
 				//	http.StatusNotFound)
-
 				w.WriteHeader(http.StatusCreated)
 				return
 			default:
@@ -1266,7 +1265,7 @@ func (a *oCWebDAV) put(ctx context.Context, w http.ResponseWriter,
 		w.Header().Set("ETag", meta.ETag)
 		w.Header().Set("OC-ETag", meta.ETag)
 		w.Header().Set("X-OC-MTime", "accepted")
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusCreated)
 		return
 	}
 	meta, err := strgPat.Stat(ctx, statParams)
