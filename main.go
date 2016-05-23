@@ -1,294 +1,193 @@
-// ClawIO - Scalable Sync and Share
-//
-// Copyright (C) 2015  Hugo González Labrador <clawio@hugo.labkode.com>
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version. See file COPYNG.
-
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	apidisp "github.com/clawio/clawiod/pkg/api/dispatcher"
-	apiauth "github.com/clawio/clawiod/pkg/api/providers/auth"
-	apiocwebdav "github.com/clawio/clawiod/pkg/api/providers/ocwebdav"
-	apistatic "github.com/clawio/clawiod/pkg/api/providers/static"
-	apistorage "github.com/clawio/clawiod/pkg/api/providers/storage"
-	apiwebdav "github.com/clawio/clawiod/pkg/api/providers/webdav"
-	authdisp "github.com/clawio/clawiod/pkg/auth/dispatcher"
-	authfile "github.com/clawio/clawiod/pkg/auth/providers/file"
-	config "github.com/clawio/clawiod/pkg/config/file"
-	apiserver "github.com/clawio/clawiod/pkg/httpserver/api"
-	logger "github.com/clawio/clawiod/pkg/logger/logrus"
-	"github.com/clawio/clawiod/pkg/storage"
-	//"github.com/clawio/clawiod/pkg/pidfile"
-	"github.com/clawio/clawiod/pkg/signaler/signalone"
-	storagedisp "github.com/clawio/clawiod/pkg/storage/dispatcher"
-	storagelocal "github.com/clawio/clawiod/pkg/storage/providers/local"
-	storageroot "github.com/clawio/clawiod/pkg/storage/providers/root"
+	"io/ioutil"
 	"os"
+	"runtime"
+	"strconv"
+	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/config/default"
+	//"github.com/clawio/clawiod/config/file"
+	"github.com/clawio/clawiod/daemon"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// The version of the daemon.
-const VERSION = "0.0.7"
+const appName = "ClawIO"
+
+var log = logrus.WithField("module", "main")
+
+// Flags that control program flow or startup
+var (
+	conf        string
+	cpu         string
+	port        int
+	applogfile  string
+	httplogfile string
+	version     bool
+)
+
+// Build information obtained with the help of -ldflags
+var (
+	appVersion = "(untracked dev build)" // inferred at startup
+	devBuild   = true                    // inferred at startup
+
+	buildDate        string // date -u
+	gitTag           string // git describe --exact-match HEAD 2> /dev/null
+	gitNearestTag    string // git describe --abbrev=0 --tags HEAD
+	gitCommit        string // git rev-parse HEAD
+	gitShortStat     string // git diff-index --shortstat
+	gitFilesModified string // git diff-index --name-only HEAD
+)
+
+func init() {
+	flag.StringVar(&conf, "conf", "", "Configuration file to use (default \"$CWD/config\")")
+	flag.StringVar(&cpu, "cpu", "100%", "CPU capacity")
+	flag.StringVar(&applogfile, "applogfile", "stdout", "File to log application data")
+	flag.StringVar(&httplogfile, "httplogfile", "stdout", "File to log HTTP requests")
+	flag.BoolVar(&version, "version", false, "Show version")
+	flag.IntVar(&port, "port", 1502, "Port to listen for requests")
+}
 
 func main() {
-
-	// The daemon MUST run as non-root user to avoid security holes.
-	// Linux threads are not POSIX compliant so the setuid sycall just apply to the actual thread. This
-	// makes setuid not safe. See https://github.com/golang/go/issues/1435
-	// There are two options to listen in a port < 1024 (privileged ports)
-	// I) Use Linux capabilities: sudo setcap cap_net_bind_service=+ep clawiod
-	// II) Use a reverse proxy like NGINX or lighthttpd that listen on 80 and forwards to daemon on port > 1024
-
-	/*********************************************
-	 *** 1. Parse CLI flags   ********************
-	 *********************************************/
-	flags := struct {
-		//pidFile string // the pidfile that will be used by the daemon
-		cfg     string // the config that will be used by the daemon
-		version bool
-	}{}
-	//flag.StringVar(&flags.pidFile, "pid", "", "The pid file")
-	flag.StringVar(&flags.cfg, "config", "", "use `configfilename` as the configuration file")
-	flag.BoolVar(&flags.version, "version", false, "print the version")
 	flag.Parse()
-	if flags.version == true {
-		fmt.Println(VERSION)
+	configureLogger(applogfile)
+
+	if version {
+		handleVersion()
+	}
+
+	handleCPU()
+
+	log.Info("cli flags parsed")
+	printFlags()
+
+	log.Info("will load configuration")
+	cfg := config.New([]config.ConfigSource{defaul.New()})
+	if err := cfg.LoadDirectives(); err != nil {
+		log.Fatal(err)
+	}
+	log.Info("configuration loaded")
+	directives := cfg.GetDirectives()
+	printConfig(directives)
+
+	d := daemon.New(cfg)
+	stopChan := d.TrapSignals()
+	d.Start()
+	err := <-stopChan
+	if err != nil {
+		log.Fatal("dirty exit: %s", err)
+	} else {
+		log.Info("clean exit")
 		os.Exit(0)
 	}
+}
 
-	if flags.cfg == "" {
-		fmt.Fprintln(os.Stderr, "Set configuration file with -config flag")
-		fmt.Fprintln(os.Stderr, "Run clawiod --help to obtain more information")
-		os.Exit(1)
-	}
+func printFlags() {
+	log.WithField("flagkey", "conf").WithField("flagval", conf).Info("flag detail")
+	log.WithField("flagkey", "cpu").WithField("flagval", cpu).Info("flag detail")
+	log.WithField("flagkey", "applogfile").WithField("flagval", applogfile).Info("flag detail")
+	log.WithField("flagkey", "httplogfile").WithField("flagval", httplogfile).Info("flag detail")
+	log.WithField("flagkey", "port").WithField("flagval", port).Info("flag detail")
+}
 
-	/*********************************************
-	 *** 2. Create PID file   ********************
-	 *********************************************/
-	/*if flags.pidFile == "" {
-		fmt.Fprintln(os.Stderr,"Set pidfile with -pid flag")
-		os.Exit(1)
-	}
-	_, err := pidfile.New(flags.pidFile)
-	if err != nil {
-		fmt.Fprintln(os.Stderr,"Cannot create PID file: ", err)
-		os.Exit(1)
-	}*/
+func printConfig(dirs *config.Directives) {
+	log.WithField("confkey", "server.port").WithField("confval", dirs.Server.Port).Info("config detail")
+	log.WithField("confkey", "server.jwt_secret").WithField("confval", redacted(dirs.Server.JWTSecret)).Info("config detail")
+	log.WithField("confkey", "server.jwt_signing_method").WithField("confval", redacted(dirs.Server.JWTSigningMethod)).Info("config detail")
+	log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("config detail")
+	log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("config detail")
 
-	/************************************************
-	 *** 3. Load configuration   ********************
-	 ************************************************/
-	cfg, err := config.New(flags.cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot load configuration: ", err)
-		os.Exit(1)
-	}
-	directives, err := cfg.GetDirectives()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot read configuration directives: ", err)
-		os.Exit(1)
-	}
-	/******************************************
-	 ** 4. Connect to the syslog daemon *******
-	 ******************************************/
-	/*syslogWriter, err := logger.NewSyslogWriter("", "", directives.LogLevel)
-	if err != nil {
-		fmt.Fprintln(os.Stderr,"Cannot connect to syslog: ", err)
-		os.Exit(1)
-	}*/
+	log.WithField("confkey", "authentication.type").WithField("confval", dirs.Authentication.Type).Info("config detail")
+	log.WithField("confkey", "authentication.memory.users").WithField("confval", dirs.Authentication.Memory.Users).Info("config detail")
+	log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.Driver).Info("config detail")
+	log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.DSN).Info("config detail")
+}
 
-	appLogWriter, err := os.OpenFile(directives.LogAppFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot open app log file: ", err)
-		os.Exit(1)
-	}
+func configureLogger(applogfile string) {
 
-	reqLogWriter, err := os.OpenFile(directives.LogReqFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot open req log file: ", err)
-		os.Exit(1)
-	}
-
-	/******************************************
-	 ** 5. Create auth dispatcher       *******
-	 ******************************************/
-	fileAuthLog, err := logger.New(appLogWriter, fmt.Sprintf("authid-%s", directives.FileAuthAuthID), cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create file auth logger: ", err.Error())
-		os.Exit(1)
-	}
-	fauth, err := authfile.New(directives.FileAuthAuthID, cfg, fileAuthLog)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create file auth provider: ", err)
-		os.Exit(1)
-	}
-	adispLog, err := logger.New(appLogWriter, "authdispatcher", cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create auth dispatcher logger: ", err.Error())
-		os.Exit(1)
-	}
-	adisp := authdisp.New(cfg, adispLog)
-	err = adisp.AddAuthenticationstrategy(fauth) // add file auth strategy
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot add file auth provider to auth dispatcher: ", err)
-		os.Exit(1)
-	}
-
-	/******************************************
-	 ** 6. Create storage dispatcher      *****
-	 ******************************************/
-	localStorageLog, err := logger.New(appLogWriter, fmt.Sprintf("storage-%s", directives.LocalStoragePrefix), cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create local storage logger: ", err.Error())
-		os.Exit(1)
-	}
-	localStorage := storagelocal.New(directives.LocalStoragePrefix, cfg, localStorageLog)
-
-	// The storage prefix for root storage must be ALWAYS the empty string. This is the only way to get
-	// OC sync clients connect to ClawIO skipping folder configuration.
-	rootStorageLog, err := logger.New(appLogWriter, "storage-root", cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create root storage logger: ", err.Error())
-		os.Exit(1)
-	}
-	sts := []storage.Storage{localStorage}
-	rootStorage := storageroot.New("", sts, cfg, rootStorageLog)
-
-	sdispLog, err := logger.New(appLogWriter, "storagedispatcher", cfg)
-	if err != nil {
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot create storage dispatcher logger: ", err.Error())
-			os.Exit(1)
+	switch applogfile {
+	case "stdout":
+		log.Logger.Out = os.Stdout
+	case "stderr":
+		log.Logger.Out = os.Stderr
+	case "":
+		log.Logger.Out = ioutil.Discard
+	default:
+		log.Logger.Out = &lumberjack.Logger{
+			Filename:   applogfile,
+			MaxSize:    100,
+			MaxAge:     14,
+			MaxBackups: 10,
 		}
 	}
-	sdisp := storagedisp.New(cfg, sdispLog)
-	err = sdisp.AddStorage(localStorage)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot add local storage to storage dispatcher: ", err)
-		os.Exit(1)
-	}
-	err = sdisp.AddStorage(rootStorage)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot add root storage to storage dispatcher: ", err)
-		os.Exit(1)
-	}
+}
 
-	/******************************************
-	 ** 7. Create API dispatcher             **
-	 ******************************************/
-	apiDispatcherLog, err := logger.New(appLogWriter, "apidispatcher", cfg)
-	if err != nil {
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot create api dispatcher logger: ", err.Error())
-			os.Exit(1)
-		}
+func handleVersion() {
+	fmt.Printf("%s %s\n", appName, appVersion)
+	if devBuild && gitShortStat != "" {
+		fmt.Printf("%s\n%s\n", gitShortStat, gitFilesModified)
 	}
-	apdisp := apidisp.New(cfg, apiDispatcherLog)
-
-	if directives.AuthAPIEnabled == true {
-		apiAuthLog, err := logger.New(appLogWriter, "apiauth", cfg)
-		if err != nil {
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Cannot create api auth logger: ", err.Error())
-				os.Exit(1)
-			}
-		}
-		authAPI := apiauth.New(directives.AuthAPIID, adisp, sdisp, cfg, apiAuthLog)
-		err = apdisp.AddAPI(authAPI)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot add Auth API to API dispatcher: ", err)
-			os.Exit(1)
-		}
-	}
-
-	if directives.WebDAVAPIEnabled {
-		apiWebDAVLog, err := logger.New(appLogWriter, "apiwebdav", cfg)
-		if err != nil {
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Cannot create api webdav logger: ", err.Error())
-				os.Exit(1)
-			}
-		}
-		webdavAPI := apiwebdav.New(directives.WebDAVAPIID, adisp, sdisp, cfg, apiWebDAVLog)
-		err = apdisp.AddAPI(webdavAPI)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot add WebDAV API to API dispatcher: ", err)
-			os.Exit(1)
-		}
-	}
-
-	if directives.OCWebDAVAPIEnabled {
-		apiOCWebDAVLog, err := logger.New(appLogWriter, "apiocwebdav", cfg)
-		if err != nil {
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Cannot create api ocwebdav logger: ", err.Error())
-				os.Exit(1)
-			}
-		}
-		ocwebdavAPI := apiocwebdav.New(directives.OCWebDAVAPIID, adisp, sdisp, cfg, apiOCWebDAVLog)
-		err = apdisp.AddAPI(ocwebdavAPI)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot add OCWebDAV API to API dispatcher: ", err)
-			os.Exit(1)
-		}
-	}
-
-	if directives.StorageAPIEnabled == true {
-		apiStorageLog, err := logger.New(appLogWriter, "apistorage", cfg)
-		if err != nil {
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Cannot create api storage logger: ", err.Error())
-				os.Exit(1)
-			}
-		}
-		storageAPI := apistorage.New(directives.StorageAPIID, adisp, sdisp, cfg, apiStorageLog)
-		err = apdisp.AddAPI(storageAPI)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot add Storage API to API dispatcher: ", err)
-			os.Exit(1)
-		}
-	}
-
-	if directives.StaticAPIEnabled == true {
-		staticAPI := apistatic.New(directives.StaticAPIID, cfg, adisp, sdisp)
-		err = apdisp.AddAPI(staticAPI)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot add Static API to API dispatcher: ", err)
-			os.Exit(1)
-		}
-	}
-	/***************************************************
-	 *** 8. Start HTTP/HTTPS Server ********************
-	 ***************************************************/
-	srv, err := apiserver.New(appLogWriter, reqLogWriter, apdisp, adisp, sdisp, cfg)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot create API server: ", err)
-	}
-	go func() {
-		err = srv.Start()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot start HTTP/HTTPS API server: ", err)
-			os.Exit(1)
-		}
-	}()
-
-	/***************************************************
-	 *** 9. Listen to OS signals to control the daemon *
-	 ***************************************************/
-	signalerLog, err := logger.New(appLogWriter, "signaler", cfg)
-	if err != nil {
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Cannot create signaler logger: ", err.Error())
-			os.Exit(1)
-		}
-	}
-	sig := signalone.New(srv, cfg, signalerLog)
-	endc := sig.Start()
-	<-endc
 	os.Exit(0)
+}
+
+func handleCPU() {
+	// Set CPU capacity
+	err := setCPU(cpu)
+	if err != nil {
+		log.Fatal("Cannot tweak CPU: ", err)
+	}
+}
+
+// setCPU parses string cpu and sets GOMAXPROCS
+// according to its value. It accepts either
+// a number (e.g. 3) or a percent (e.g. 50%).
+func setCPU(cpu string) error {
+	var numCPU int
+
+	availCPU := runtime.NumCPU()
+
+	if strings.HasSuffix(cpu, "%") {
+		// Percent
+		var percent float32
+		pctStr := cpu[:len(cpu)-1]
+		pctInt, err := strconv.Atoi(pctStr)
+		if err != nil || pctInt < 1 || pctInt > 100 {
+			return errors.New("invalid CPU value: percentage must be between 1-100")
+		}
+		percent = float32(pctInt) / 100
+		numCPU = int(float32(availCPU) * percent)
+	} else {
+		// Number
+		num, err := strconv.Atoi(cpu)
+		if err != nil || num < 1 {
+			return errors.New("invalid CPU value: provide a number or percent greater than 0")
+		}
+		numCPU = num
+	}
+
+	if numCPU > availCPU {
+		numCPU = availCPU
+	}
+
+	runtime.GOMAXPROCS(numCPU)
+	return nil
+}
+func redacted(v string) string {
+	length := len(v)
+	if length == 0 {
+		return ""
+	}
+	if length == 1 {
+		return "X"
+	}
+	half := length / 2
+	right := v[half:]
+	hidden := strings.Repeat("X", 10)
+	return strings.Join([]string{hidden, right}, "")
 }
