@@ -2,7 +2,36 @@ package defaul
 
 import (
 	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/services/authentication/controller/memory"
 )
+
+var DefaultDirectives = &config.Directives{
+	Server: &config.Server{
+		BaseURL:          "/api/v1/",
+		Port:             1502,
+		JWTSecret:        "you must change me",
+		JWTSigningMethod: "HS256",
+		AppLog:           "stdout",
+		HTTPAccessLog:    "stdout",
+		ShutdownTimeout:  10,
+		EnabledServices:  []string{"authentication"},
+	},
+
+	Authentication: &config.Authentication{
+		BaseURL: "/authentication/",
+		Type:    "memory",
+
+		Memory: &config.AuthenticationMemory{
+			Users: getDefaultMemoryUsers(),
+		},
+
+		SQL: &config.AuthenticationSQL{
+			Driver: "sqlite3",
+			DSN:    "/tmp/clawio-sqlite3-user.db",
+		},
+	},
+}
 
 type conf struct{}
 
@@ -13,31 +42,15 @@ func New() config.ConfigSource {
 
 // LoadDirectives returns the configuration directives from a file.
 func (c *conf) LoadDirectives() (*config.Directives, error) {
-	return getDirectives(), nil
+	return DefaultDirectives, nil
 }
 
-func getDirectives() *config.Directives {
-	dirs := &config.Directives{}
-	server := &config.Server{}
-	authentication := &config.Authentication{}
-	authenticationMemory := &config.AuthenticationMemory{}
-	authenticationSQL := &config.AuthenticationSQL{}
-
-	server.Port = 1502
-	server.JWTSecret = "you must change me"
-	server.JWTSigningMethod = "HS256"
-	server.AppLog = "stdout"
-	server.HTTPAccessLog = "stdout"
-	server.ShutdownTimeout = 10
-
-	authentication.Type = "memory"
-	authentication.Memory = authenticationMemory
-	authentication.Memory.Users = []string{"demo:demo"}
-	authentication.SQL = authenticationSQL
-	authentication.SQL.Driver = "sqlite3"
-	authentication.SQL.DSN = "/tmp/clawio-sqlite3-user.db"
-
-	dirs.Server = server
-	dirs.Authentication = authentication
-	return dirs
+func getDefaultMemoryUsers() []*memory.User {
+	user := &memory.User{}
+	user.User = &entities.User{}
+	user.Username = "demo"
+	user.Email = "demo@example.com"
+	user.DisplayName = "Demo User"
+	user.Password = "demo"
+	return []*memory.User{user}
 }

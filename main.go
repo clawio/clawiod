@@ -13,7 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/config/default"
-	//"github.com/clawio/clawiod/config/file"
+	"github.com/clawio/clawiod/config/file"
 	"github.com/clawio/clawiod/daemon"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -46,7 +46,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&conf, "conf", "", "Configuration file to use (default \"$CWD/config\")")
+	flag.StringVar(&conf, "conf", "", "Configuration file to use (default \"./clawio.conf\")")
 	flag.StringVar(&cpu, "cpu", "100%", "CPU capacity")
 	flag.StringVar(&applogfile, "applogfile", "stdout", "File to log application data")
 	flag.StringVar(&httplogfile, "httplogfile", "stdout", "File to log HTTP requests")
@@ -68,22 +68,25 @@ func main() {
 	printFlags()
 
 	log.Info("will load configuration")
-	cfg := config.New([]config.ConfigSource{defaul.New()})
+	cfg := config.New([]config.ConfigSource{defaul.New(), file.New(conf)})
 	if err := cfg.LoadDirectives(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("cannot load configuration: %s", err)
 	}
 	log.Info("configuration loaded")
 	directives := cfg.GetDirectives()
-	printConfig(directives)
+	configureLogger(directives.Server.AppLog)
 
-	d := daemon.New(cfg)
-	stopChan := d.TrapSignals()
-	d.Start()
-	err := <-stopChan
+	d, err := daemon.New(cfg)
 	if err != nil {
-		log.Fatal("dirty exit: %s", err)
+		log.Fatalf("cannot instantiate the daemon: %s", err)
+	}
+	stopChan := d.TrapSignals()
+	go d.Start()
+	err = <-stopChan
+	if err != nil {
+		log.Fatal("daemon finished execution with error: %s", err)
 	} else {
-		log.Info("clean exit")
+		log.Info("daemon finished execution successfuly")
 		os.Exit(0)
 	}
 }
@@ -94,19 +97,6 @@ func printFlags() {
 	log.WithField("flagkey", "applogfile").WithField("flagval", applogfile).Info("flag detail")
 	log.WithField("flagkey", "httplogfile").WithField("flagval", httplogfile).Info("flag detail")
 	log.WithField("flagkey", "port").WithField("flagval", port).Info("flag detail")
-}
-
-func printConfig(dirs *config.Directives) {
-	log.WithField("confkey", "server.port").WithField("confval", dirs.Server.Port).Info("config detail")
-	log.WithField("confkey", "server.jwt_secret").WithField("confval", redacted(dirs.Server.JWTSecret)).Info("config detail")
-	log.WithField("confkey", "server.jwt_signing_method").WithField("confval", redacted(dirs.Server.JWTSigningMethod)).Info("config detail")
-	log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("config detail")
-	log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("config detail")
-
-	log.WithField("confkey", "authentication.type").WithField("confval", dirs.Authentication.Type).Info("config detail")
-	log.WithField("confkey", "authentication.memory.users").WithField("confval", dirs.Authentication.Memory.Users).Info("config detail")
-	log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.Driver).Info("config detail")
-	log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.DSN).Info("config detail")
 }
 
 func configureLogger(applogfile string) {

@@ -1,9 +1,0 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: ClawIO Daemon
-Upstream-Contact: Hugo González Labrador <clawio@hugo.labkode.com>
-Source: https://github.com/clawio/clawiod
-
-Files: *
-Copyright: 2015, Hugo González Labrador <clawio@hugo.labkode.com>
-License: AGPLv3
- (see COPYING-AGPLv3)
