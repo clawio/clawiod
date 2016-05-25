@@ -1,0 +1,7 @@
+comment:
+  layout: header, changes, diff
+coverage:
+  ignore:
+  - config/mock/*
+  - services/authentication/controller/mock/*
+  status: {}
