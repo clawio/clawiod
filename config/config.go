@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/clawio/clawiod/services/authentication/controller/memory"
+	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 	"github.com/imdario/mergo"
 )
 
@@ -64,8 +64,8 @@ type ConfigSource interface {
 
 // Directives represents the different configuration options.
 type Directives struct {
-	Server         *Server         `json:"server"`
-	Authentication *Authentication `json:"authenticaton"`
+	Server         Server         `json:"server"`
+	Authentication Authentication `json:"authenticaton"`
 }
 
 type Server struct {
@@ -83,14 +83,14 @@ type Server struct {
 }
 
 type Authentication struct {
-	BaseURL string                `json:"base_url"`
-	Type    string                `json:"type"`
-	Memory  *AuthenticationMemory `json:"memory"`
-	SQL     *AuthenticationSQL    `json:"sql"`
+	BaseURL string               `json:"base_url"`
+	Type    string               `json:"type"`
+	Memory  AuthenticationMemory `json:"memory"`
+	SQL     AuthenticationSQL    `json:"sql"`
 }
 
 type AuthenticationMemory struct {
-	Users []*memory.User `json:"users"`
+	Users []memory.User `json:"users"`
 }
 type AuthenticationSQL struct {
 	Driver string `json:"driver"`

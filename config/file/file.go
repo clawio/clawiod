@@ -2,8 +2,10 @@ package file
 
 import (
 	"encoding/json"
-	"github.com/clawio/clawiod/config"
 	"io/ioutil"
+	"os"
+
+	"github.com/clawio/clawiod/config"
 )
 
 type conf struct {
@@ -24,6 +26,11 @@ func getDirectivesFromFile(path string) (*config.Directives, error) {
 	}
 	confData, err := ioutil.ReadFile(path)
 	if err != nil {
+		// if the file is not found we return an empty directives so default is used
+		// when -conf flag is not provided.
+		if os.IsNotExist(err) {
+			return new(config.Directives), nil
+		}
 		return nil, err
 	}
 	directives := &config.Directives{}

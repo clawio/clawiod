@@ -3,11 +3,11 @@ package defaul
 import (
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
-	"github.com/clawio/clawiod/services/authentication/controller/memory"
+	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 )
 
-var DefaultDirectives = &config.Directives{
-	Server: &config.Server{
+var DefaultDirectives = config.Directives{
+	Server: config.Server{
 		BaseURL:          "/api/v1/",
 		Port:             1502,
 		JWTSecret:        "you must change me",
@@ -18,15 +18,15 @@ var DefaultDirectives = &config.Directives{
 		EnabledServices:  []string{"authentication"},
 	},
 
-	Authentication: &config.Authentication{
+	Authentication: config.Authentication{
 		BaseURL: "/authentication/",
 		Type:    "memory",
 
-		Memory: &config.AuthenticationMemory{
+		Memory: config.AuthenticationMemory{
 			Users: getDefaultMemoryUsers(),
 		},
 
-		SQL: &config.AuthenticationSQL{
+		SQL: config.AuthenticationSQL{
 			Driver: "sqlite3",
 			DSN:    "/tmp/clawio-sqlite3-user.db",
 		},
@@ -42,15 +42,14 @@ func New() config.ConfigSource {
 
 // LoadDirectives returns the configuration directives from a file.
 func (c *conf) LoadDirectives() (*config.Directives, error) {
-	return DefaultDirectives, nil
+	return &DefaultDirectives, nil
 }
-
-func getDefaultMemoryUsers() []*memory.User {
-	user := &memory.User{}
-	user.User = &entities.User{}
+func getDefaultMemoryUsers() []memory.User {
+	user := memory.User{}
+	user.User = entities.User{}
 	user.Username = "demo"
 	user.Email = "demo@example.com"
 	user.DisplayName = "Demo User"
 	user.Password = "demo"
-	return []*memory.User{user}
+	return []memory.User{user}
 }
