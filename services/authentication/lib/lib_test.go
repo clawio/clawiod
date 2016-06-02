@@ -1,11 +1,13 @@
 package lib
 
 import (
+	"github.com/Sirupsen/logrus"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/keys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -125,6 +127,7 @@ func (suite *TestSuite) TestJWTMiddleware() {
 	require.Nil(suite.T(), err)
 	r, err := http.NewRequest("GET", "", nil)
 	r.Header.Set("Authorization", "Bearer "+token)
+	keys.SetLog(r, logrus.WithField("test", "test"))
 	require.Nil(suite.T(), err)
 	w := httptest.NewRecorder()
 	suite.middleware(w, r)
@@ -133,6 +136,7 @@ func (suite *TestSuite) TestJWTMiddleware() {
 func (suite *TestSuite) TestJWTMiddleware_with401() {
 	r, err := http.NewRequest("GET", "", nil)
 	require.Nil(suite.T(), err)
+	keys.SetLog(r, logrus.WithField("test", "test"))
 	w := httptest.NewRecorder()
 	suite.middleware(w, r)
 	require.Equal(suite.T(), http.StatusUnauthorized, w.Code)

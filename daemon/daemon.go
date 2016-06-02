@@ -13,6 +13,8 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// Daemon is the orchestrator that handles the bootstraping of the application. It loads the configuration, launch the server and listens
+// to system signals for system shutdown or configuration reload.jJ;w
 type Daemon struct {
 	log      *logrus.Entry
 	srv      *server.Server
@@ -21,6 +23,7 @@ type Daemon struct {
 	trapChan chan os.Signal
 }
 
+// New returns a new Daemon.
 func New(conf *config.Config) (*Daemon, error) {
 	d := &Daemon{}
 	d.log = logrus.WithField("module", "daemon")
@@ -37,11 +40,13 @@ func New(conf *config.Config) (*Daemon, error) {
 	return d, nil
 }
 
+// Start starts the daemon.
 func (d *Daemon) Start() {
 	d.srv.Start()
 	d.stopChan <- nil
 }
 
+// TrapSignals captures system signals (SIGINT, SIGTERM, SIGQUIT, SIGHUP) for controlling the daemon.
 func (d *Daemon) TrapSignals() chan error {
 	go func() {
 		signal.Notify(d.trapChan,
@@ -100,19 +105,31 @@ func (d *Daemon) configureLogger() {
 
 func (d *Daemon) printConfig() {
 	dirs := d.conf.GetDirectives()
-	d.log.WithField("confkey", "server.base_url").WithField("confval", dirs.Server.BaseURL).Info("config detail")
-	d.log.WithField("confkey", "server.port").WithField("confval", dirs.Server.Port).Info("config detail")
-	d.log.WithField("confkey", "server.jwt_secret").WithField("confval", redacted(dirs.Server.JWTSecret)).Info("config detail")
-	d.log.WithField("confkey", "server.jwt_signing_method").WithField("confval", redacted(dirs.Server.JWTSigningMethod)).Info("config detail")
-	d.log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("config detail")
-	d.log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("config detail")
-	d.log.WithField("confkey", "server.enabled_services").WithField("confval", dirs.Server.EnabledServices).Info("config detail")
+	d.log.WithField("confkey", "server.base_url").WithField("confval", dirs.Server.BaseURL).Info("configuration detail")
+	d.log.WithField("confkey", "server.port").WithField("confval", dirs.Server.Port).Info("configuration detail")
+	d.log.WithField("confkey", "server.jwt_secret").WithField("confval", redacted(dirs.Server.JWTSecret)).Info("configuration detail")
+	d.log.WithField("confkey", "server.jwt_signing_method").WithField("confval", redacted(dirs.Server.JWTSigningMethod)).Info("configuration detail")
+	d.log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("configuration detail")
+	d.log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("configuration detail")
+	d.log.WithField("confkey", "server.enabled_services").WithField("confval", dirs.Server.EnabledServices).Info("configuration detail")
 
-	d.log.WithField("confkey", "authentication.base_url").WithField("confval", dirs.Authentication.BaseURL).Info("config detail")
-	d.log.WithField("confkey", "authentication.type").WithField("confval", dirs.Authentication.Type).Info("config detail")
-	d.log.WithField("confkey", "authentication.memory.users").WithField("confval", dirs.Authentication.Memory.Users).Info("config detail")
-	d.log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.Driver).Info("config detail")
-	d.log.WithField("confkey", "authentication.sql.dsn").WithField("confval", dirs.Authentication.SQL.DSN).Info("config detail")
+	d.log.WithField("confkey", "authentication.base_url").WithField("confval", dirs.Authentication.BaseURL).Info("configuration detail")
+	d.log.WithField("confkey", "authentication.type").WithField("confval", dirs.Authentication.Type).Info("configuration detail")
+	d.log.WithField("confkey", "authentication.memory.users").WithField("confval", dirs.Authentication.Memory.Users).Info("configuration detail")
+	d.log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.Driver).Info("configuration detail")
+	d.log.WithField("confkey", "authentication.sql.dsn").WithField("confval", dirs.Authentication.SQL.DSN).Info("configuration detail")
+
+	d.log.WithField("confkey", "metadata.base_url").WithField("confval", dirs.MetaData.BaseURL).Info("configuration detail")
+	d.log.WithField("confkey", "metadata.type").WithField("confval", dirs.MetaData.Type).Info("configuration detail")
+	d.log.WithField("confkey", "metadata.simple.namespace").WithField("confval", dirs.MetaData.Simple.Namespace).Info("configuration detail")
+	d.log.WithField("confkey", "metadata.simple.temporary_namespace").WithField("confval", dirs.MetaData.Simple.TemporaryNamespace).Info("configuration detail")
+
+	d.log.WithField("confkey", "data.base_url").WithField("confval", dirs.Data.BaseURL).Info("configuration detail")
+	d.log.WithField("confkey", "data.type").WithField("confval", dirs.Data.Type).Info("configuration detail")
+	d.log.WithField("confkey", "data.simple.namespace").WithField("confval", dirs.Data.Simple.Namespace).Info("configuration detail")
+	d.log.WithField("confkey", "data.simple.temporary_namespace").WithField("confval", dirs.Data.Simple.TemporaryNamespace).Info("configuration detail")
+	d.log.WithField("confkey", "data.simple.checksum").WithField("confval", dirs.Data.Simple.Checksum).Info("configuration detail")
+	d.log.WithField("confkey", "data.simple.verify_client_checksum").WithField("confval", dirs.Data.Simple.VerifyClientChecksum).Info("configuration detail")
 }
 
 func redacted(v string) string {

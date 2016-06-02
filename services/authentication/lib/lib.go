@@ -11,24 +11,18 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-const DefaultJWTKey = "secret"
-const DefaultJWTSigningMethod = "HS256"
-
+// Authenticator represents the strategy to create authentication tokens.
 type Authenticator struct {
 	JWTKey           string
 	JWTSigningMethod string
 }
 
+// NewAuthenticator returns a new Authenticator.
 func NewAuthenticator(key, method string) *Authenticator {
-	if key == "" {
-		key = DefaultJWTKey
-	}
-	if method == "" {
-		method = DefaultJWTSigningMethod
-	}
 	return &Authenticator{JWTKey: key, JWTSigningMethod: method}
 }
 
+// CreateToken returns an authentication token from an User.
 func (a *Authenticator) CreateToken(user *entities.User) (string, error) {
 	if user == nil {
 		return "", errors.New("user is nil")
@@ -41,6 +35,7 @@ func (a *Authenticator) CreateToken(user *entities.User) (string, error) {
 	return token.SignedString([]byte(a.JWTKey))
 }
 
+// CreateUserFromToken parses an authentication token and returns the User contained in the token.
 func (a *Authenticator) CreateUserFromToken(token string) (*entities.User, error) {
 	rawToken, err := a.parseToken(token)
 	if err != nil {
@@ -97,15 +92,19 @@ func (a *Authenticator) getTokenFromHeader(r *http.Request) string {
 	return parts[1]
 }
 
+// JWTHandlerFunc is a middleware function to authenticate HTTP requests.
 func (a *Authenticator) JWTHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log := keys.MustGetLog(r)
 		token := a.getTokenFromRequest(r)
 		user, err := a.CreateUserFromToken(token)
 		if err != nil {
+			log.Warn("unauthorized")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 		keys.SetUser(r, user)
+		log.WithField("user", user.Username).Info("authenticated request")
 		handler(w, r)
 	}
 }

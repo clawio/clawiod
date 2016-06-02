@@ -68,7 +68,7 @@ func main() {
 	printFlags()
 
 	log.Info("will load configuration")
-	cfg := config.New([]config.ConfigSource{defaul.New(), file.New(conf)})
+	cfg := config.New([]config.Source{defaul.New(), file.New(conf)})
 	if err := cfg.LoadDirectives(); err != nil {
 		log.Fatalf("cannot load configuration: %s", err)
 	}

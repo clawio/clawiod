@@ -20,18 +20,18 @@ var (
 
 type testObject struct {
 	mockAuthenticationController *mock_authenticationcontroller.AuthenticationController
-	mockConfigSource             *mock_configsource.ConfigSource
+	mockSource                   *mock_configsource.Source
 	service                      *svc
 	conf                         *config.Config
 }
 
 func newObject(t *testing.T) *testObject {
 	mockAuthenticationController := &mock_authenticationcontroller.AuthenticationController{}
-	mockConfigSource := &mock_configsource.ConfigSource{}
-	conf := config.New([]config.ConfigSource{mockConfigSource})
+	mockSource := &mock_configsource.Source{}
+	conf := config.New([]config.Source{mockSource})
 
 	o := &testObject{}
-	o.mockConfigSource = mockConfigSource
+	o.mockSource = mockSource
 	o.mockAuthenticationController = mockAuthenticationController
 	o.conf = conf
 
@@ -39,7 +39,7 @@ func newObject(t *testing.T) *testObject {
 }
 
 func (o *testObject) loadDirs(t *testing.T, dirs *config.Directives) {
-	o.mockConfigSource.On("LoadDirectives").Return(dirs, nil)
+	o.mockSource.On("LoadDirectives").Return(dirs, nil)
 	err := o.conf.LoadDirectives()
 	require.Nil(t, err)
 }
@@ -49,9 +49,10 @@ func (o *testObject) wrapRequest(w *httptest.ResponseRecorder, r *http.Request, 
 }
 func (o *testObject) setupService(t *testing.T, dirs *config.Directives) {
 	o.loadDirs(t, dirs)
-	svc, err := New(o.conf)
+	s, err := New(o.conf)
 	require.Nil(t, err)
-	require.NotNil(t, svc)
+	require.NotNil(t, s)
+	svc := s.(*svc)
 	svc.authenticationController = o.mockAuthenticationController
 	o.service = svc
 }

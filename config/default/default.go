@@ -6,6 +6,8 @@ import (
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 )
 
+// DefaultDirectives represents the default configuration used by Server. This default configuration
+// must work out-of-the-box without using user supplied config files.
 var DefaultDirectives = config.Directives{
 	Server: config.Server{
 		BaseURL:          "/api/v1/",
@@ -15,7 +17,7 @@ var DefaultDirectives = config.Directives{
 		AppLog:           "stdout",
 		HTTPAccessLog:    "stdout",
 		ShutdownTimeout:  10,
-		EnabledServices:  []string{"authentication"},
+		EnabledServices:  []string{"authentication", "metadata", "data"},
 	},
 
 	Authentication: config.Authentication{
@@ -31,16 +33,37 @@ var DefaultDirectives = config.Directives{
 			DSN:    "/tmp/clawio-sqlite3-user.db",
 		},
 	},
+
+	MetaData: config.MetaData{
+		BaseURL: "/metadata/",
+		Type:    "simple",
+
+		Simple: config.MetaDataSimple{
+			Namespace:          "/tmp/clawio-namespace",
+			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
+		},
+	},
+
+	Data: config.Data{
+		BaseURL: "/data/",
+		Type:    "simple",
+
+		Simple: config.DataSimple{
+			Namespace:          "/tmp/clawio-namespace",
+			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
+			UploadMaxFileSize:  8589934592, // 8 GiB
+		},
+	},
 }
 
 type conf struct{}
 
-// New always returns a default configuration
-func New() config.ConfigSource {
+// New returns a source that always loads the default configuration.
+func New() config.Source {
 	return &conf{}
 }
 
-// LoadDirectives returns the configuration directives from a file.
+// LoadDirectives returns the configuration directives.
 func (c *conf) LoadDirectives() (*config.Directives, error) {
 	return &DefaultDirectives, nil
 }

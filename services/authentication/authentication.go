@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/sql"
@@ -19,7 +20,7 @@ type svc struct {
 
 // New will instantiate and return
 // a new svc that implements server.svc.
-func New(cfg *config.Config) (*svc, error) {
+func New(cfg *config.Config) (services.Service, error) {
 	var authenticationController authenticationcontroller.AuthenticationController
 	switch cfg.GetDirectives().Authentication.Type {
 	case "sql":
@@ -61,6 +62,9 @@ func getMemoryAuthenticationController(cfg *config.Config) authenticationcontrol
 }
 
 func (s *svc) BaseURL() string {
+	if s.conf.GetDirectives().Authentication.BaseURL == "" {
+		return "/"
+	}
 	return s.conf.GetDirectives().Authentication.BaseURL
 }
 

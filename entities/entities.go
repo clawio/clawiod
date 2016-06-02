@@ -1,16 +1,22 @@
 package entities
 
 const (
+	// ObjectTypeTreeMimeType is the mime type assigned to tree objects when no other mime type can be inferred.
 	ObjectTypeTreeMimeType string = "clawio/tree"
+
+	// ObjectTypeBLOBMimeType is the mime type assigned to blob objects when no other mime type can be inferred.
+	ObjectTypeBLOBMimeType string = "clawio/blob"
 )
 const (
-	ObjectTypeTree ObjectType = iota
-	ObjectTypeBLOB
+	// ObjectTypeTree is the value assigned to objects of type tree in the "type" field.
+	ObjectTypeTree ObjectType = "tree"
+	// ObjectTypeBLOB is the value assigned to objects of type blob in the "type" field.
+	ObjectTypeBLOB ObjectType = "blob"
 )
 
 type (
 	// ObjectType indicates if the object is either a Tree or a BLOB.
-	ObjectType int
+	ObjectType string
 
 	// ObjectInfo represents the metadata information retrieved
 	// from an object, either tree or blob.

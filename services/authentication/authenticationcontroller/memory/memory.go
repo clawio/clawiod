@@ -8,6 +8,7 @@ import (
 	"github.com/clawio/clawiod/services/authentication/lib"
 )
 
+// User represents an in-memory user.
 type User struct {
 	entities.User
 	Password string `json:"password"`

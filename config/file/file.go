@@ -12,10 +12,12 @@ type conf struct {
 	path string
 }
 
-func New(path string) config.ConfigSource {
+// New returns a configuration source that uses a file to read the configuration.
+func New(path string) config.Source {
 	return &conf{path: path}
 }
 
+// LoadDirectives returns the configuration directives from a file.
 func (c *conf) LoadDirectives() (*config.Directives, error) {
 	return getDirectivesFromFile(c.path)
 }

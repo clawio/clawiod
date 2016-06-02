@@ -17,6 +17,8 @@ import (
 	"github.com/clawio/clawiod/keys"
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication"
+	"github.com/clawio/clawiod/services/data"
+	"github.com/clawio/clawiod/services/metadata"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/satori/go.uuid"
@@ -24,6 +26,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// Server registers services and expose them via HTTP.
 type Server struct {
 	log    *logrus.Entry
 	srv    *graceful.Server
@@ -33,10 +36,6 @@ type Server struct {
 
 // New returns a new HTTPServer
 func New(conf *config.Config) (*Server, error) {
-	router, err := getRouter(conf)
-	if err != nil {
-		return nil, err
-	}
 	directives := conf.GetDirectives()
 	srv := &graceful.Server{
 		NoSignalHandling: true,
@@ -45,8 +44,11 @@ func New(conf *config.Config) (*Server, error) {
 			Addr: fmt.Sprintf(":%d", directives.Server.Port),
 		},
 	}
-	s := &Server{log: logrus.WithField("module", "server"), srv: srv, conf: conf, router: router}
+	s := &Server{log: logrus.WithField("module", "server"), srv: srv, conf: conf}
 	s.configureAppLogger()
+	if err := s.configureRouter(); err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -63,15 +65,20 @@ func (s *Server) Start() {
 	}
 
 }
+
+// StopChan returns a channel to stop the server.
 func (s *Server) StopChan() <-chan struct{} {
 	return s.srv.StopChan()
 }
+
+// Stop tells the server to start a shutdown.
 func (s *Server) Stop() {
 	s.log.Info("gracefully shuting down ...")
 	directives := s.conf.GetDirectives()
 	s.srv.Stop(time.Duration(directives.Server.ShutdownTimeout) * time.Second)
 }
 
+// HandleRequest handles HTTP requests and forwards them to the propper service handler.
 func (s *Server) HandleRequest() http.Handler {
 	return handlers.CombinedLoggingHandler(s.getHTTPLogWriter(), s.handler())
 }
@@ -110,12 +117,12 @@ func (s *Server) handler() http.Handler {
 	return http.HandlerFunc(handlerFunc)
 }
 
-func getRouter(conf *config.Config) (http.Handler, error) {
-	dirs := conf.GetDirectives()
+func (s *Server) configureRouter() error {
+	dirs := s.conf.GetDirectives()
 	router := mux.NewRouter().PathPrefix(dirs.Server.BaseURL).Subrouter()
-	services, err := getServices(conf)
+	services, err := getServices(s.conf)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, svc := range services {
@@ -123,10 +130,13 @@ func getRouter(conf *config.Config) (http.Handler, error) {
 			for method, handler := range methods {
 				base := strings.TrimRight(svc.BaseURL(), "/")
 				router.Handle(base+path, handler).Methods(method)
+				ep := fmt.Sprintf("%s %s", method, strings.TrimRight(dirs.Server.BaseURL, "/")+base+path)
+				s.log.WithField("endpoint", ep).Info("endpoint registered")
 			}
 		}
 	}
-	return router, nil
+	s.router = router
+	return nil
 }
 
 func getServices(conf *config.Config) ([]services.Service, error) {
@@ -140,6 +150,22 @@ func getServices(conf *config.Config) ([]services.Service, error) {
 			return services, err
 		}
 		services = append(services, authenticationService)
+	}
+
+	if isServiceEnabled("metadata", enabledServices) {
+		metaDataService, err := metadata.New(conf)
+		if err != nil {
+			return services, err
+		}
+		services = append(services, metaDataService)
+	}
+
+	if isServiceEnabled("data", enabledServices) {
+		dataService, err := data.New(conf)
+		if err != nil {
+			return services, err
+		}
+		services = append(services, dataService)
 	}
 
 	return services, nil
@@ -193,10 +219,11 @@ func sanitizedURL(uri *url.URL) string {
 	if uri == nil {
 		return ""
 	}
-	params := uri.Query()
+	copy := *uri
+	params := copy.Query()
 	if len(params.Get("access_token")) > 0 {
 		params.Set("access_token", "REDACTED")
-		uri.RawQuery = params.Encode()
+		copy.RawQuery = params.Encode()
 	}
-	return uri.RequestURI()
+	return copy.RequestURI()
 }

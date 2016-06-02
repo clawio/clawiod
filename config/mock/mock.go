@@ -5,13 +5,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// ConfigSource  mocks a ConfigSource for testing purposes.
-type ConfigSource struct {
+// Source  mocks a Source for testing purposes.
+type Source struct {
 	mock.Mock
 }
 
 // LoadDirectives mocks the Authenticate call.
-func (c *ConfigSource) LoadDirectives() (*config.Directives, error) {
+func (c *Source) LoadDirectives() (*config.Directives, error) {
 	args := c.Called()
 	return args.Get(0).(*config.Directives), args.Error(1)
 }
