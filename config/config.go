@@ -76,6 +76,7 @@ type Directives struct {
 	Authentication Authentication `json:"authenticaton"`
 	MetaData       MetaData       `json:"meta_data"`
 	Data           Data           `json:"data"`
+	WebDAV         WebDAV         `json:"webdav"`
 }
 
 // Server is the configuration section dedicated to the server.
@@ -127,9 +128,10 @@ type MetaDataSimple struct {
 
 // Data is the configuration section dedicated to the data service.
 type Data struct {
-	BaseURL string     `json:"base_url"`
-	Type    string     `json:"type"`
-	Simple  DataSimple `json:"simple"`
+	BaseURL           string     `json:"base_url"`
+	Type              string     `json:"type"`
+	UploadMaxFileSize int        `json:"upload_max_file_size"`
+	Simple            DataSimple `json:"simple"`
 }
 
 // DataSimple is the configuration subsection dedicated to the data simple controller.
@@ -139,4 +141,18 @@ type DataSimple struct {
 	Checksum             string `json:"checksum"`
 	VerifyClientChecksum bool   `json:"verify_client_checksum"`
 	UploadMaxFileSize    int    `json:"upload_max_file_size"`
+}
+
+// WebDAv is the configuration section dedicated to the WebDAV service.
+type WebDAV struct {
+	BaseURL           string      `json:"base_url"`
+	Type              string      `json:"type"`
+	UploadMaxFileSize int         `json:"upload_max_file_size"`
+	Local             WebDAVLocal `json:"local"`
+}
+
+// WebDAV local is the configuration subsection dedicated to the WebDAV local controller.
+type WebDAVLocal struct {
+	DataController     string `json:"data_controller"`
+	MetaDataController string `json:"meta_data_controller"`
 }

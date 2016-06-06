@@ -18,13 +18,14 @@ import (
 )
 
 var (
-	defaultDirs = defaul.DefaultDirectives
-	examineURL  = "/examine"
-	listURL     = "/list"
-	deleteURL   = "/delete"
-	initURL     = "/init"
-	moveURL     = "/move"
-	metricsURL  = "/metrics"
+	defaultDirs   = defaul.DefaultDirectives
+	examineURL    = "/examine"
+	listURL       = "/list"
+	deleteURL     = "/delete"
+	createTreeURL = "/createtree"
+	initURL       = "/init"
+	moveURL       = "/move"
+	metricsURL    = "/metrics"
 )
 
 type testObject struct {

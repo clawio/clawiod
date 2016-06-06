@@ -130,6 +130,11 @@ func (d *Daemon) printConfig() {
 	d.log.WithField("confkey", "data.simple.temporary_namespace").WithField("confval", dirs.Data.Simple.TemporaryNamespace).Info("configuration detail")
 	d.log.WithField("confkey", "data.simple.checksum").WithField("confval", dirs.Data.Simple.Checksum).Info("configuration detail")
 	d.log.WithField("confkey", "data.simple.verify_client_checksum").WithField("confval", dirs.Data.Simple.VerifyClientChecksum).Info("configuration detail")
+
+	d.log.WithField("confkey", "webdav.base_url").WithField("confval", dirs.WebDAV.BaseURL).Info("configuration detail")
+	d.log.WithField("confkey", "webdav.type").WithField("confval", dirs.WebDAV.Type).Info("configuration detail")
+	d.log.WithField("confkey", "webdav.local.data_controller").WithField("confval", dirs.WebDAV.Local.DataController).Info("configuration detail")
+	d.log.WithField("confkey", "webdav.local.meta_data_controller").WithField("confval", dirs.WebDAV.Local.MetaDataController).Info("configuration detail")
 }
 
 func redacted(v string) string {

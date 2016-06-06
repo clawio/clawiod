@@ -75,5 +75,8 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 		"/delete/{path:.*}": {
 			"DELETE": prometheus.InstrumentHandlerFunc("/delete", authenticator.JWTHandlerFunc(s.DeleteObject)),
 		},
+		"/createtree/{path:.*}": {
+			"POST": prometheus.InstrumentHandlerFunc("/createtree", authenticator.JWTHandlerFunc(s.CreateTree)),
+		},
 	}
 }

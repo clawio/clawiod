@@ -39,3 +39,9 @@ func (m *MetaDataController) MoveObject(user *entities.User, sourcePathSpec, tar
 	args := m.Called()
 	return args.Error(0)
 }
+
+// CreateTree mocks the CreateTree call.
+func (m *MetaDataController) CreateTree(user *entities.User, pathSpec string) error {
+	args := m.Called()
+	return args.Error(0)
+}

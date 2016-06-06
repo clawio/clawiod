@@ -17,7 +17,7 @@ var DefaultDirectives = config.Directives{
 		AppLog:           "stdout",
 		HTTPAccessLog:    "stdout",
 		ShutdownTimeout:  10,
-		EnabledServices:  []string{"authentication", "metadata", "data"},
+		EnabledServices:  []string{"authentication", "metadata", "data", "webdav"},
 	},
 
 	Authentication: config.Authentication{
@@ -52,6 +52,17 @@ var DefaultDirectives = config.Directives{
 			Namespace:          "/tmp/clawio-namespace",
 			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
 			UploadMaxFileSize:  8589934592, // 8 GiB
+		},
+	},
+
+	WebDAV: config.WebDAV{
+		BaseURL:           "/webdav/",
+		Type:              "local",
+		UploadMaxFileSize: 8589934592, // 8 GiB
+
+		Local: config.WebDAVLocal{
+			DataController:     "simple",
+			MetaDataController: "simple",
 		},
 	},
 }
