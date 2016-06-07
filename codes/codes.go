@@ -52,7 +52,7 @@ func (c Code) String() string {
 	case BadInputData:
 		return "bad input data"
 	case Internal:
-		return "internal error. Please submit a query to the support team"
+		return "internal error"
 	case NotFound:
 		return "not found"
 	case BadChecksum:
