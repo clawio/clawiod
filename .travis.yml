@@ -1,0 +1,12 @@
+language: go
+go:
+  - 1.6
+  - tip
+script:
+  - go get ./...
+  - go build ./...
+  - go test ./... 
+  - go list -f '{{if gt (len .TestGoFiles) 0}}"go test -coverprofile {{.Name}}.coverprofile -coverpkg ./... {{.ImportPath}}"{{end}}' ./... | xargs -I {} bash -c {}
+  - go get github.com/wadey/gocovmerge
+  - gocovmerge `ls *.coverprofile` > coverage.txt
+  - bash <(curl -s https://codecov.io/bash) -f coverage.txt
