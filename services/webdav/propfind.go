@@ -84,7 +84,7 @@ func (s *svc) infoToPropResponse(info *entities.ObjectInfo) (*responseXML, error
 		"", []byte(info.MimeType)}
 
 	// Finder needs the the getLastModified property to work.
-	t := time.Unix(int64(info.ModTime/1000000), int64(info.ModTime%1000000))
+	t := time.Unix(int64(info.ModTime/1000000000), int64(info.ModTime%1000000000))
 	lasModifiedString := t.Format(time.RFC1123)
 	getLastModified := propertyXML{
 		xml.Name{Space: "", Local: "d:getlastmodified"},

@@ -112,6 +112,9 @@ func (d *Daemon) printConfig() {
 	d.log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("configuration detail")
 	d.log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("configuration detail")
 	d.log.WithField("confkey", "server.enabled_services").WithField("confval", dirs.Server.EnabledServices).Info("configuration detail")
+	d.log.WithField("confkey", "server.tls_enabled").WithField("confval", dirs.Server.TLSEnabled).Info("configuration detail")
+	d.log.WithField("confkey", "server.tls_certificate").WithField("confval", dirs.Server.TLSCertificate).Info("configuration detail")
+	d.log.WithField("confkey", "server.tls_private_key").WithField("confval", dirs.Server.TLSPrivateKey).Info("configuration detail")
 
 	d.log.WithField("confkey", "authentication.base_url").WithField("confval", dirs.Authentication.BaseURL).Info("configuration detail")
 	d.log.WithField("confkey", "authentication.type").WithField("confval", dirs.Authentication.Type).Info("configuration detail")

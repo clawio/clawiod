@@ -63,6 +63,7 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 			"PROPPATCH": prometheus.InstrumentHandlerFunc("/home", s.basicAuthHandlerFunc(s.Proppatch)),
 			"PROPFIND":  prometheus.InstrumentHandlerFunc("/home", s.basicAuthHandlerFunc(s.Propfind)),
 			"DELETE":    prometheus.InstrumentHandlerFunc("/home", s.basicAuthHandlerFunc(s.Delete)),
+			"MOVE":      prometheus.InstrumentHandlerFunc("/home", s.basicAuthHandlerFunc(s.Move)),
 		},
 	}
 }
