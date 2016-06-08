@@ -8,12 +8,17 @@ import (
 	"github.com/clawio/clawiod/config"
 )
 
+const defaultPath = "clawio.conf"
+
 type conf struct {
 	path string
 }
 
 // New returns a configuration source that uses a file to read the configuration.
 func New(path string) config.Source {
+	if path == "" {
+		path = defaultPath
+	}
 	return &conf{path: path}
 }
 
@@ -23,9 +28,6 @@ func (c *conf) LoadDirectives() (*config.Directives, error) {
 }
 
 func getDirectivesFromFile(path string) (*config.Directives, error) {
-	if path == "" {
-		path = "clawio.conf"
-	}
 	confData, err := ioutil.ReadFile(path)
 	if err != nil {
 		// if the file is not found we return an empty directives so default is used
