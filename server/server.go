@@ -22,6 +22,8 @@ import (
 	"github.com/clawio/clawiod/services/webdav"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/cors"
 	"github.com/satori/go.uuid"
 	"github.com/tylerb/graceful"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -81,9 +83,38 @@ func (s *Server) Stop() {
 
 // HandleRequest handles HTTP requests and forwards them to the propper service handler.
 func (s *Server) HandleRequest() http.Handler {
+	if s.conf.GetDirectives().Server.CORSEnabled {
+		return handlers.CombinedLoggingHandler(s.getHTTPLogWriter(), s.corsHandler(s.handler()))
+	}
 	return handlers.CombinedLoggingHandler(s.getHTTPLogWriter(), s.handler())
 }
 
+func (s *Server) corsHandler(h http.Handler) http.Handler {
+	/*
+		handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if r.Method == "OPTIONS" && origin != "" {
+				w.Header().Add("Access-Control-Allow-Origin", dirs.Server.CORSAccessControlAllowOrigin)
+				w.Header().Add("Access-Control-Allow-Methods", dirs.Server.CORSAccessControlAllowMethods)
+				w.Header().Add("Access-Control-Allow-Headers", dirs.Server.CORSAccessControlAllowHeaders)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			// request is not a preflighted request
+			h.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(handlerFunc)
+	*/
+
+	dirs := s.conf.GetDirectives()
+	opts := cors.Options{}
+	opts.Debug = true
+	opts.AllowedOrigins = dirs.Server.CORSAccessControlAllowOrigin
+	opts.AllowedMethods = dirs.Server.CORSAccessControlAllowMethods
+	opts.AllowedHeaders = dirs.Server.CORSAccessControlAllowHeaders
+	return cors.New(opts).Handler(h)
+}
 func (s *Server) handler() http.Handler {
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		tid := uuid.NewV4().String()
@@ -120,26 +151,33 @@ func (s *Server) handler() http.Handler {
 
 func (s *Server) configureRouter() error {
 	dirs := s.conf.GetDirectives()
-	router := mux.NewRouter().PathPrefix(dirs.Server.BaseURL).Subrouter()
+	router := mux.NewRouter()
+
+	// register prometheus handler
+	router.Handle("/metrics", prometheus.Handler())
+
 	services, err := getServices(s.conf)
 	if err != nil {
 		return err
 	}
 
+	base := strings.TrimRight(dirs.Server.BaseURL, "/")
 	for _, svc := range services {
 		for path, methods := range svc.Endpoints() {
 			for method, handler := range methods {
-				base := strings.TrimRight(svc.BaseURL(), "/")
-				router.Handle(base+path, handler).Methods(method)
-				ep := fmt.Sprintf("%s %s", method, strings.TrimRight(dirs.Server.BaseURL, "/")+base+path)
+				svcBase := strings.TrimRight(svc.BaseURL(), "/")
+				router.Handle(base+svcBase+path, handler).Methods(method)
+				u := strings.TrimRight(dirs.Server.BaseURL, "/") + base + path
+				prometheus.InstrumentHandlerFunc(u, handler)
+				ep := fmt.Sprintf("%s %s", method, u)
 				s.log.WithField("endpoint", ep).Info("endpoint registered")
 			}
 		}
 	}
 	s.router = router
+
 	return nil
 }
-
 func getServices(conf *config.Config) ([]services.Service, error) {
 
 	enabledServices := conf.GetDirectives().Server.EnabledServices

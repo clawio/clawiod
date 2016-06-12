@@ -10,14 +10,18 @@ import (
 // must work out-of-the-box without using user supplied config files.
 var DefaultDirectives = config.Directives{
 	Server: config.Server{
-		BaseURL:          "/api/v1/",
-		Port:             1502,
-		JWTSecret:        "you must change me",
-		JWTSigningMethod: "HS256",
-		AppLog:           "stdout",
-		HTTPAccessLog:    "stdout",
-		ShutdownTimeout:  10,
-		EnabledServices:  []string{"authentication", "metadata", "data", "webdav"},
+		BaseURL:                       "/api/v1/",
+		Port:                          1502,
+		JWTSecret:                     "you must change me",
+		JWTSigningMethod:              "HS256",
+		AppLog:                        "stdout",
+		HTTPAccessLog:                 "stdout",
+		ShutdownTimeout:               10,
+		EnabledServices:               []string{"authentication", "metadata", "data", "webdav"},
+		CORSEnabled:                   true,
+		CORSAccessControlAllowOrigin:  []string{},
+		CORSAccessControlAllowMethods: []string{"GET", "POST", "HEAD", "PUT", "DELETE"},
+		CORSAccessControlAllowHeaders: []string{"*"},
 	},
 
 	Authentication: config.Authentication{

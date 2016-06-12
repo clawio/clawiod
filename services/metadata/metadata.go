@@ -9,7 +9,6 @@ import (
 	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/simple"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type svc struct {
@@ -55,28 +54,23 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
 
 	return map[string]map[string]http.HandlerFunc{
-		"/metrics": {
-			"GET": func(w http.ResponseWriter, r *http.Request) {
-				prometheus.Handler().ServeHTTP(w, r)
-			},
-		},
 		"/init": {
-			"POST": prometheus.InstrumentHandlerFunc("/init", authenticator.JWTHandlerFunc(s.Init)),
+			"POST": authenticator.JWTHandlerFunc(s.Init),
 		},
 		"/examine/{path:.*}": {
-			"GET": prometheus.InstrumentHandlerFunc("/examine", authenticator.JWTHandlerFunc(s.ExamineObject)),
+			"GET": authenticator.JWTHandlerFunc(s.ExamineObject),
 		},
 		"/list/{path:.*}": {
-			"GET": prometheus.InstrumentHandlerFunc("/list", authenticator.JWTHandlerFunc(s.ListTree)),
+			"GET": authenticator.JWTHandlerFunc(s.ListTree),
 		},
 		"/move/{path:.*}": {
-			"POST": prometheus.InstrumentHandlerFunc("/move", authenticator.JWTHandlerFunc(s.MoveObject)),
+			"POST": authenticator.JWTHandlerFunc(s.MoveObject),
 		},
 		"/delete/{path:.*}": {
-			"DELETE": prometheus.InstrumentHandlerFunc("/delete", authenticator.JWTHandlerFunc(s.DeleteObject)),
+			"DELETE": authenticator.JWTHandlerFunc(s.DeleteObject),
 		},
 		"/createtree/{path:.*}": {
-			"POST": prometheus.InstrumentHandlerFunc("/createtree", authenticator.JWTHandlerFunc(s.CreateTree)),
+			"POST": authenticator.JWTHandlerFunc(s.CreateTree),
 		},
 	}
 }

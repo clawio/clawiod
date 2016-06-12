@@ -136,17 +136,3 @@ func TestEndpoints(t *testing.T) {
 		}
 	}
 }
-
-func TestMetrics(t *testing.T) {
-	dirs := defaultDirs
-	o := newObject(t)
-	o.setupService(t, &dirs)
-
-	handler := o.service.Endpoints()["/metrics"]["GET"]
-	r, err := http.NewRequest("GET", metricsURL, nil)
-	require.Nil(t, err)
-
-	w := httptest.NewRecorder()
-	o.wrapRequest(w, r, handler)
-	require.Equal(t, http.StatusOK, w.Code)
-}

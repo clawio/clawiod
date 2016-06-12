@@ -81,17 +81,21 @@ type Directives struct {
 
 // Server is the configuration section dedicated to the server.
 type Server struct {
-	BaseURL          string   `json:"base_url"`
-	Port             int      `json:"port"`
-	JWTSecret        string   `json:"jwt_secret"`
-	JWTSigningMethod string   `json:"jwt_signing_method"`
-	HTTPAccessLog    string   `json:"http_access_log"`
-	AppLog           string   `json:"app_log"`
-	ShutdownTimeout  int      `json:"shutdown_timeout"`
-	TLSEnabled       bool     `json:"tls_enabled"`
-	TLSCertificate   string   `json:"tls_certificate"`
-	TLSPrivateKey    string   `json:"tls_private_key"`
-	EnabledServices  []string `json:"enabled_services"`
+	BaseURL                       string   `json:"base_url"`
+	Port                          int      `json:"port"`
+	JWTSecret                     string   `json:"jwt_secret"`
+	JWTSigningMethod              string   `json:"jwt_signing_method"`
+	HTTPAccessLog                 string   `json:"http_access_log"`
+	AppLog                        string   `json:"app_log"`
+	ShutdownTimeout               int      `json:"shutdown_timeout"`
+	TLSEnabled                    bool     `json:"tls_enabled"`
+	TLSCertificate                string   `json:"tls_certificate"`
+	TLSPrivateKey                 string   `json:"tls_private_key"`
+	EnabledServices               []string `json:"enabled_services"`
+	CORSEnabled                   bool     `json:"cors_enabled"`
+	CORSAccessControlAllowOrigin  []string `json:"cors_access_control_allow_origin"`
+	CORSAccessControlAllowMethods []string `json:"cors_access_control_allow_methods"`
+	CORSAccessControlAllowHeaders []string `json:"cors_access_control_allow_headers"`
 }
 
 // Authentication is the configuration section dedicated to the authentication service.
