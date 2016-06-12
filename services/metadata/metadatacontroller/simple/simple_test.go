@@ -59,28 +59,43 @@ func (suite *TestSuite) TestInit_withError() {
 }
 
 func (suite *TestSuite) TestExamineObject() {
-	err := ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob"), []byte("1"), 0644)
+	testblob := uuid.NewV4().String()
+	err := ioutil.WriteFile(suite.controller.getStoragePath(user, testblob), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	info, err := suite.metadataController.ExamineObject(user, "myblob")
+	info, err := suite.metadataController.ExamineObject(user, testblob)
 	require.Nil(suite.T(), err)
-	require.Equal(suite.T(), "myblob", info.PathSpec)
+	require.Equal(suite.T(), testblob, info.PathSpec)
 	require.Equal(suite.T(), int64(1), info.Size)
 	require.Equal(suite.T(), "", info.Checksum)
 	require.Equal(suite.T(), entities.ObjectTypeBLOBMimeType, info.MimeType)
 	require.Equal(suite.T(), entities.ObjectTypeBLOB, info.Type)
 }
 
+func (suite *TestSuite) TestExamineObject_withError() {
+	testblob := uuid.NewV4().String()
+	testtree := uuid.NewV4().String()
+	err := os.MkdirAll(suite.controller.getStoragePath(user, testtree), 0755)
+	require.Nil(suite.T(), err)
+	err = ioutil.WriteFile(suite.controller.getStoragePath(user, testtree+"/"+testblob), []byte("1"), 0644)
+	require.Nil(suite.T(), err)
+	// remove execute permissions on parent so stat will fail
+	err = os.Chmod(suite.controller.getStoragePath(user, testtree), os.FileMode(os.O_WRONLY))
+	require.Nil(suite.T(), err)
+	_, err = suite.metadataController.ExamineObject(user, testtree+"/"+testblob)
+	require.NotNil(suite.T(), err)
+}
 func (suite *TestSuite) TestExamineObject_withNotFound() {
 	_, err := suite.metadataController.ExamineObject(user, "notexists")
 	require.NotNil(suite.T(), err)
 }
 
 func (suite *TestSuite) TestListTree() {
-	err := os.MkdirAll(suite.controller.getStoragePath(user, "testlisttree"), 0755)
+	testtree := uuid.NewV4().String()
+	err := os.MkdirAll(suite.controller.getStoragePath(user, testtree), 0755)
 	require.Nil(suite.T(), err)
-	err = os.MkdirAll(suite.controller.getStoragePath(user, "testlisttree/othertree"), 0755)
+	err = os.MkdirAll(suite.controller.getStoragePath(user, testtree+"/othertree"), 0755)
 	require.Nil(suite.T(), err)
-	infos, err := suite.metadataController.ListTree(user, "testlisttree")
+	infos, err := suite.metadataController.ListTree(user, testtree)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), 1, len(infos))
 }
@@ -91,9 +106,10 @@ func (suite *TestSuite) TestListTree_withNotFound() {
 }
 
 func (suite *TestSuite) TestDeleteObject() {
-	err := ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob"), []byte("1"), 0644)
+	testblob := uuid.NewV4().String()
+	err := ioutil.WriteFile(suite.controller.getStoragePath(user, testblob), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	err = suite.metadataController.DeleteObject(user, "myblob")
+	err = suite.metadataController.DeleteObject(user, testblob)
 	require.Nil(suite.T(), err)
 }
 
@@ -121,21 +137,25 @@ func (suite *TestSuite) TestMoveTreeObject() {
 }
 
 func (suite *TestSuite) TestMoveBLOBObject_overExistingBLOB() {
-	err := ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob"), []byte("1"), 0644)
+	testblob := uuid.NewV4().String()
+	testblob2 := uuid.NewV4().String()
+	err := ioutil.WriteFile(suite.controller.getStoragePath(user, testblob), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	err = ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob2"), []byte("2"), 0644)
+	err = ioutil.WriteFile(suite.controller.getStoragePath(user, testblob2), []byte("2"), 0644)
 	require.Nil(suite.T(), err)
-	err = suite.metadataController.MoveObject(user, "myblob", "myblob2")
+	err = suite.metadataController.MoveObject(user, testblob, testblob2)
 	require.Nil(suite.T(), err)
 }
 func (suite *TestSuite) TestMoveBLOBObject_overExistingTree() {
-	err := os.MkdirAll(suite.controller.getStoragePath(user, "mytree"), 0755)
+	testtree := uuid.NewV4().String()
+	testblob := uuid.NewV4().String()
+	err := os.MkdirAll(suite.controller.getStoragePath(user, testtree), 0755)
 	require.Nil(suite.T(), err)
-	err = ioutil.WriteFile(suite.controller.getStoragePath(user, "mytree/myblob"), []byte("1"), 0644)
+	err = ioutil.WriteFile(suite.controller.getStoragePath(user, testtree+"/myblob"), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	err = ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob"), []byte("1"), 0644)
+	err = ioutil.WriteFile(suite.controller.getStoragePath(user, testblob), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	err = suite.metadataController.MoveObject(user, "myblob", "mytree")
+	err = suite.metadataController.MoveObject(user, testblob, testtree)
 	require.NotNil(suite.T(), err)
 	// err is the following
 	// &os.LinkError{Op:"rename", Old:"/tmp/t/test/myblob", New:"/tmp/t/test/mytree", Err:0x15}
@@ -165,9 +185,10 @@ func (suite *TestSuite) TestMoveTreeObject_overExistingTree() {
 	// Err = rename /tmp/t/test/mytreeovertree /tmp/t/test/otheremptytree: directory not empty
 }
 func (suite *TestSuite) TestMoveObject_withTargetNotFound() {
-	err := ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob"), []byte("1"), 0644)
+	testblob := uuid.NewV4().String()
+	err := ioutil.WriteFile(suite.controller.getStoragePath(user, testblob), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	err = suite.metadataController.MoveObject(user, "myblob", "notexists/otherblob")
+	err = suite.metadataController.MoveObject(user, testblob, "notexists/otherblob")
 	require.NotNil(suite.T(), err)
 }
 
@@ -177,9 +198,10 @@ func (suite *TestSuite) TestMoveObject_withSourceNotFound() {
 }
 
 func (suite *TestSuite) TestListTree_withBLOB() {
-	err := ioutil.WriteFile(suite.controller.getStoragePath(user, "myblob"), []byte("1"), 0644)
+	testblob := uuid.NewV4().String()
+	err := ioutil.WriteFile(suite.controller.getStoragePath(user, testblob), []byte("1"), 0644)
 	require.Nil(suite.T(), err)
-	_, err = suite.metadataController.ListTree(user, "myblob")
+	_, err = suite.metadataController.ListTree(user, testblob)
 	require.NotNil(suite.T(), err)
 }
 
