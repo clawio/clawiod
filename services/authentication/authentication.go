@@ -13,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const ServiceName string = "authentication"
+
 type svc struct {
 	conf                     *config.Config
 	authenticationController authenticationcontroller.AuthenticationController
@@ -61,6 +63,9 @@ func getMemoryAuthenticationController(cfg *config.Config) authenticationcontrol
 	return memory.New(opts)
 }
 
+func (s *svc) Name() string {
+	return ServiceName
+}
 func (s *svc) BaseURL() string {
 	if s.conf.GetDirectives().Authentication.BaseURL == "" {
 		return "/"

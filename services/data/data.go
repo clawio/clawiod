@@ -13,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const ServiceName string = "data"
+
 type svc struct {
 	conf           *config.Config
 	dataController datacontroller.DataController
@@ -55,6 +57,9 @@ func getSimpleDataController(cfg *config.Config) (datacontroller.DataController,
 
 }
 
+func (s *svc) Name() string {
+	return ServiceName
+}
 func (s *svc) BaseURL() string {
 	dirs := s.conf.GetDirectives()
 	base := dirs.Data.BaseURL

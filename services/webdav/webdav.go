@@ -16,6 +16,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const ServiceName string = "webdav"
+
 type svc struct {
 	conf                     *config.Config
 	authenticationController authenticationcontroller.AuthenticationController
@@ -34,6 +36,9 @@ func New(cfg *config.Config) (services.Service, error) {
 	return &svc{conf: cfg, authenticator: authenticator, dataController: dataController, metaDataController: metaDataController, authenticationController: authenticationController}, nil
 }
 
+func (s *svc) Name() string {
+	return ServiceName
+}
 func (s *svc) BaseURL() string {
 	dirs := s.conf.GetDirectives()
 	base := dirs.WebDAV.BaseURL

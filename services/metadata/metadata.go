@@ -11,6 +11,8 @@ import (
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/simple"
 )
 
+const ServiceName string = "metadata"
+
 type svc struct {
 	conf               *config.Config
 	metaDataController metadatacontroller.MetaDataController
@@ -41,7 +43,9 @@ func getSimpleMetaDataController(cfg *config.Config) metadatacontroller.MetaData
 	}
 	return simple.New(opts)
 }
-
+func (s *svc) Name() string {
+	return ServiceName
+}
 func (s *svc) BaseURL() string {
 	if s.conf.GetDirectives().MetaData.BaseURL == "" {
 		return "/"

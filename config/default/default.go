@@ -22,6 +22,7 @@ var DefaultDirectives = config.Directives{
 		CORSAccessControlAllowOrigin:  []string{},
 		CORSAccessControlAllowMethods: []string{"GET", "POST", "HEAD", "PUT", "DELETE"},
 		CORSAccessControlAllowHeaders: []string{"*"},
+		CORSEnabledServices:           []string{"authentication", "metadata", "data"},
 	},
 
 	Authentication: config.Authentication{

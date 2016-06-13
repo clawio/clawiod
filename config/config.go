@@ -96,6 +96,7 @@ type Server struct {
 	CORSAccessControlAllowOrigin  []string `json:"cors_access_control_allow_origin"`
 	CORSAccessControlAllowMethods []string `json:"cors_access_control_allow_methods"`
 	CORSAccessControlAllowHeaders []string `json:"cors_access_control_allow_headers"`
+	CORSEnabledServices           []string `json:"cors_enabled_services"`
 }
 
 // Authentication is the configuration section dedicated to the authentication service.

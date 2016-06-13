@@ -83,9 +83,6 @@ func (s *Server) Stop() {
 
 // HandleRequest handles HTTP requests and forwards them to the propper service handler.
 func (s *Server) HandleRequest() http.Handler {
-	if s.conf.GetDirectives().Server.CORSEnabled {
-		return handlers.CombinedLoggingHandler(s.getHTTPLogWriter(), s.corsHandler(s.handler()))
-	}
 	return handlers.CombinedLoggingHandler(s.getHTTPLogWriter(), s.handler())
 }
 
@@ -109,7 +106,6 @@ func (s *Server) corsHandler(h http.Handler) http.Handler {
 
 	dirs := s.conf.GetDirectives()
 	opts := cors.Options{}
-	opts.Debug = true
 	opts.AllowedOrigins = dirs.Server.CORSAccessControlAllowOrigin
 	opts.AllowedMethods = dirs.Server.CORSAccessControlAllowMethods
 	opts.AllowedHeaders = dirs.Server.CORSAccessControlAllowHeaders
@@ -161,16 +157,34 @@ func (s *Server) configureRouter() error {
 		return err
 	}
 
+	corsEnabled := dirs.Server.CORSEnabledServices
 	base := strings.TrimRight(dirs.Server.BaseURL, "/")
 	for _, svc := range services {
 		for path, methods := range svc.Endpoints() {
-			for method, handler := range methods {
+			for method, handlerFunc := range methods {
+				handlerFunc := http.HandlerFunc(handlerFunc)
+				var handler http.Handler
+				handler = handlerFunc
+				if isServiceEnabled(svc.Name(), corsEnabled) {
+					handler = s.corsHandler(handlerFunc)
+				}
+
 				svcBase := strings.TrimRight(svc.BaseURL(), "/")
-				router.Handle(base+svcBase+path, handler).Methods(method)
+				fullEndpoint := base + svcBase + path
+				router.Handle(fullEndpoint, handler).Methods(method)
+				if isServiceEnabled(svc.Name(), corsEnabled) {
+					router.Handle(fullEndpoint, handler).Methods("OPTIONS")
+				}
+
 				u := strings.TrimRight(dirs.Server.BaseURL, "/") + base + path
-				prometheus.InstrumentHandlerFunc(u, handler)
+				prometheus.InstrumentHandler(u, handler)
+
 				ep := fmt.Sprintf("%s %s", method, u)
 				s.log.WithField("endpoint", ep).Info("endpoint registered")
+				if isServiceEnabled(svc.Name(), corsEnabled) {
+					ep := fmt.Sprintf("%s %s", "OPTIONS", u)
+					s.log.WithField("endpoint", ep).Info("CORS endpoint registered")
+				}
 			}
 		}
 	}

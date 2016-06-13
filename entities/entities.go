@@ -21,12 +21,13 @@ type (
 	// ObjectInfo represents the metadata information retrieved
 	// from an object, either tree or blob.
 	ObjectInfo struct {
-		PathSpec string     `json:"pathspec"`
-		Size     int64      `json:"size"`
-		Type     ObjectType `json:"type"`
-		ModTime  int        `json:"mtime"`
-		MimeType string     `json:"mime_type"`
-		Checksum string     `json:"checksum"`
+		PathSpec string      `json:"pathspec"`
+		Size     int64       `json:"size"`
+		Type     ObjectType  `json:"type"`
+		ModTime  int         `json:"mtime"`
+		MimeType string      `json:"mime_type"`
+		Checksum string      `json:"checksum"`
+		Extra    interface{} `json:"extra"`
 	}
 
 	// User represents an user of the system.
