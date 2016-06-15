@@ -9,8 +9,8 @@ import (
 	"github.com/clawio/clawiod/services/authentication"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
 	"github.com/clawio/clawiod/services/authentication/lib"
+	"github.com/clawio/clawiod/services/data"
 	"github.com/clawio/clawiod/services/data/datacontroller"
-	simpledatacontroller "github.com/clawio/clawiod/services/data/datacontroller/simple"
 	"github.com/clawio/clawiod/services/metadata"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,7 +31,10 @@ func New(cfg *config.Config) (services.Service, error) {
 	dirs := cfg.GetDirectives()
 	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
 
-	dataController := simpledatacontroller.New(cfg)
+	dataController, err := data.GetDataController(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	authenticationController, err := authentication.GetAuthenticationController(cfg)
 	if err != nil {

@@ -1,4 +1,4 @@
-package simple
+package ocsql
 
 import (
 	"crypto/md5"
@@ -18,24 +18,26 @@ import (
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/services/data/datacontroller"
+	"github.com/clawio/clawiod/services/metadata/metadatacontroller/ocsql"
 )
 
-type simpleDataController struct {
-	conf *config.Config
+type controller struct {
+	conf               *config.Config
+	metaDataController *ocsql.Controller
 }
 
 // New returns an implementation of DataController.
 func New(conf *config.Config) (datacontroller.DataController, error) {
-	dirs := conf.GetDirectives()
-	// create namespace and temporary namespace
-	if err := os.MkdirAll(dirs.Data.Simple.Namespace, 0755); err != nil {
+
+	c, err := ocsql.New(conf)
+	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(dirs.Data.Simple.TemporaryNamespace, 0755); err != nil {
-		return nil, err
-	}
-	return &simpleDataController{
-		conf: conf,
+	metaDataController := c.(*ocsql.Controller)
+
+	return &controller{
+		conf:               conf,
+		metaDataController: metaDataController,
 	}, nil
 }
 
@@ -45,7 +47,7 @@ func New(conf *config.Config) (datacontroller.DataController, error) {
 // 2) Optional: calculate the checksum of the blob if server-checksum is enabled.
 // 3) Optional: if a client-checksum is provided, check if it matches with the server-checksum.
 // 4) Move the blob from the temporary directory to user directory.
-func (c *simpleDataController) UploadBLOB(user *entities.User, pathSpec string, r io.Reader, clientchecksum string) error {
+func (c *controller) UploadBLOB(user *entities.User, pathSpec string, r io.Reader, clientchecksum string) error {
 	tempFileName, err := c.saveToTempFile(r)
 	if err != nil {
 		return err
@@ -76,10 +78,11 @@ func (c *simpleDataController) UploadBLOB(user *entities.User, pathSpec string, 
 		}
 		return err
 	}
-	return nil
+
+	return c.metaDataController.SetDBMetaData(c.metaDataController.GetVirtualPath(user, pathSpec), clientchecksum, c.metaDataController.GetVirtualPath(user, "/"))
 }
 
-func (c *simpleDataController) DownloadBLOB(user *entities.User, pathSpec string) (io.Reader, error) {
+func (c *controller) DownloadBLOB(user *entities.User, pathSpec string) (io.Reader, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	fd, err := os.Open(storagePath)
 	if err != nil {
@@ -91,7 +94,7 @@ func (c *simpleDataController) DownloadBLOB(user *entities.User, pathSpec string
 	return fd, nil
 }
 
-func (c *simpleDataController) saveToTempFile(r io.Reader) (string, error) {
+func (c *controller) saveToTempFile(r io.Reader) (string, error) {
 	fd, err := ioutil.TempFile(c.conf.GetDirectives().Data.Simple.TemporaryNamespace, "")
 	defer fd.Close()
 	if err != nil {
@@ -103,7 +106,7 @@ func (c *simpleDataController) saveToTempFile(r io.Reader) (string, error) {
 	return fd.Name(), nil
 }
 
-func (c *simpleDataController) computeChecksum(fn string) (string, error) {
+func (c *controller) computeChecksum(fn string) (string, error) {
 	checksumType := strings.ToLower(c.conf.GetDirectives().Data.Simple.Checksum)
 	var hash hash.Hash
 	switch checksumType {
@@ -130,7 +133,7 @@ func (c *simpleDataController) computeChecksum(fn string) (string, error) {
 	return checksumType + ":" + checksum, nil
 }
 
-func (c *simpleDataController) getStoragePath(user *entities.User, path string) string {
+func (c *controller) getStoragePath(user *entities.User, path string) string {
 	homeDir := secureJoin("/", string(user.Username[0]), user.Username)
 	userPath := secureJoin(homeDir, path)
 	return secureJoin(c.conf.GetDirectives().Data.Simple.Namespace, userPath)

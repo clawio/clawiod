@@ -63,7 +63,7 @@ type record struct {
 
 func (r *record) TableName() string { return "records" }
 
-type controller struct {
+type Controller struct {
 	temporaryNamespace string
 	namespace          string
 	db                 *gorm.DB
@@ -74,7 +74,7 @@ type controller struct {
 // New returns an implementation of MetaDataController.
 func New(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 	dirs := conf.GetDirectives()
-	c := &controller{
+	c := &Controller{
 		namespace:          dirs.MetaData.OCSQL.Namespace,
 		temporaryNamespace: dirs.MetaData.OCSQL.TemporaryNamespace,
 		log:                helpers.GetAppLogger(conf).WithField("module", "metadata:controller:ocsql"),
@@ -106,14 +106,14 @@ func New(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 	return c, nil
 }
 
-func (c *controller) Init(user *entities.User) error {
+func (c *Controller) Init(user *entities.User) error {
 	storagePath := c.getStoragePath(user, "/")
 	if err := os.MkdirAll(storagePath, 0755); err != nil {
 		c.log.Error(err)
 		return err
 	}
 
-	_, err := c.getDBMetaData(c.getVirtualPath(user, "/"), true, c.getVirtualPath(user, "/"))
+	_, err := c.GetDBMetaData(c.GetVirtualPath(user, "/"), true, c.GetVirtualPath(user, "/"))
 	if err != nil {
 		return err
 	}
@@ -121,15 +121,15 @@ func (c *controller) Init(user *entities.User) error {
 	return nil
 }
 
-func (c *controller) CreateTree(user *entities.User, pathSpec string) error {
+func (c *Controller) CreateTree(user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
 	if err := os.Mkdir(storagePath, 0755); err != nil {
 		return err
 	}
-	return c.setDBMetaData(c.getVirtualPath(user, pathSpec), "", c.getVirtualPath(user, "/"))
+	return c.SetDBMetaData(c.GetVirtualPath(user, pathSpec), "", c.GetVirtualPath(user, "/"))
 }
 
-func (c *controller) ExamineObject(user *entities.User, pathSpec string) (*entities.ObjectInfo, error) {
+func (c *Controller) ExamineObject(user *entities.User, pathSpec string) (*entities.ObjectInfo, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	finfo, err := os.Stat(storagePath)
 	if err != nil {
@@ -139,7 +139,7 @@ func (c *controller) ExamineObject(user *entities.User, pathSpec string) (*entit
 		return nil, err
 	}
 
-	rec, err := c.getDBMetaData(c.getVirtualPath(user, pathSpec), true, c.getVirtualPath(user, "/"))
+	rec, err := c.GetDBMetaData(c.GetVirtualPath(user, pathSpec), true, c.GetVirtualPath(user, "/"))
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (c *controller) ExamineObject(user *entities.User, pathSpec string) (*entit
 	return oinfo, nil
 }
 
-func (c *controller) ListTree(user *entities.User, pathSpec string) ([]*entities.ObjectInfo, error) {
+func (c *Controller) ListTree(user *entities.User, pathSpec string) ([]*entities.ObjectInfo, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	finfo, err := os.Stat(storagePath)
 	if err != nil {
@@ -174,7 +174,7 @@ func (c *controller) ListTree(user *entities.User, pathSpec string) ([]*entities
 	var oinfos []*entities.ObjectInfo
 	for _, fi := range finfos {
 		p := filepath.Join(pathSpec, filepath.Base(fi.Name()))
-		rec, err := c.getDBMetaData(c.getVirtualPath(user, p), true, c.getVirtualPath(user, "/"))
+		rec, err := c.GetDBMetaData(c.GetVirtualPath(user, p), true, c.GetVirtualPath(user, "/"))
 		if err != nil {
 			return nil, err
 		}
@@ -183,17 +183,17 @@ func (c *controller) ListTree(user *entities.User, pathSpec string) ([]*entities
 	return oinfos, nil
 }
 
-func (c *controller) DeleteObject(user *entities.User, pathSpec string) error {
+func (c *Controller) DeleteObject(user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
 	err := os.RemoveAll(storagePath)
 	if err != nil {
 		return err
 	}
 
-	return c.removeInDB(c.getVirtualPath(user, pathSpec))
+	return c.removeInDB(c.GetVirtualPath(user, pathSpec))
 }
 
-func (c *controller) MoveObject(user *entities.User, sourcePathSpec, targetPathSpec string) error {
+func (c *Controller) MoveObject(user *entities.User, sourcePathSpec, targetPathSpec string) error {
 	sourceStoragePath := c.getStoragePath(user, sourcePathSpec)
 	targetStoragePath := c.getStoragePath(user, targetPathSpec)
 	err := os.Rename(sourceStoragePath, targetStoragePath)
@@ -206,21 +206,21 @@ func (c *controller) MoveObject(user *entities.User, sourcePathSpec, targetPathS
 		return err
 	}
 
-	sourceVirtualPath := c.getVirtualPath(user, sourcePathSpec)
-	targetVirtualPath := c.getVirtualPath(user, targetPathSpec)
-	return c.moveDBMetaData(sourceVirtualPath, targetVirtualPath, c.getVirtualPath(user, "/"))
+	sourceVirtualPath := c.GetVirtualPath(user, sourcePathSpec)
+	targetVirtualPath := c.GetVirtualPath(user, targetPathSpec)
+	return c.MoveDBMetaData(sourceVirtualPath, targetVirtualPath, c.GetVirtualPath(user, "/"))
 }
 
-func (c *controller) getStoragePath(user *entities.User, path string) string {
+func (c *Controller) getStoragePath(user *entities.User, path string) string {
 	homeDir := secureJoin("/", string(user.Username[0]), user.Username)
 	userPath := secureJoin(homeDir, path)
 	return secureJoin(c.namespace, userPath)
 }
-func (c *controller) getVirtualPath(user *entities.User, pathSpec string) string {
+func (c *Controller) GetVirtualPath(user *entities.User, pathSpec string) string {
 	homeDir := secureJoin("/", string(user.Username[0]), user.Username)
 	return secureJoin(homeDir, pathSpec)
 }
-func (c *controller) getObjectInfo(pathSpec string, finfo os.FileInfo, rec *record) *entities.ObjectInfo {
+func (c *Controller) getObjectInfo(pathSpec string, finfo os.FileInfo, rec *record) *entities.ObjectInfo {
 	oinfo := &entities.ObjectInfo{PathSpec: pathSpec, Size: finfo.Size(), Type: entities.ObjectTypeBLOB}
 	if finfo.IsDir() {
 		oinfo.Type = entities.ObjectTypeTree
@@ -246,7 +246,7 @@ func secureJoin(args ...string) string {
 	return filepath.Join(args...)
 }
 
-func (c *controller) getMimeType(pathSpec string, otype entities.ObjectType) string {
+func (c *Controller) getMimeType(pathSpec string, otype entities.ObjectType) string {
 	if otype == entities.ObjectTypeTree {
 		return entities.ObjectTypeTreeMimeType
 	}
@@ -257,13 +257,13 @@ func (c *controller) getMimeType(pathSpec string, otype entities.ObjectType) str
 	return inferred
 }
 
-func (c *controller) getByVirtualPath(virtualPath string) (*record, error) {
+func (c *Controller) getByVirtualPath(virtualPath string) (*record, error) {
 	r := &record{}
 	err := c.db.Where("virtualpath=?", virtualPath).First(r).Error
 	return r, err
 }
 
-func (c *controller) getDBMetaData(virtualPath string, forceCreateOnMiss bool, ancestorVirtualPath string) (*record, error) {
+func (c *Controller) GetDBMetaData(virtualPath string, forceCreateOnMiss bool, ancestorVirtualPath string) (*record, error) {
 	r, err := c.getByVirtualPath(virtualPath)
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
@@ -272,7 +272,7 @@ func (c *controller) getDBMetaData(virtualPath string, forceCreateOnMiss bool, a
 		if !forceCreateOnMiss {
 			return nil, err
 		}
-		err = c.setDBMetaData(virtualPath, "", ancestorVirtualPath)
+		err = c.SetDBMetaData(virtualPath, "", ancestorVirtualPath)
 		if err != nil {
 			return nil, err
 		}
@@ -288,7 +288,7 @@ func (c *controller) getDBMetaData(virtualPath string, forceCreateOnMiss bool, a
 	return r, nil
 }
 
-func (c *controller) setDBMetaData(virtualPath, checksum string, ancestorVirtualPath string) error {
+func (c *Controller) SetDBMetaData(virtualPath, checksum string, ancestorVirtualPath string) error {
 	etag := uuid.NewV4().String()
 	modTime := time.Now().UnixNano()
 	id := etag
@@ -321,7 +321,7 @@ func (c *controller) setDBMetaData(virtualPath, checksum string, ancestorVirtual
 	return nil
 }
 
-func (c *controller) moveDBMetaData(sourceVirtualPath, targetVirtualPath, ancestorVirtualPath string) error {
+func (c *Controller) MoveDBMetaData(sourceVirtualPath, targetVirtualPath, ancestorVirtualPath string) error {
 	records, err := c.getChildrenRecords(sourceVirtualPath)
 	if err != nil {
 		c.log.WithError(err).Error("cannot get children records for moving")
@@ -360,7 +360,7 @@ func (c *controller) moveDBMetaData(sourceVirtualPath, targetVirtualPath, ancest
 	return nil
 }
 
-func (c *controller) getChildrenRecords(virtualPath string) ([]record, error) {
+func (c *Controller) getChildrenRecords(virtualPath string) ([]record, error) {
 	var records []record
 
 	err := c.db.Where("virtualpath LIKE ? or virtualpath=?", virtualPath+"/%", virtualPath).Find(&records).Error
@@ -374,7 +374,7 @@ func (c *controller) getChildrenRecords(virtualPath string) ([]record, error) {
 // the etag and mtime values will be updated also at:
 // 1st) /d/demo/photos
 // 2nd) /d/demo
-func (c *controller) propagateChangesInDB(virtualPath, etag string, modTime int64, ancestor string) error {
+func (c *Controller) propagateChangesInDB(virtualPath, etag string, modTime int64, ancestor string) error {
 	c.log.WithField("virtualpath", virtualPath).WithField("etag", etag).WithField("modTime", modTime).Debug("record that triggered propagation")
 	// virtualPathsToUpdate are sorted from largest to shortest virtual paths.
 	// Ex: "/d/demo/photos" comes before "/d/demo/"
@@ -412,7 +412,7 @@ func (c *controller) propagateChangesInDB(virtualPath, etag string, modTime int6
 	return nil
 }
 
-func (c *controller) getVirtualPathsUntilAncestor(virtualPath, ancestor string) []string {
+func (c *Controller) getVirtualPathsUntilAncestor(virtualPath, ancestor string) []string {
 	// virtualPaths is sorted from shortest to largest for easier implementation
 	// this slice is sorted at the end viceversa
 	var virtualPaths []string
@@ -451,7 +451,7 @@ func (c *controller) getVirtualPathsUntilAncestor(virtualPath, ancestor string) 
 	return virtualPaths
 }
 
-func (c *controller) insertOrUpdateIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
+func (c *Controller) insertOrUpdateIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
 	c.log.WithField("id", id).WithField("virtualpath", virtualPath).WithField("etag", etag).WithField("modTime", modTime).WithField("checksum", checksum).Debug("record to be inserted")
 	// this query only works on MySQL databases as it uses ON DUPLICATE KEY UPDATE feature
 	// to implement an atomic operation, either an insert or an update.
@@ -461,19 +461,19 @@ func (c *controller) insertOrUpdateIntoDB(id, virtualPath, checksum, etag string
 	return err
 }
 
-func (c *controller) updateInDB(virtualPath, etag string, modTime int64) int64 {
+func (c *Controller) updateInDB(virtualPath, etag string, modTime int64) int64 {
 	c.log.WithField("virtualpath", virtualPath).WithField("etag", etag).WithField("modTime", modTime).Debug("record to be updated")
 	return c.db.Model(&record{}).Where("virtualpath=? AND modtime < ?", virtualPath, modTime).Updates(&record{ETag: etag, ModTime: modTime}).RowsAffected
 }
 
-func (c *controller) insertIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
+func (c *Controller) insertIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
 	c.log.WithField("id", id).WithField("virtualpath", virtualPath).WithField("etag", etag).WithField("modTime", modTime).WithField("checksum", checksum).Debug("record to be inserted")
 	err := c.db.Exec(`INSERT INTO records (id,virtualpath,checksum, etag, modtime) VALUES (?,?,?,?,?)`,
 		id, virtualPath, checksum, etag, modTime).Error
 	return err
 }
 
-func (c *controller) removeInDB(virtualPath string) error {
+func (c *Controller) removeInDB(virtualPath string) error {
 	c.log.WithField("virtualpath", virtualPath).Debug("record to be removed")
 	removeBeforeTS := time.Now().UnixNano()
 	err := c.db.Where("(virtualpath LIKE ? OR virtualpath=? ) AND modtime < ?", virtualPath+"/%", virtualPath, removeBeforeTS).Delete(&record{}).Error

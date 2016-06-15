@@ -70,6 +70,12 @@ var DefaultDirectives = config.Directives{
 			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
 			UploadMaxFileSize:  8589934592, // 8 GiB
 		},
+
+		OCSQL: config.DataOCSQL{
+			Namespace:          "/tmp/clawio-namespace",
+			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
+			UploadMaxFileSize:  8589934592, // 8 GiB
+		},
 	},
 
 	WebDAV: config.WebDAV{

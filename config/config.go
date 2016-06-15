@@ -164,10 +164,20 @@ type Data struct {
 	Type              string     `json:"type"`
 	UploadMaxFileSize int        `json:"upload_max_file_size"`
 	Simple            DataSimple `json:"simple"`
+	OCSQL             DataOCSQL  `json:"ocsql"`
 }
 
 // DataSimple is the configuration subsection dedicated to the data simple controller.
 type DataSimple struct {
+	Namespace            string `json:"namespace"`
+	TemporaryNamespace   string `json:"temporary_namespace"`
+	Checksum             string `json:"checksum"`
+	VerifyClientChecksum bool   `json:"verify_client_checksum"`
+	UploadMaxFileSize    int    `json:"upload_max_file_size"`
+}
+
+// DataOCSQL is the configuration subsection dedicated to the data owncloud sql controller.
+type DataOCSQL struct {
 	Namespace            string `json:"namespace"`
 	TemporaryNamespace   string `json:"temporary_namespace"`
 	Checksum             string `json:"checksum"`

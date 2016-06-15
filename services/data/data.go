@@ -3,12 +3,12 @@ package data
 import (
 	"errors"
 	"net/http"
-	"os"
 
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/clawio/clawiod/services/data/datacontroller"
+	"github.com/clawio/clawiod/services/data/datacontroller/ocsql"
 	"github.com/clawio/clawiod/services/data/datacontroller/simple"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -22,39 +22,23 @@ type svc struct {
 
 // New returns a new Service.
 func New(cfg *config.Config) (services.Service, error) {
-	dataController, err := getDataController(cfg)
+	dataController, err := GetDataController(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return &svc{conf: cfg, dataController: dataController}, nil
 }
 
-func getDataController(cfg *config.Config) (datacontroller.DataController, error) {
-	switch cfg.GetDirectives().Data.Type {
+func GetDataController(conf *config.Config) (datacontroller.DataController, error) {
+	dirs := conf.GetDirectives()
+	switch dirs.Data.Type {
 	case "simple":
-		controller, err := getSimpleDataController(cfg)
-		if err != nil {
-			return nil, err
-		}
-		return controller, nil
+		return simple.New(conf)
+	case "ocsql":
+		return ocsql.New(conf)
 	default:
-		return nil, errors.New("data type " + cfg.GetDirectives().Data.Type + " does not exist")
+		return nil, errors.New("data type " + dirs.Data.Type + " does not exist")
 	}
-}
-
-func getSimpleDataController(cfg *config.Config) (datacontroller.DataController, error) {
-	dirs := cfg.GetDirectives()
-
-	// create namespace and temporary namespace
-	if err := os.MkdirAll(dirs.Data.Simple.Namespace, 0755); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(dirs.Data.Simple.TemporaryNamespace, 0755); err != nil {
-		return nil, err
-	}
-
-	return simple.New(cfg), nil
-
 }
 
 func (s *svc) Name() string {
