@@ -9,7 +9,6 @@ import (
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/sql"
-	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -22,45 +21,28 @@ type svc struct {
 
 // New will instantiate and return
 // a new svc that implements server.svc.
-func New(cfg *config.Config) (services.Service, error) {
-	var authenticationController authenticationcontroller.AuthenticationController
-	switch cfg.GetDirectives().Authentication.Type {
-	case "sql":
-		a, err := getSimpleAuthenticationController(cfg)
-		if err != nil {
-			return nil, err
-		}
-		authenticationController = a
-	case "memory":
-		authenticationController = getMemoryAuthenticationController(cfg)
-	default:
-		return nil, errors.New("authentication type " + cfg.GetDirectives().Authentication.Type + " does not exist")
+func New(conf *config.Config) (services.Service, error) {
+	authenticationController, err := GetAuthenticationController(conf)
+	if err != nil {
+		return nil, err
 	}
 
 	return &svc{
-		conf: cfg,
+		conf: conf,
 		authenticationController: authenticationController,
 	}, nil
 }
 
-func getSimpleAuthenticationController(cfg *config.Config) (authenticationcontroller.AuthenticationController, error) {
-	dirs := cfg.GetDirectives()
-	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
-	opts := &sql.Options{
-		Driver:        dirs.Authentication.SQL.Driver,
-		DSN:           dirs.Authentication.SQL.DSN,
-		Authenticator: authenticator,
+func GetAuthenticationController(conf *config.Config) (authenticationcontroller.AuthenticationController, error) {
+	dirs := conf.GetDirectives()
+	switch dirs.Authentication.Type {
+	case "memory":
+		return memory.New(conf)
+	case "sql":
+		return sql.New(conf)
+	default:
+		return nil, errors.New("authentication type " + dirs.Authentication.Type + " does not exist")
 	}
-	return sql.New(opts)
-}
-func getMemoryAuthenticationController(cfg *config.Config) authenticationcontroller.AuthenticationController {
-	dirs := cfg.GetDirectives()
-	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
-	opts := &memory.Options{
-		Users:         dirs.Authentication.Memory.Users,
-		Authenticator: authenticator,
-	}
-	return memory.New(opts)
 }
 
 func (s *svc) Name() string {

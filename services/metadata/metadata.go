@@ -21,34 +21,29 @@ type svc struct {
 
 // New returns a new Service.
 func New(cfg *config.Config) (services.Service, error) {
-	metaDataController, err := getMetaDataController(cfg)
+	metaDataController, err := GetMetaDataController(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return &svc{conf: cfg, metaDataController: metaDataController}, nil
 }
 
-func getMetaDataController(cfg *config.Config) (metadatacontroller.MetaDataController, error) {
-	switch cfg.GetDirectives().MetaData.Type {
+func GetMetaDataController(conf *config.Config) (metadatacontroller.MetaDataController, error) {
+	dirs := conf.GetDirectives()
+	switch dirs.MetaData.Type {
 	case "simple":
-		return getSimpleMetaDataController(cfg), nil
+		return simple.New(conf), nil
 	case "ocsql":
-		return ocsql.New(cfg)
+		return ocsql.New(conf)
 	default:
-		return nil, errors.New("metadata type " + cfg.GetDirectives().MetaData.Type + "does not exist")
+		return nil, errors.New("metadata type " + dirs.MetaData.Type + "does not exist")
 	}
 }
 
-func getSimpleMetaDataController(cfg *config.Config) metadatacontroller.MetaDataController {
-	opts := &simple.Options{
-		MetaDataDir: cfg.GetDirectives().MetaData.Simple.Namespace,
-		TempDir:     cfg.GetDirectives().MetaData.Simple.TemporaryNamespace,
-	}
-	return simple.New(opts)
-}
 func (s *svc) Name() string {
 	return ServiceName
 }
+
 func (s *svc) BaseURL() string {
 	if s.conf.GetDirectives().MetaData.BaseURL == "" {
 		return "/"

@@ -2,8 +2,6 @@ package codes
 
 import (
 	"net/http"
-	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,29 +17,6 @@ func TestCodes(t *testing.T) {
 	assert.Equal(t, "checksums differ", BadChecksum.String())
 	assert.Equal(t, "too big", TooBig.String())
 	assert.Equal(t, "FIXME: this should be a helpful message", Success.String())
-}
-
-func TestSanitizeURL(t *testing.T) {
-	u := "http://example.com/?token=somesecrettoken"
-	testURL, err := url.Parse(u)
-	assert.Nil(t, err)
-	got := sanitizeURL(testURL)
-	gotString := got.String()
-	assert.True(t, strings.Contains(gotString, "REDACTED"))
-}
-
-func TestSanitizeURL_withNil(t *testing.T) {
-	got := sanitizeURL(nil)
-	assert.Nil(t, got)
-}
-
-func TestSanitizeURL_withoutToken(t *testing.T) {
-	u := "http://example.com/"
-	testURL, err := url.Parse(u)
-	assert.Nil(t, err)
-	got := sanitizeURL(testURL)
-	gotString := got.String()
-	assert.Equal(t, u, gotString)
 }
 
 func TestNewErr(t *testing.T) {

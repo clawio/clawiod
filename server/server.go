@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"runtime"
 	"strings"
 	"time"
@@ -95,7 +94,7 @@ func (s *Server) handler() http.Handler {
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		tid := uuid.NewV4().String()
 		cLog := s.log.WithFields(logrus.Fields{"tid": tid})
-		cLog.WithFields(logrus.Fields{"method": r.Method, "uri": sanitizedURL(r.URL)}).Info("request started")
+		cLog.WithFields(logrus.Fields{"method": r.Method, "uri": helpers.SanitizeURL(r.URL)}).Info("request started")
 		keys.SetLog(r, cLog)
 		defer func() {
 			cLog.Info("request ended")
@@ -218,16 +217,4 @@ func isServiceEnabled(svc string, list []string) bool {
 		}
 	}
 	return false
-}
-func sanitizedURL(uri *url.URL) string {
-	if uri == nil {
-		return ""
-	}
-	copy := *uri
-	params := copy.Query()
-	if len(params.Get("access_token")) > 0 {
-		params.Set("access_token", "REDACTED")
-		copy.RawQuery = params.Encode()
-	}
-	return copy.RequestURI()
 }

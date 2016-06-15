@@ -2,8 +2,6 @@ package defaul
 
 import (
 	"github.com/clawio/clawiod/config"
-	"github.com/clawio/clawiod/entities"
-	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 )
 
 // DefaultDirectives represents the default configuration used by Server. This default configuration
@@ -57,6 +55,9 @@ var DefaultDirectives = config.Directives{
 			TemporaryNamespace:          "/tmp/clawio-temporary-namespace",
 			MaxSQLIdleConnections:       1024,
 			MaxSQLConcurrentConnections: 1024,
+			SQLLog:        "stdout",
+			SQLLogEnabled: true,
+			SQLLogMaxSize: 100, // MiB
 		},
 	},
 
@@ -94,12 +95,13 @@ func New() config.Source {
 func (c *conf) LoadDirectives() (*config.Directives, error) {
 	return &DefaultDirectives, nil
 }
-func getDefaultMemoryUsers() []memory.User {
-	user := memory.User{}
-	user.User = entities.User{}
-	user.Username = "demo"
-	user.Email = "demo@example.com"
-	user.DisplayName = "Demo User"
-	user.Password = "demo"
-	return []memory.User{user}
+func getDefaultMemoryUsers() interface{} {
+	users := []map[string]interface{}{}
+	user := map[string]interface{}{}
+	user["username"] = "demo"
+	user["email"] = "demo@example.com"
+	user["display_name"] = "Demo User"
+	user["password"] = "demo"
+	users = append(users, user)
+	return users
 }

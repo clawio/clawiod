@@ -22,7 +22,7 @@ func SanitizeURL(uri *url.URL) string {
 		params.Set("access_token", "REDACTED")
 		copy.RawQuery = params.Encode()
 	}
-	return copy.RequestURI()
+	return copy.String()
 }
 func RedactString(v string) string {
 	length := len(v)
@@ -40,29 +40,29 @@ func RedactString(v string) string {
 
 func GetAppLogger(conf *config.Config) *logrus.Entry {
 	dirs := conf.GetDirectives()
-	return getLogger(dirs.Server.AppLogLevel, dirs.Server.AppLog,
+	return NewLogger(dirs.Server.AppLogLevel, dirs.Server.AppLog,
 		dirs.Server.AppLogMaxSize, dirs.Server.AppLogMaxAge, dirs.Server.AppLogMaxBackups)
 }
 
 func GetHTTPAccessLogger(conf *config.Config) *logrus.Entry {
 	dirs := conf.GetDirectives()
-	return getLogger(dirs.Server.HTTPAccessLogLevel, dirs.Server.HTTPAccessLog,
+	return NewLogger(dirs.Server.HTTPAccessLogLevel, dirs.Server.HTTPAccessLog,
 		dirs.Server.HTTPAccessLogMaxSize, dirs.Server.HTTPAccessLogMaxAge, dirs.Server.HTTPAccessLogMaxBackups)
 
 }
 
-func getLogger(level, writer string, maxSize, maxAge, maxBackups int) *logrus.Entry {
-	log := logrus.NewEntry(logrus.New())
+func NewLogger(level, writer string, maxSize, maxAge, maxBackups int) *logrus.Entry {
+	base := logrus.New()
 
 	switch writer {
 	case "stdout":
-		log.Logger.Out = os.Stdout
+		base.Out = os.Stdout
 	case "stderr":
-		log.Logger.Out = os.Stderr
+		base.Out = os.Stderr
 	case "":
-		log.Logger.Out = ioutil.Discard
+		base.Out = ioutil.Discard
 	default:
-		log.Logger.Out = &lumberjack.Logger{
+		base.Out = &lumberjack.Logger{
 			Filename:   writer,
 			MaxSize:    maxSize,
 			MaxAge:     maxAge,
@@ -73,9 +73,11 @@ func getLogger(level, writer string, maxSize, maxAge, maxBackups int) *logrus.En
 	logrusLevel, err := logrus.ParseLevel(level)
 	// if provided level is not supported, default to Info level
 	if err != nil {
-		log.Error(err)
+		base.Error(err)
 		logrusLevel = logrus.InfoLevel
 	}
-	log.Level = logrusLevel
+	base.Level = logrusLevel
+
+	log := logrus.NewEntry(base)
 	return log
 }

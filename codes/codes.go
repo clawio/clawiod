@@ -98,7 +98,7 @@ func NewErrorResponse(res *http.Response, e *Err) *ErrorResponse {
 }
 
 func (r *ErrorResponse) Error() string {
-	return fmt.Sprintf("%v %v: %d (%s)",
+	return fmt.Sprintf("%v %s: %d (%s)",
 		r.Response.Request.Method, helpers.SanitizeURL(r.Response.Request.URL),
 		r.Response.StatusCode, r.Err.Error())
 }

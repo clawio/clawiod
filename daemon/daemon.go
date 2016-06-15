@@ -92,6 +92,10 @@ func (d *Daemon) printConfig() {
 	d.log.WithField("confkey", "server.jwt_signing_method").WithField("confval", helpers.RedactString(dirs.Server.JWTSigningMethod)).Info("configuration detail")
 	d.log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("configuration detail")
 	d.log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("configuration detail")
+	d.log.WithField("confkey", "server.app_log_level").WithField("confval", dirs.Server.AppLogLevel).Info("configuration detail")
+	d.log.WithField("confkey", "server.app_log_max_size").WithField("confval", dirs.Server.AppLogMaxSize).Info("configuration detail")
+	d.log.WithField("confkey", "server.app_log_max_age").WithField("confval", dirs.Server.AppLogMaxAge).Info("configuration detail")
+	d.log.WithField("confkey", "server.app_log_max_backups").WithField("confval", dirs.Server.AppLogMaxBackups).Info("configuration detail")
 	d.log.WithField("confkey", "server.enabled_services").WithField("confval", dirs.Server.EnabledServices).Info("configuration detail")
 	d.log.WithField("confkey", "server.tls_enabled").WithField("confval", dirs.Server.TLSEnabled).Info("configuration detail")
 	d.log.WithField("confkey", "server.tls_certificate").WithField("confval", dirs.Server.TLSCertificate).Info("configuration detail")
@@ -99,6 +103,7 @@ func (d *Daemon) printConfig() {
 
 	d.log.WithField("confkey", "authentication.base_url").WithField("confval", dirs.Authentication.BaseURL).Info("configuration detail")
 	d.log.WithField("confkey", "authentication.type").WithField("confval", dirs.Authentication.Type).Info("configuration detail")
+
 	d.log.WithField("confkey", "authentication.memory.users").WithField("confval", dirs.Authentication.Memory.Users).Info("configuration detail")
 	d.log.WithField("confkey", "authentication.sql.driver").WithField("confval", dirs.Authentication.SQL.Driver).Info("configuration detail")
 	d.log.WithField("confkey", "authentication.sql.dsn").WithField("confval", dirs.Authentication.SQL.DSN).Info("configuration detail")

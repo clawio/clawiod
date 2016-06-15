@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
 	"github.com/clawio/clawiod/services/authentication/lib"
@@ -11,9 +12,9 @@ import (
 )
 
 type controller struct {
-	driver, dsn   string
 	db            *gorm.DB
 	authenticator *lib.Authenticator
+	conf          *config.Config
 }
 
 // Options  holds the configuration
@@ -25,8 +26,10 @@ type Options struct {
 
 // New returns an AuthenticationControler that uses a SQL database for handling
 // users and JWT for tokens.
-func New(opts *Options) (authenticationcontroller.AuthenticationController, error) {
-	db, err := gorm.Open(opts.Driver, opts.DSN)
+func New(conf *config.Config) (authenticationcontroller.AuthenticationController, error) {
+	dirs := conf.GetDirectives()
+	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
+	db, err := gorm.Open(dirs.Authentication.SQL.Driver, dirs.Authentication.SQL.DSN)
 	if err != nil {
 		return nil, err
 	}
@@ -36,10 +39,9 @@ func New(opts *Options) (authenticationcontroller.AuthenticationController, erro
 	}
 
 	return &controller{
-		driver:        opts.Driver,
-		dsn:           opts.DSN,
+		conf:          conf,
 		db:            db,
-		authenticator: opts.Authenticator,
+		authenticator: authenticator,
 	}, nil
 }
 

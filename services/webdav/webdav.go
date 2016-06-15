@@ -6,13 +6,13 @@ import (
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/keys"
 	"github.com/clawio/clawiod/services"
+	"github.com/clawio/clawiod/services/authentication"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
-	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/clawio/clawiod/services/data/datacontroller"
 	simpledatacontroller "github.com/clawio/clawiod/services/data/datacontroller/simple"
+	"github.com/clawio/clawiod/services/metadata"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
-	simplemetadatacontroller "github.com/clawio/clawiod/services/metadata/metadatacontroller/simple"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -30,15 +30,26 @@ type svc struct {
 func New(cfg *config.Config) (services.Service, error) {
 	dirs := cfg.GetDirectives()
 	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
+
 	dataController := simpledatacontroller.New(cfg)
-	metaDataController := simplemetadatacontroller.New(&simplemetadatacontroller.Options{TempDir: dirs.MetaData.Simple.TemporaryNamespace, MetaDataDir: dirs.MetaData.Simple.Namespace})
-	authenticationController := memory.New(&memory.Options{Authenticator: authenticator, Users: dirs.Authentication.Memory.Users})
+
+	authenticationController, err := authentication.GetAuthenticationController(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	metaDataController, err := metadata.GetMetaDataController(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &svc{conf: cfg, authenticator: authenticator, dataController: dataController, metaDataController: metaDataController, authenticationController: authenticationController}, nil
 }
 
 func (s *svc) Name() string {
 	return ServiceName
 }
+
 func (s *svc) BaseURL() string {
 	dirs := s.conf.GetDirectives()
 	base := dirs.WebDAV.BaseURL

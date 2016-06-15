@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 	"github.com/imdario/mergo"
 )
 
@@ -117,7 +116,12 @@ type Authentication struct {
 
 // AuthenticationMemory is the configuration subsection dedicated to the authentication memory controller.
 type AuthenticationMemory struct {
-	Users []memory.User `json:"users"`
+	// Users is an array of objects: [{"username": "demo", "password":"demo"}]
+	// the struct that represents these users is defined in the memory controller.
+	// We do not use memory.user because that means coupling this package with the memory controller
+	// and that causes an import cycle.
+	// For such reason, we use the interface{} and we unmarshal the json data into the memory package.
+	Users interface{} `json:"users"`
 }
 
 // AuthenticationSQL is the configuratin subsection dedicated to the authentication sql controller.
@@ -147,6 +151,11 @@ type MetaDataOCSQL struct {
 	DSN                         string `json:"dsn"`
 	MaxSQLIdleConnections       int    `json:"max_sql_idle_connections"`
 	MaxSQLConcurrentConnections int    `json:"max_sql_concurrent_connections"`
+	SQLLog                      string `json:"sql_log"`
+	SQLLogEnabled               bool   `json:"sql_log_enabled"`
+	SQLLogMaxSize               int    `json:"sql_log_max_size"`
+	SQLLogMaxAge                int    `json:"sql_log_max_age"`
+	SQLLogMaxBackups            int    `json:"sql_log_max_backups"`
 }
 
 // Data is the configuration section dedicated to the data service.

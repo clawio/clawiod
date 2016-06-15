@@ -6,31 +6,24 @@ import (
 	"path/filepath"
 
 	"github.com/clawio/clawiod/codes"
+	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
 )
 
 type controller struct {
-	tempDir     string
-	metaDataDir string
+	conf               *config.Config
+	namespace          string
+	temporaryNamespace string
 }
 
 // New returns an implementation of MetaDataController.
-func New(opts *Options) metadatacontroller.MetaDataController {
-	if opts == nil {
-		opts = &Options{}
-	}
+func New(conf *config.Config) metadatacontroller.MetaDataController {
+	dirs := conf.GetDirectives()
 	return &controller{
-		metaDataDir: opts.MetaDataDir,
-		tempDir:     opts.TempDir,
+		namespace:          dirs.MetaData.Simple.Namespace,
+		temporaryNamespace: dirs.MetaData.Simple.TemporaryNamespace,
 	}
-}
-
-// Options hold the configuration options for the
-// SimpleMetaDataController.
-type Options struct {
-	MetaDataDir string
-	TempDir     string
 }
 
 func (c *controller) Init(user *entities.User) error {
@@ -119,7 +112,7 @@ func (c *controller) MoveObject(user *entities.User, sourcePathSpec, targetPathS
 func (c *controller) getStoragePath(user *entities.User, path string) string {
 	homeDir := secureJoin("/", string(user.Username[0]), user.Username)
 	userPath := secureJoin(homeDir, path)
-	return secureJoin(c.metaDataDir, userPath)
+	return secureJoin(c.namespace, userPath)
 }
 
 func (c *controller) getObjectInfo(pathSpec string, finfo os.FileInfo) *entities.ObjectInfo {
