@@ -3,7 +3,8 @@ package codes
 import (
 	"fmt"
 	"net/http"
-	"net/url"
+
+	"github.com/clawio/clawiod/helpers"
 )
 
 // A Code is an unsigned 32-bit error code.
@@ -73,7 +74,7 @@ type Response struct {
 
 func (r *Response) String() string {
 	return fmt.Sprintf("%v %v: %d",
-		r.Response.Request.Method, sanitizeURL(r.Response.Request.URL),
+		r.Response.Request.Method, helpers.SanitizeURL(r.Response.Request.URL),
 		r.Response.StatusCode)
 
 }
@@ -98,7 +99,7 @@ func NewErrorResponse(res *http.Response, e *Err) *ErrorResponse {
 
 func (r *ErrorResponse) Error() string {
 	return fmt.Sprintf("%v %v: %d (%s)",
-		r.Response.Request.Method, sanitizeURL(r.Response.Request.URL),
+		r.Response.Request.Method, helpers.SanitizeURL(r.Response.Request.URL),
 		r.Response.StatusCode, r.Err.Error())
 }
 
@@ -120,18 +121,4 @@ func NewErr(c Code, msg string) *Err {
 		msg = c.String()
 	}
 	return &Err{msg, c}
-}
-
-// sanitizeURL redacts the token parameter from the URL which may be
-// exposed to the user, specifically in the ErrorResponse error message.
-func sanitizeURL(uri *url.URL) *url.URL {
-	if uri == nil {
-		return nil
-	}
-	params := uri.Query()
-	if len(params.Get("token")) > 0 {
-		params.Set("token", "REDACTED")
-		uri.RawQuery = params.Encode()
-	}
-	return uri
 }

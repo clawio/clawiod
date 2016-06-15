@@ -8,7 +8,7 @@ import (
 	"github.com/clawio/clawiod/config"
 )
 
-const defaultPath = "clawio.conf"
+const defaultPath = "clawiod.conf"
 
 type conf struct {
 	path string

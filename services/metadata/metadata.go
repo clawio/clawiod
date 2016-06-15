@@ -8,6 +8,7 @@ import (
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
+	"github.com/clawio/clawiod/services/metadata/metadatacontroller/ocsql"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/simple"
 )
 
@@ -31,6 +32,8 @@ func getMetaDataController(cfg *config.Config) (metadatacontroller.MetaDataContr
 	switch cfg.GetDirectives().MetaData.Type {
 	case "simple":
 		return getSimpleMetaDataController(cfg), nil
+	case "ocsql":
+		return ocsql.New(cfg)
 	default:
 		return nil, errors.New("metadata type " + cfg.GetDirectives().MetaData.Type + "does not exist")
 	}

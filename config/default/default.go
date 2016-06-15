@@ -15,7 +15,11 @@ var DefaultDirectives = config.Directives{
 		JWTSecret:                     "you must change me",
 		JWTSigningMethod:              "HS256",
 		AppLog:                        "stdout",
+		AppLogLevel:                   "info",
+		AppLogMaxSize:                 100, // MiB
 		HTTPAccessLog:                 "stdout",
+		HTTPAccessLogLevel:            "info",
+		HTTPAccessLogMaxSize:          100, // MiB
 		ShutdownTimeout:               10,
 		EnabledServices:               []string{"authentication", "metadata", "data", "webdav"},
 		CORSEnabled:                   true,
@@ -46,6 +50,13 @@ var DefaultDirectives = config.Directives{
 		Simple: config.MetaDataSimple{
 			Namespace:          "/tmp/clawio-namespace",
 			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
+		},
+
+		OCSQL: config.MetaDataOCSQL{
+			Namespace:                   "/tmp/clawio-namespace",
+			TemporaryNamespace:          "/tmp/clawio-temporary-namespace",
+			MaxSQLIdleConnections:       1024,
+			MaxSQLConcurrentConnections: 1024,
 		},
 	},
 

@@ -24,7 +24,7 @@ type (
 		PathSpec string      `json:"pathspec"`
 		Size     int64       `json:"size"`
 		Type     ObjectType  `json:"type"`
-		ModTime  int         `json:"mtime"`
+		ModTime  int64       `json:"mtime"`
 		MimeType string      `json:"mime_type"`
 		Checksum string      `json:"checksum"`
 		Extra    interface{} `json:"extra"`

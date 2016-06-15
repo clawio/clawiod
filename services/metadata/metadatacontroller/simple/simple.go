@@ -123,7 +123,7 @@ func (c *controller) getStoragePath(user *entities.User, path string) string {
 }
 
 func (c *controller) getObjectInfo(pathSpec string, finfo os.FileInfo) *entities.ObjectInfo {
-	oinfo := &entities.ObjectInfo{PathSpec: pathSpec, Size: finfo.Size(), Type: entities.ObjectTypeBLOB, ModTime: int(finfo.ModTime().UnixNano())}
+	oinfo := &entities.ObjectInfo{PathSpec: pathSpec, Size: finfo.Size(), Type: entities.ObjectTypeBLOB, ModTime: finfo.ModTime().UnixNano()}
 	if finfo.IsDir() {
 		oinfo.Type = entities.ObjectTypeTree
 	}

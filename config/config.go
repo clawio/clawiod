@@ -74,7 +74,7 @@ type Source interface {
 type Directives struct {
 	Server         Server         `json:"server"`
 	Authentication Authentication `json:"authenticaton"`
-	MetaData       MetaData       `json:"meta_data"`
+	MetaData       MetaData       `json:"metadata"`
 	Data           Data           `json:"data"`
 	WebDAV         WebDAV         `json:"webdav"`
 }
@@ -86,7 +86,15 @@ type Server struct {
 	JWTSecret                     string   `json:"jwt_secret"`
 	JWTSigningMethod              string   `json:"jwt_signing_method"`
 	HTTPAccessLog                 string   `json:"http_access_log"`
+	HTTPAccessLogLevel            string   `json:"http_access_log_level"`
+	HTTPAccessLogMaxSize          int      `json:"http_access_log_max_size"`
+	HTTPAccessLogMaxAge           int      `json:"http_access_log_max_age"`
+	HTTPAccessLogMaxBackups       int      `json:"http_access_log_max_backups"`
 	AppLog                        string   `json:"app_log"`
+	AppLogLevel                   string   `json:"app_log_level"`
+	AppLogMaxSize                 int      `json:"app_log_max_size"`
+	AppLogMaxAge                  int      `json:"app_log_max_age"`
+	AppLogMaxBackups              int      `json:"app_log_max_backups"`
 	ShutdownTimeout               int      `json:"shutdown_timeout"`
 	TLSEnabled                    bool     `json:"tls_enabled"`
 	TLSCertificate                string   `json:"tls_certificate"`
@@ -123,12 +131,22 @@ type MetaData struct {
 	BaseURL string         `json:"base_url"`
 	Type    string         `json:"type"`
 	Simple  MetaDataSimple `json:"simple"`
+	OCSQL   MetaDataOCSQL  `json:"ocsql"`
 }
 
 // MetaDataSimple is the configuration subsection dedicated to the metadata simple controller.
 type MetaDataSimple struct {
 	Namespace          string `json:"namespace"`
 	TemporaryNamespace string `json:"temporary_namespace"`
+}
+
+// MetaDataOCSQL is the configuration subsection dedicated to the metadata owncloud sql controller.
+type MetaDataOCSQL struct {
+	Namespace                   string `json:"namespace"`
+	TemporaryNamespace          string `json:"temporary_namespace"`
+	DSN                         string `json:"dsn"`
+	MaxSQLIdleConnections       int    `json:"max_sql_idle_connections"`
+	MaxSQLConcurrentConnections int    `json:"max_sql_concurrent_connections"`
 }
 
 // Data is the configuration section dedicated to the data service.

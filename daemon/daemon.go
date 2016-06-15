@@ -1,16 +1,15 @@
 package daemon
 
 import (
-	"io/ioutil"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/server"
-	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Daemon is the orchestrator that handles the bootstraping of the application. It loads the configuration, launch the server and listens
@@ -26,7 +25,7 @@ type Daemon struct {
 // New returns a new Daemon.
 func New(conf *config.Config) (*Daemon, error) {
 	d := &Daemon{}
-	d.log = logrus.WithField("module", "daemon")
+	d.log = helpers.GetAppLogger(conf).WithField("module", "daemon")
 	d.conf = conf
 	d.stopChan = make(chan error, 1)
 	d.trapChan = make(chan os.Signal, 1)
@@ -85,30 +84,12 @@ func (d *Daemon) TrapSignals() chan error {
 	return d.stopChan
 }
 
-func (d *Daemon) configureLogger() {
-	switch d.conf.GetDirectives().Server.AppLog {
-	case "stdout":
-		d.log.Logger.Out = os.Stdout
-	case "stderr":
-		d.log.Logger.Out = os.Stderr
-	case "":
-		d.log.Logger.Out = ioutil.Discard
-	default:
-		d.log.Logger.Out = &lumberjack.Logger{
-			Filename:   d.conf.GetDirectives().Server.AppLog,
-			MaxSize:    100,
-			MaxAge:     14,
-			MaxBackups: 10,
-		}
-	}
-}
-
 func (d *Daemon) printConfig() {
 	dirs := d.conf.GetDirectives()
 	d.log.WithField("confkey", "server.base_url").WithField("confval", dirs.Server.BaseURL).Info("configuration detail")
 	d.log.WithField("confkey", "server.port").WithField("confval", dirs.Server.Port).Info("configuration detail")
-	d.log.WithField("confkey", "server.jwt_secret").WithField("confval", redacted(dirs.Server.JWTSecret)).Info("configuration detail")
-	d.log.WithField("confkey", "server.jwt_signing_method").WithField("confval", redacted(dirs.Server.JWTSigningMethod)).Info("configuration detail")
+	d.log.WithField("confkey", "server.jwt_secret").WithField("confval", helpers.RedactString(dirs.Server.JWTSecret)).Info("configuration detail")
+	d.log.WithField("confkey", "server.jwt_signing_method").WithField("confval", helpers.RedactString(dirs.Server.JWTSigningMethod)).Info("configuration detail")
 	d.log.WithField("confkey", "server.http_access_log").WithField("confval", dirs.Server.HTTPAccessLog).Info("configuration detail")
 	d.log.WithField("confkey", "server.app_log").WithField("confval", dirs.Server.AppLog).Info("configuration detail")
 	d.log.WithField("confkey", "server.enabled_services").WithField("confval", dirs.Server.EnabledServices).Info("configuration detail")
@@ -138,18 +119,4 @@ func (d *Daemon) printConfig() {
 	d.log.WithField("confkey", "webdav.type").WithField("confval", dirs.WebDAV.Type).Info("configuration detail")
 	d.log.WithField("confkey", "webdav.local.data_controller").WithField("confval", dirs.WebDAV.Local.DataController).Info("configuration detail")
 	d.log.WithField("confkey", "webdav.local.meta_data_controller").WithField("confval", dirs.WebDAV.Local.MetaDataController).Info("configuration detail")
-}
-
-func redacted(v string) string {
-	length := len(v)
-	if length == 0 {
-		return ""
-	}
-	if length == 1 {
-		return "X"
-	}
-	half := length / 2
-	right := v[half:]
-	hidden := strings.Repeat("X", 10)
-	return strings.Join([]string{hidden, right}, "")
 }

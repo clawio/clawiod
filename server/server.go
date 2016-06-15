@@ -3,30 +3,28 @@ package server
 import (
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/keys"
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication"
 	"github.com/clawio/clawiod/services/data"
 	"github.com/clawio/clawiod/services/metadata"
 	"github.com/clawio/clawiod/services/webdav"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/cors"
 	"github.com/satori/go.uuid"
 	"github.com/tylerb/graceful"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Server registers services and expose them via HTTP.
@@ -47,8 +45,7 @@ func New(conf *config.Config) (*Server, error) {
 			Addr: fmt.Sprintf(":%d", directives.Server.Port),
 		},
 	}
-	s := &Server{log: logrus.WithField("module", "server"), srv: srv, conf: conf}
-	s.configureAppLogger()
+	s := &Server{log: helpers.GetAppLogger(conf).WithField("module", "server"), srv: srv, conf: conf}
 	if err := s.configureRouter(); err != nil {
 		return nil, err
 	}
@@ -83,27 +80,10 @@ func (s *Server) Stop() {
 
 // HandleRequest handles HTTP requests and forwards them to the propper service handler.
 func (s *Server) HandleRequest() http.Handler {
-	return handlers.CombinedLoggingHandler(s.getHTTPLogWriter(), s.handler())
+	return handlers.CombinedLoggingHandler(helpers.GetHTTPAccessLogger(s.conf).Logger.Writer(), s.handler())
 }
 
 func (s *Server) corsHandler(h http.Handler) http.Handler {
-	/*
-		handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
-			if r.Method == "OPTIONS" && origin != "" {
-				w.Header().Add("Access-Control-Allow-Origin", dirs.Server.CORSAccessControlAllowOrigin)
-				w.Header().Add("Access-Control-Allow-Methods", dirs.Server.CORSAccessControlAllowMethods)
-				w.Header().Add("Access-Control-Allow-Headers", dirs.Server.CORSAccessControlAllowHeaders)
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			// request is not a preflighted request
-			h.ServeHTTP(w, r)
-		}
-		return http.HandlerFunc(handlerFunc)
-	*/
-
 	dirs := s.conf.GetDirectives()
 	opts := cors.Options{}
 	opts.AllowedOrigins = dirs.Server.CORSAccessControlAllowOrigin
@@ -239,43 +219,6 @@ func isServiceEnabled(svc string, list []string) bool {
 	}
 	return false
 }
-
-func (s *Server) configureAppLogger() {
-	switch s.conf.GetDirectives().Server.AppLog {
-	case "stdout":
-		s.log.Logger.Out = os.Stdout
-	case "stderr":
-		s.log.Logger.Out = os.Stderr
-	case "":
-		s.log.Logger.Out = ioutil.Discard
-	default:
-		s.log.Logger.Out = &lumberjack.Logger{
-			Filename:   s.conf.GetDirectives().Server.AppLog,
-			MaxSize:    100,
-			MaxAge:     14,
-			MaxBackups: 10,
-		}
-	}
-}
-
-func (s *Server) getHTTPLogWriter() io.Writer {
-	switch s.conf.GetDirectives().Server.HTTPAccessLog {
-	case "stdout":
-		return os.Stdout
-	case "stderr":
-		return os.Stderr
-	case "":
-		return ioutil.Discard
-	default:
-		return &lumberjack.Logger{
-			Filename:   s.conf.GetDirectives().Server.HTTPAccessLog,
-			MaxSize:    100,
-			MaxAge:     14,
-			MaxBackups: 10,
-		}
-	}
-}
-
 func sanitizedURL(uri *url.URL) string {
 	if uri == nil {
 		return ""

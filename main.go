@@ -10,10 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/config/default"
 	"github.com/clawio/clawiod/config/file"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/daemon"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -46,7 +47,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&conf, "conf", "", "Configuration file to use (default \"./clawio.conf\")")
+	flag.StringVar(&conf, "conf", "", "Configuration file to use (default \"./clawiod.conf\")")
 	flag.StringVar(&cpu, "cpu", "100%", "CPU capacity")
 	flag.StringVar(&applogfile, "applogfile", "stdout", "File to log application data")
 	flag.StringVar(&httplogfile, "httplogfile", "stdout", "File to log HTTP requests")
@@ -78,7 +79,7 @@ func main() {
 
 	d, err := daemon.New(cfg)
 	if err != nil {
-		log.Fatalf("cannot instantiate the daemon: %s", err)
+		log.Fatalf("cannot run clawid daemon because: %s", err)
 	}
 	stopChan := d.TrapSignals()
 	go d.Start()
@@ -167,17 +168,4 @@ func setCPU(cpu string) error {
 
 	runtime.GOMAXPROCS(numCPU)
 	return nil
-}
-func redacted(v string) string {
-	length := len(v)
-	if length == 0 {
-		return ""
-	}
-	if length == 1 {
-		return "X"
-	}
-	half := length / 2
-	right := v[half:]
-	hidden := strings.Repeat("X", 10)
-	return strings.Join([]string{hidden, right}, "")
 }
