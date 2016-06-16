@@ -8,6 +8,7 @@ import (
 	"github.com/clawio/clawiod/codes"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
 )
 
@@ -110,9 +111,9 @@ func (c *controller) MoveObject(user *entities.User, sourcePathSpec, targetPathS
 	return nil
 }
 func (c *controller) getStoragePath(user *entities.User, path string) string {
-	homeDir := secureJoin("/", string(user.Username[0]), user.Username)
-	userPath := secureJoin(homeDir, path)
-	return secureJoin(c.namespace, userPath)
+	homeDir := helpers.SecureJoin("/", string(user.Username[0]), user.Username)
+	userPath := helpers.SecureJoin(homeDir, path)
+	return helpers.SecureJoin(c.namespace, userPath)
 }
 
 func (c *controller) getObjectInfo(pathSpec string, finfo os.FileInfo) *entities.ObjectInfo {
@@ -122,17 +123,6 @@ func (c *controller) getObjectInfo(pathSpec string, finfo os.FileInfo) *entities
 	}
 	oinfo.MimeType = c.getMimeType(pathSpec, oinfo.Type)
 	return oinfo
-}
-
-// secureJoin avoids path traversal attacks when joinning paths.
-func secureJoin(args ...string) string {
-	if len(args) > 1 {
-		s := []string{"/"}
-		s = append(s, args[1:]...)
-		jailedPath := filepath.Join(s...)
-		return filepath.Join(args[0], jailedPath)
-	}
-	return filepath.Join(args...)
 }
 
 func (c *controller) getMimeType(pathSpec string, otype entities.ObjectType) string {

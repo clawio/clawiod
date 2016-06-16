@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/clawio/clawiod/config"
@@ -80,4 +81,15 @@ func NewLogger(level, writer string, maxSize, maxAge, maxBackups int) *logrus.En
 
 	log := logrus.NewEntry(base)
 	return log
+}
+
+// SecureJoin avoids path traversal attacks when joinning paths.
+func SecureJoin(args ...string) string {
+	if len(args) > 1 {
+		s := []string{"/"}
+		s = append(s, args[1:]...)
+		jailedPath := filepath.Join(s...)
+		return filepath.Join(args[0], jailedPath)
+	}
+	return filepath.Join(args...)
 }

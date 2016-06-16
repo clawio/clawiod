@@ -76,6 +76,7 @@ type Directives struct {
 	MetaData       MetaData       `json:"metadata"`
 	Data           Data           `json:"data"`
 	WebDAV         WebDAV         `json:"webdav"`
+	OCWebDAV       OCWebDAV       `json:"ocwebdav"`
 }
 
 // Server is the configuration section dedicated to the server.
@@ -187,14 +188,18 @@ type DataOCSQL struct {
 
 // WebDAv is the configuration section dedicated to the WebDAV service.
 type WebDAV struct {
-	BaseURL           string      `json:"base_url"`
-	Type              string      `json:"type"`
-	UploadMaxFileSize int         `json:"upload_max_file_size"`
-	Local             WebDAVLocal `json:"local"`
-}
-
-// WebDAV local is the configuration subsection dedicated to the WebDAV local controller.
-type WebDAVLocal struct {
+	BaseURL            string `json:"base_url"`
+	UploadMaxFileSize  int    `json:"upload_max_file_size"`
 	DataController     string `json:"data_controller"`
 	MetaDataController string `json:"meta_data_controller"`
+}
+
+// OCWebDAV is the configuration section dedicated to the OCWebDAV service.
+type OCWebDAV struct {
+	BaseURL                  string `json:"base_url"`
+	UploadMaxFileSize        int    `json:"upload_max_file_size"`
+	DataController           string `json:"data_controller"`
+	MetaDataController       string `json:"meta_data_controller"`
+	ChunksNamespace          string `json:"chunks_namespace"`
+	ChunksTemporaryNamespace string `json:"chunks_temporary_namespace"`
 }

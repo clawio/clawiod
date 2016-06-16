@@ -15,6 +15,7 @@ import (
 	"github.com/clawio/clawiod/services/authentication"
 	"github.com/clawio/clawiod/services/data"
 	"github.com/clawio/clawiod/services/metadata"
+	"github.com/clawio/clawiod/services/ocwebdav"
 	"github.com/clawio/clawiod/services/webdav"
 
 	"github.com/Sirupsen/logrus"
@@ -155,14 +156,15 @@ func (s *Server) configureRouter() error {
 					router.Handle(fullEndpoint, handler).Methods("OPTIONS")
 				}
 
-				u := strings.TrimRight(dirs.Server.BaseURL, "/") + base + path
+				u := strings.TrimRight(dirs.Server.BaseURL, "/") + svcBase + path
 				prometheus.InstrumentHandler(u, handler)
 
-				ep := fmt.Sprintf("%s %s", method, u)
-				s.log.WithField("endpoint", ep).Info("endpoint registered")
+				//ep := fmt.Sprintf("%s %s", method, u)
+				s.log.WithField("method", method).WithField("endpoint", u).Info("endpoint registered")
 				if isServiceEnabled(svc.Name(), corsEnabled) {
-					ep := fmt.Sprintf("%s %s", "OPTIONS", u)
-					s.log.WithField("endpoint", ep).Info("CORS endpoint registered")
+					//ep := fmt.Sprintf("%s %s", "OPTIONS", u)
+
+					s.log.WithField("method", "OPTIONS").WithField("endpoint", u).Info("endpoint registered (cors)")
 				}
 			}
 		}
@@ -208,6 +210,13 @@ func getServices(conf *config.Config) ([]services.Service, error) {
 		services = append(services, webDAVService)
 	}
 
+	if isServiceEnabled("ocwebdav", enabledServices) {
+		OCWebDAVService, err := ocwebdav.New(conf)
+		if err != nil {
+			return services, err
+		}
+		services = append(services, OCWebDAVService)
+	}
 	return services, nil
 }
 func isServiceEnabled(svc string, list []string) bool {

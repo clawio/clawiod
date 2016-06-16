@@ -190,7 +190,7 @@ func (c *Controller) DeleteObject(user *entities.User, pathSpec string) error {
 		return err
 	}
 
-	return c.removeInDB(c.GetVirtualPath(user, pathSpec))
+	return c.removeInDB(c.GetVirtualPath(user, pathSpec), c.GetVirtualPath(user, "/"))
 }
 
 func (c *Controller) MoveObject(user *entities.User, sourcePathSpec, targetPathSpec string) error {
@@ -473,7 +473,7 @@ func (c *Controller) insertIntoDB(id, virtualPath, checksum, etag string, modTim
 	return err
 }
 
-func (c *Controller) removeInDB(virtualPath string) error {
+func (c *Controller) removeInDB(virtualPath, ancestorVirtualPath string) error {
 	c.log.WithField("virtualpath", virtualPath).Debug("record to be removed")
 	removeBeforeTS := time.Now().UnixNano()
 	err := c.db.Where("(virtualpath LIKE ? OR virtualpath=? ) AND modtime < ?", virtualPath+"/%", virtualPath, removeBeforeTS).Delete(&record{}).Error
@@ -483,7 +483,7 @@ func (c *Controller) removeInDB(virtualPath string) error {
 
 	// after deleting a resource we need to propagate changes up in the tree
 	etag := uuid.NewV4().String()
-	err = c.propagateChangesInDB(virtualPath, etag, removeBeforeTS, "/")
+	err = c.propagateChangesInDB(virtualPath, etag, removeBeforeTS, ancestorVirtualPath)
 	if err != nil {
 		c.log.WithError(err).Warn("cannot propagate changes")
 		// we do not return an error here as it is quite
@@ -491,7 +491,7 @@ func (c *Controller) removeInDB(virtualPath string) error {
 		// when other concurrent request has already
 		// updated them
 	} else {
-		c.log.WithField("child", virtualPath).WithField("ancestor", "/").Debug("changes propagated from child to ancestor")
+		c.log.WithField("child", virtualPath).WithField("ancestor", ancestorVirtualPath).Debug("changes propagated from child to ancestor")
 	}
 	return nil
 }

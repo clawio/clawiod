@@ -19,7 +19,7 @@ var DefaultDirectives = config.Directives{
 		HTTPAccessLogLevel:            "info",
 		HTTPAccessLogMaxSize:          100, // MiB
 		ShutdownTimeout:               10,
-		EnabledServices:               []string{"authentication", "metadata", "data", "webdav"},
+		EnabledServices:               []string{"authentication", "metadata", "data", "webdav", "ocwebdav"},
 		CORSEnabled:                   true,
 		CORSAccessControlAllowOrigin:  []string{},
 		CORSAccessControlAllowMethods: []string{"GET", "POST", "HEAD", "PUT", "DELETE"},
@@ -79,14 +79,19 @@ var DefaultDirectives = config.Directives{
 	},
 
 	WebDAV: config.WebDAV{
-		BaseURL:           "/webdav/",
-		Type:              "local",
-		UploadMaxFileSize: 8589934592, // 8 GiB
+		BaseURL:            "/webdav/",
+		UploadMaxFileSize:  8589934592, // 8 GiB
+		DataController:     "simple",
+		MetaDataController: "simple",
+	},
 
-		Local: config.WebDAVLocal{
-			DataController:     "simple",
-			MetaDataController: "simple",
-		},
+	OCWebDAV: config.OCWebDAV{
+		BaseURL:                  "/ocwebdav/",
+		UploadMaxFileSize:        8589934592, // 8 GiB
+		DataController:           "ocsql",
+		MetaDataController:       "ocsql",
+		ChunksNamespace:          "/tmp/clawio-oc-chunks-namespace",
+		ChunksTemporaryNamespace: "/tmp/clawio-oc-chunks-temporary-namespace",
 	},
 }
 
