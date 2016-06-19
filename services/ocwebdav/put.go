@@ -118,7 +118,7 @@ func (s *svc) handleIfMatchHeader(clientETag, serverETag string, w http.Response
 	// ownCloud adds double quotes around ETag value
 	serverETag = fmt.Sprintf(`"%s"`, serverETag)
 	if clientETag != serverETag {
-		err := fmt.Errorf("etags do not match", serverETag)
+		err := fmt.Errorf("etags do not match")
 		log.WithError(err).WithField("clientetag", clientETag).WithField("severetag", serverETag).Warn("cannot accept conditional request")
 		w.WriteHeader(http.StatusPreconditionFailed)
 		return err

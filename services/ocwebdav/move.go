@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/clawio/clawiod/keys"
+	"github.com/clawio/clawiod/services/metadata/metadatacontroller/ocsql"
 	"github.com/gorilla/mux"
 )
 
@@ -48,6 +49,16 @@ func (s *svc) Move(w http.ResponseWriter, r *http.Request) {
 		s.handleMoveError(err, w, r)
 		return
 	}
+
+	info, err := s.metaDataController.ExamineObject(user, destination)
+	if err != nil {
+		s.handleMoveError(err, w, r)
+		return
+	}
+
+	w.Header().Set("ETag", info.Extra.(ocsql.Extra).ETag)
+	w.Header().Set("OC-FileId", info.Extra.(ocsql.Extra).ID)
+	w.Header().Set("OC-ETag", info.Extra.(ocsql.Extra).ETag)
 
 	// ownCloud want a 201 instead of 204
 	w.WriteHeader(http.StatusCreated)
