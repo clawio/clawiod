@@ -28,10 +28,11 @@ func (a *Authenticator) CreateToken(user *entities.User) (string, error) {
 		return "", errors.New("user is nil")
 	}
 	token := jwt.New(jwt.GetSigningMethod(a.JWTSigningMethod))
-	token.Claims["username"] = user.Username
-	token.Claims["email"] = user.Email
-	token.Claims["display_name"] = user.DisplayName
-	token.Claims["exp"] = time.Now().Add(time.Second * 3600).UnixNano()
+	claims := token.Claims.(jwt.MapClaims)
+	claims["username"] = user.Username
+	claims["email"] = user.Email
+	claims["display_name"] = user.DisplayName
+	claims["exp"] = time.Now().Add(time.Second * 3600).UnixNano()
 	return token.SignedString([]byte(a.JWTKey))
 }
 
@@ -45,17 +46,18 @@ func (a *Authenticator) CreateUserFromToken(token string) (*entities.User, error
 }
 
 func (a *Authenticator) getUserFromRawToken(rawToken *jwt.Token) (*entities.User, error) {
-	username, ok := rawToken.Claims["username"].(string)
+	claims := rawToken.Claims.(jwt.MapClaims)
+	username, ok := claims["username"].(string)
 	if !ok {
 		return nil, errors.New("token username claim failed cast to string")
 	}
 
-	email, ok := rawToken.Claims["email"].(string)
+	email, ok := claims["email"].(string)
 	if !ok {
 		return nil, errors.New("token email claim failed cast to string")
 	}
 
-	displayName, ok := rawToken.Claims["display_name"].(string)
+	displayName, ok := claims["display_name"].(string)
 	if !ok {
 		return nil, errors.New("token display_name claim failed cast to string")
 	}
