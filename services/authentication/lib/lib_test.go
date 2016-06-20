@@ -8,6 +8,7 @@ import (
 
 	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/keys"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -65,7 +66,7 @@ func (suite *TestSuite) TestgetUserFromRawToken_withBadUsername() {
 	require.Nil(suite.T(), err)
 	jwtToken, err := suite.authenticator.parseToken(token)
 	require.Nil(suite.T(), err)
-	jwtToken.Claims["username"] = 0
+	jwtToken.Claims.(jwt.MapClaims)["username"] = 0
 	_, err = suite.authenticator.getUserFromRawToken(jwtToken)
 	require.NotNil(suite.T(), err)
 }
@@ -74,7 +75,7 @@ func (suite *TestSuite) TestgetUserFromRawToken_withBadEmail() {
 	require.Nil(suite.T(), err)
 	jwtToken, err := suite.authenticator.parseToken(token)
 	require.Nil(suite.T(), err)
-	jwtToken.Claims["email"] = 0
+	jwtToken.Claims.(jwt.MapClaims)["email"] = 0
 	_, err = suite.authenticator.getUserFromRawToken(jwtToken)
 	require.NotNil(suite.T(), err)
 }
@@ -83,7 +84,7 @@ func (suite *TestSuite) TestgetUserFromRawToken_withBadDisplayName() {
 	require.Nil(suite.T(), err)
 	jwtToken, err := suite.authenticator.parseToken(token)
 	require.Nil(suite.T(), err)
-	jwtToken.Claims["display_name"] = 0
+	jwtToken.Claims.(jwt.MapClaims)["display_name"] = 0
 	_, err = suite.authenticator.getUserFromRawToken(jwtToken)
 	require.NotNil(suite.T(), err)
 }
