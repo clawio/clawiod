@@ -1,87 +1,118 @@
 package sql
 
 import (
-	"database/sql"
-	"os"
 	"testing"
 
+	"database/sql"
+	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/config/default"
+	mock_configsource "github.com/clawio/clawiod/config/mock"
+	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
-	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
-	suite.Suite
-	authenticationController authenticationcontroller.AuthenticationController
-	controller               *controller
+var defaultDirs = defaul.DefaultDirectives
+
+type testObject struct {
+	authenticationController    authenticationcontroller.AuthenticationController
+	sqlAuthenticationController *controller
+	mockSource                  *mock_configsource.Source
+	conf                        *config.Config
+	user                        *entities.User
 }
 
-func Test(t *testing.T) {
-	suite.Run(t, new(TestSuite))
-}
-func (suite *TestSuite) SetupTest() {
-	opts := &Options{
-		Driver:        "sqlite3",
-		DSN:           "/tmp/userstore.db",
-		Authenticator: lib.NewAuthenticator("secret", "HS256"),
-	}
-	authenticationController, err := New(opts)
-	require.Nil(suite.T(), err)
-	suite.authenticationController = authenticationController
-	suite.controller = suite.authenticationController.(*controller)
-}
-func (suite *TestSuite) TeardownTest() {
-	os.RemoveAll("/tmp/t")
-	os.RemoveAll("/tmp/userstore.db")
-}
-func (suite *TestSuite) TestNew() {
-	opts := &Options{
-		Driver:        "sqlite3",
-		DSN:           "/tmp/userstore.db",
-		Authenticator: lib.NewAuthenticator("secret", "HS256"),
-	}
-	_, err := New(opts)
-	require.Nil(suite.T(), err)
-}
-func (suite *TestSuite) TestNew_withBadDriver() {
-	opts := &Options{
-		Driver:        "thisnotexists",
-		DSN:           "/tmp/userstore.db",
-		Authenticator: lib.NewAuthenticator("secret", "HS256"),
-	}
-	_, err := New(opts)
-	require.NotNil(suite.T(), err)
+func newObject(t *testing.T) *testObject {
+	mockSource := &mock_configsource.Source{}
+	conf := config.New([]config.Source{mockSource})
+
+	o := &testObject{}
+	o.mockSource = mockSource
+	o.conf = conf
+	o.user = &entities.User{Username: "test"}
+
+	return o
 }
 
-func (suite *TestSuite) TestfindByCredentials() {
-	db, err := sql.Open(suite.controller.driver, suite.controller.dsn)
-	require.Nil(suite.T(), err)
+func (o *testObject) loadDirs(t *testing.T, dirs *config.Directives) {
+	o.mockSource.On("LoadDirectives").Return(dirs, nil)
+	err := o.conf.LoadDirectives()
+	require.Nil(t, err)
+
+}
+
+func (o *testObject) setupController(t *testing.T, dirs *config.Directives) {
+	o.loadDirs(t, dirs)
+	c, err := New(o.conf)
+	require.Nil(t, err)
+	o.authenticationController = c
+	o.sqlAuthenticationController = o.authenticationController.(*controller)
+}
+
+func TestNew(t *testing.T) {
+	dirs := defaultDirs
+	o := newObject(t)
+	o.loadDirs(t, &dirs)
+
+	_, err := New(o.conf)
+	require.Nil(t, err)
+}
+func TestNew_withBadDriver(t *testing.T) {
+	dirs := defaultDirs
+	dirs.Authentication.SQL.Driver = "fake"
+	o := newObject(t)
+	o.loadDirs(t, &dirs)
+
+	_, err := New(o.conf)
+	require.NotNil(t, err)
+}
+
+func TestFindByCredentials(t *testing.T) {
+	dirs := defaultDirs
+	o := newObject(t)
+	o.setupController(t, &dirs)
+
+	db, err := sql.Open(dirs.Authentication.SQL.Driver, dirs.Authentication.SQL.DSN)
+	require.Nil(t, err)
 	defer db.Close()
 	sqlStmt := `insert into users values ("testFindByCredentials", "test@test.com", "Test", "testpwd")`
 	_, err = db.Exec(sqlStmt)
 	defer db.Exec("delete from users")
-	require.Nil(suite.T(), err)
-	user, err := suite.controller.findByCredentials("testFindByCredentials", "testpwd")
-	require.Nil(suite.T(), err)
-	require.Equal(suite.T(), "testFindByCredentials", user.Username)
+	require.Nil(t, err)
+	user, err := o.sqlAuthenticationController.findByCredentials("testFindByCredentials", "testpwd")
+	require.Nil(t, err)
+	require.Equal(t, "testFindByCredentials", user.Username)
 }
-func (suite *TestSuite) TestfindByCredentials_withBadUser() {
-	_, err := suite.controller.findByCredentials("", "")
-	require.NotNil(suite.T(), err)
+func TestFindByCredentials_withBadUser(t *testing.T) {
+	dirs := defaultDirs
+	o := newObject(t)
+	o.setupController(t, &dirs)
+
+	_, err := o.sqlAuthenticationController.findByCredentials("", "")
+	require.NotNil(t, err)
 }
-func (suite *TestSuite) TestAuthenticate() {
-	db, err := sql.Open(suite.controller.driver, suite.controller.dsn)
-	require.Nil(suite.T(), err)
+
+func TestAuthenticate(t *testing.T) {
+	dirs := defaultDirs
+	o := newObject(t)
+	o.setupController(t, &dirs)
+
+	db, err := sql.Open(dirs.Authentication.SQL.Driver, dirs.Authentication.SQL.DSN)
+	require.Nil(t, err)
 	defer db.Close()
+
 	sqlStmt := `insert into users values ("testAuthenticate", "test@test.com", "Test", "testpwd")`
 	_, err = db.Exec(sqlStmt)
-	require.Nil(suite.T(), err)
+	require.Nil(t, err)
 	defer db.Exec("delete from users where username=testAuthenticate")
-	_, err = suite.controller.Authenticate("testAuthenticate", "testpwd")
-	require.Nil(suite.T(), err)
+	_, err = o.authenticationController.Authenticate("testAuthenticate", "testpwd")
+	require.Nil(t, err)
 }
-func (suite *TestSuite) TestAuthenticate_withBadUser() {
-	_, err := suite.controller.Authenticate("", "")
-	require.NotNil(suite.T(), err)
+func TestAuthenticate_withBadUser(t *testing.T) {
+	dirs := defaultDirs
+	o := newObject(t)
+	o.setupController(t, &dirs)
+
+	_, err := o.authenticationController.Authenticate("", "")
+	require.NotNil(t, err)
 }
