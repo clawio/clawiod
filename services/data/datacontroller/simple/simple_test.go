@@ -48,11 +48,14 @@ func (o *testObject) loadDirs(t *testing.T, dirs *config.Directives) {
 
 func (o *testObject) setupController(t *testing.T, dirs *config.Directives) {
 	o.loadDirs(t, dirs)
-	o.dataController = New(o.conf)
+	c, err := New(o.conf)
+	require.Nil(t, err)
+	o.dataController = c
+
 	o.simpleDataController = o.dataController.(*simpleDataController)
 
 	// create namespaces and home dir
-	err := os.MkdirAll(filepath.Join(o.conf.GetDirectives().Data.Simple.Namespace, "t", "test"), 0755)
+	err = os.MkdirAll(filepath.Join(o.conf.GetDirectives().Data.Simple.Namespace, "t", "test"), 0755)
 	require.Nil(t, err)
 	err = os.MkdirAll(o.conf.GetDirectives().Data.Simple.TemporaryNamespace, 0755)
 	require.Nil(t, err)
@@ -64,8 +67,8 @@ func TestNew(t *testing.T) {
 	o := newObject(t)
 	o.loadDirs(t, &dirs)
 
-	c := New(o.conf)
-	require.NotNil(t, c)
+	_, err := New(o.conf)
+	require.Nil(t, err)
 }
 
 func TestUpload(t *testing.T) {

@@ -32,7 +32,7 @@ func GetMetaDataController(conf *config.Config) (metadatacontroller.MetaDataCont
 	dirs := conf.GetDirectives()
 	switch dirs.MetaData.Type {
 	case "simple":
-		return simple.New(conf), nil
+		return simple.New(conf)
 	case "ocsql":
 		return ocsql.New(conf)
 	default:
