@@ -19,12 +19,22 @@ type controller struct {
 }
 
 // New returns an implementation of MetaDataController.
-func New(conf *config.Config) metadatacontroller.MetaDataController {
+func New(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 	dirs := conf.GetDirectives()
-	return &controller{
+	c := &controller{
 		namespace:          dirs.MetaData.Simple.Namespace,
 		temporaryNamespace: dirs.MetaData.Simple.TemporaryNamespace,
 	}
+
+	if err := os.MkdirAll(dirs.MetaData.Simple.Namespace, 0755); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(dirs.MetaData.Simple.TemporaryNamespace, 0755); err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func (c *controller) Init(user *entities.User) error {
@@ -89,11 +99,7 @@ func (c *controller) ListTree(user *entities.User, pathSpec string) ([]*entities
 
 func (c *controller) DeleteObject(user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
-	err := os.RemoveAll(storagePath)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.RemoveAll(storagePath)
 }
 
 func (c *controller) MoveObject(user *entities.User, sourcePathSpec, targetPathSpec string) error {
