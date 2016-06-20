@@ -43,7 +43,7 @@ func (s *svc) Propfind(w http.ResponseWriter, r *http.Request) {
 		infos = append(infos, childrenInfos...)
 	}
 
-	infosInXml, err := s.infosToXML(infos)
+	infosInXML, err := s.infosToXML(infos)
 	if err != nil {
 		s.handlePropfindError(err, w, r)
 		return
@@ -52,7 +52,7 @@ func (s *svc) Propfind(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("DAV", "1, 3, extended-mkcol")
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
-	w.Write([]byte(infosInXml))
+	w.Write([]byte(infosInXML))
 
 }
 

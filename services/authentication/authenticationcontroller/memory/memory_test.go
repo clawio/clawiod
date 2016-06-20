@@ -69,7 +69,7 @@ func TestNew_withBadJSON(t *testing.T) {
 
 func TestAuthenticate(t *testing.T) {
 	dirs := defaultDirs
-	dirs.Authentication.Memory.Users = []map[string]interface{}{map[string]interface{}{"username": "test", "password": "test"}}
+	dirs.Authentication.Memory.Users = []map[string]interface{}{{"username": "test", "password": "test"}}
 	o := newObject(t)
 	o.setupController(t, &dirs)
 

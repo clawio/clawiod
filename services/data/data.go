@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// ServiceName identities this service.
 const ServiceName string = "data"
 
 type svc struct {
@@ -29,6 +30,7 @@ func New(cfg *config.Config) (services.Service, error) {
 	return &svc{conf: cfg, dataController: dataController}, nil
 }
 
+// GetDataController returns an already configured data controller.
 func GetDataController(conf *config.Config) (datacontroller.DataController, error) {
 	dirs := conf.GetDirectives()
 	switch dirs.Data.Type {

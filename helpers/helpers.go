@@ -13,6 +13,8 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// SanitizeURL checks if the parameter "access_token" is in the request
+// and overwrites it with "REDACTED" to avoid leaks in the logs.
 func SanitizeURL(uri *url.URL) string {
 	if uri == nil {
 		return ""
@@ -25,6 +27,9 @@ func SanitizeURL(uri *url.URL) string {
 	}
 	return copy.String()
 }
+
+// RedactString returns a string that has it first half
+// redacted with "X" symbols to avoid leaks in log files.
 func RedactString(v string) string {
 	length := len(v)
 	if length == 0 {
@@ -39,12 +44,14 @@ func RedactString(v string) string {
 	return strings.Join([]string{hidden, right}, "")
 }
 
+// GetAppLogger returns an already configured log for logging application events.
 func GetAppLogger(conf *config.Config) *logrus.Entry {
 	dirs := conf.GetDirectives()
 	return NewLogger(dirs.Server.AppLogLevel, dirs.Server.AppLog,
 		dirs.Server.AppLogMaxSize, dirs.Server.AppLogMaxAge, dirs.Server.AppLogMaxBackups)
 }
 
+// GetHTTPAccessLogger returns an already configured log for logging out HTTP requests.
 func GetHTTPAccessLogger(conf *config.Config) *logrus.Entry {
 	dirs := conf.GetDirectives()
 	return NewLogger(dirs.Server.HTTPAccessLogLevel, dirs.Server.HTTPAccessLog,
@@ -52,6 +59,7 @@ func GetHTTPAccessLogger(conf *config.Config) *logrus.Entry {
 
 }
 
+// NewLogger returns a log configured with the input parameters.
 func NewLogger(level, writer string, maxSize, maxAge, maxBackups int) *logrus.Entry {
 	base := logrus.New()
 

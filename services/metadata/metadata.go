@@ -12,6 +12,7 @@ import (
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/simple"
 )
 
+// ServiceName identifies this service.
 const ServiceName string = "metadata"
 
 type svc struct {
@@ -28,6 +29,7 @@ func New(cfg *config.Config) (services.Service, error) {
 	return &svc{conf: cfg, metaDataController: metaDataController}, nil
 }
 
+// GetMetaDataController returns an already configured meta data controller.
 func GetMetaDataController(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 	dirs := conf.GetDirectives()
 	switch dirs.MetaData.Type {

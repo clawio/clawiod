@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// ServiceName identifies this service.
 const ServiceName string = "authentication"
 
 type svc struct {
@@ -33,6 +34,7 @@ func New(conf *config.Config) (services.Service, error) {
 	}, nil
 }
 
+// GetAuthenticationController returns an already configured authentication controller.
 func GetAuthenticationController(conf *config.Config) (authenticationcontroller.AuthenticationController, error) {
 	dirs := conf.GetDirectives()
 	switch dirs.Authentication.Type {

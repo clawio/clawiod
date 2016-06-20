@@ -107,7 +107,7 @@ func (s *svc) PutChunked(w http.ResponseWriter, r *http.Request) {
 	log.WithField("assembledfile", assembledFileName).Debug("assembled file info")
 
 	// walk all chunks and append to assembled file
-	for i, _ := range chunks {
+	for i := range chunks {
 		target := helpers.SecureJoin(chunkFolderName, fmt.Sprintf("%d", i))
 
 		chunk, err := os.Open(target)
@@ -140,7 +140,7 @@ func (s *svc) PutChunked(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// when writing to the assembled file the write pointer points to the end of the file
-	// so we need to seek it to the beggining
+	// so we need to seek it to the beginning
 	if _, err = assembledFile.Seek(0, 0); err != nil {
 		s.handlePutError(err, w, r)
 		return
@@ -215,7 +215,7 @@ func getChunkBLOBInfo(pathSpec string) (*chunkBLOBInfo, error) {
 	}
 
 	if currentChunk >= totalChunks {
-		return nil, fmt.Errorf("current chunk:%d exceeds total number of chunks:%d.", currentChunk, totalChunks)
+		return nil, fmt.Errorf("current chunk:%d exceeds total number of chunks:%d", currentChunk, totalChunks)
 	}
 
 	return &chunkBLOBInfo{

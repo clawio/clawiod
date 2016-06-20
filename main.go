@@ -85,7 +85,7 @@ func main() {
 	go d.Start()
 	err = <-stopChan
 	if err != nil {
-		log.Fatal("daemon finished execution with error: %s", err)
+		log.Fatalf("daemon finished execution with error: %s", err)
 	} else {
 		log.Info("daemon finished execution successfuly")
 		os.Exit(0)

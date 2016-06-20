@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// ServiceName identifies this service.
 const ServiceName string = "webdav"
 
 type svc struct {

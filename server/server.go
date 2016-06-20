@@ -78,7 +78,7 @@ func (s *Server) Stop() {
 	s.srv.Stop(time.Duration(directives.Server.ShutdownTimeout) * time.Second)
 }
 
-// HandleRequest handles HTTP requests and forwards them to the propper service handler.
+// HandleRequest handles HTTP requests and forwards them to the proper service handler.
 func (s *Server) HandleRequest() http.Handler {
 	return handlers.CombinedLoggingHandler(helpers.GetHTTPAccessLogger(s.conf).Logger.Writer(), s.handler())
 }

@@ -186,7 +186,7 @@ type DataOCSQL struct {
 	UploadMaxFileSize    int    `json:"upload_max_file_size"`
 }
 
-// WebDAv is the configuration section dedicated to the WebDAV service.
+// WebDAV is the configuration section dedicated to the WebDAV service.
 type WebDAV struct {
 	BaseURL            string `json:"base_url"`
 	UploadMaxFileSize  int    `json:"upload_max_file_size"`
