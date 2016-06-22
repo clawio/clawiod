@@ -1,10 +1,13 @@
 package data
 
 import (
+	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/clawio/clawiod/codes"
+	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/keys"
 	"github.com/gorilla/mux"
 )
@@ -22,7 +25,8 @@ func (s *svc) Download(w http.ResponseWriter, r *http.Request) {
 	}
 	// add security headers
 	w.Header().Add("X-Content-Type-Options", "nosniff")
-	w.Header().Add("Content-Type", "application/binary")
+	w.Header().Add("Content-Type", entities.ObjectTypeBLOBMimeType)
+	w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename='%s'", filepath.Base(path)))
 	if _, err := io.Copy(w, reader); err != nil {
 		log.WithError(err).Error("cannot write response body")
 	}

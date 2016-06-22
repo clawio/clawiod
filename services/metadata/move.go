@@ -3,6 +3,7 @@ package metadata
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/clawio/clawiod/codes"
 	"github.com/clawio/clawiod/keys"
@@ -13,9 +14,17 @@ import (
 func (s *svc) MoveObject(w http.ResponseWriter, r *http.Request) {
 	sourcePath := mux.Vars(r)["path"]
 	targetPath := r.URL.Query().Get("target")
+
+	// targetPath may be url encoded, so we decode it first.
+	targetPath, err := url.QueryUnescape(targetPath)
+	if err != nil {
+		s.handleMoveObjectError(err, w, r)
+		return
+	}
+
 	user := keys.MustGetUser(r)
 
-	err := s.metaDataController.MoveObject(user, sourcePath, targetPath)
+	err = s.metaDataController.MoveObject(user, sourcePath, targetPath)
 	if err != nil {
 		s.handleMoveObjectError(err, w, r)
 		return
