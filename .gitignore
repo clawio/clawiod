@@ -30,3 +30,4 @@ out
 clawiod.conf
 clawiod
 *.pem
+*.bak
