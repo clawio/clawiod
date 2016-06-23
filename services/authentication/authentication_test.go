@@ -72,24 +72,6 @@ func TestNew_withFakeType(t *testing.T) {
 	_, err := New(o.conf)
 	require.NotNil(t, err)
 }
-func TestNew_withSQL(t *testing.T) {
-	newDirs := defaultDirs
-	newDirs.Authentication.Type = "sql"
-	o := newObject(t)
-	o.loadDirs(t, &newDirs)
-	_, err := New(o.conf)
-	require.Nil(t, err)
-}
-
-func TestNew_withSQLwithError(t *testing.T) {
-	newDirs := defaultDirs
-	newDirs.Authentication.Type = "sql"
-	newDirs.Authentication.SQL.Driver = "jaja"
-	o := newObject(t)
-	o.loadDirs(t, &newDirs)
-	_, err := New(o.conf)
-	require.NotNil(t, err)
-}
 
 func TestBaseURL(t *testing.T) {
 	dirs := defaultDirs

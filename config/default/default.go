@@ -36,8 +36,8 @@ var DefaultDirectives = config.Directives{
 		},
 
 		SQL: config.AuthenticationSQL{
-			Driver: "sqlite3",
-			DSN:    "/tmp/clawio-sqlite3-user.db",
+			Driver: "mysql",
+			DSN:    "root:passwd@tcp(localhost:3306)/users",
 		},
 	},
 
