@@ -5,10 +5,9 @@ import (
 	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
 	"github.com/clawio/clawiod/services/authentication/lib"
-	_ "github.com/go-sql-driver/mysql" // enable mysql driver
 	"github.com/jinzhu/gorm"
-	_ "github.com/lib/pq"           // enable postgresql driver
-	_ "github.com/mattn/go-sqlite3" // enable sqlite3 driver
+	_ "github.com/jinzhu/gorm/dialects/mysql"    // enable driver
+	_ "github.com/jinzhu/gorm/dialects/postgres" // enable driver
 )
 
 type controller struct {
