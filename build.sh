@@ -47,18 +47,27 @@ commit_value="$(git -C "${git_repo}" rev-parse --short HEAD)"
 ldflags+=("-X" "\"${commit_name}=${commit_value}\"")
 
 
-mkdir -p ${git_repo}/releases
+releases_dir=${git_repo}/releases
+rm -r ${releases_dir}
+mkdir -p ${releases_dir}
 
 if [[ -z "${current_tag_value}" ]]; then
 	# dev build
 	current_date=$(date +"%m_%d_%Y_%H_%M_%S")
-	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-linux_amd64-${current_date}-${commit_value}
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-darwin-_md64-${current_date}-${commit_value}
-	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-windows_amd64-${current_date}-${commit_value}
+	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-linux_amd64-${current_date}-${commit_value}
+	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-darwin-_md64-${current_date}-${commit_value}
+	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-windows_amd64-${current_date}-${commit_value}
 else
 	# release build
-	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-linux-amd64
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-darwin-amd64
-	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-windows-amd64
+	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-linux-amd64
+	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-darwin-amd64
+	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-windows-amd64
+
+	# tarballs
+	cp LICENSE ${releases_dir}
+	cd ${releases_dir}
+	tar -cvzf "${output_filename}"-${tag_value}-linux-amd64.tar.gz "${output_filename}"-${tag_value}-linux-amd64 LICENSE
+	tar -cvzf "${output_filename}"-${tag_value}-darwin-amd64.tar.gz "${output_filename}"-${tag_value}-darwin-amd64 LICENSE
+	tar -cvzf "${output_filename}"-${tag_value}-windows-amd64.tar.gz "${output_filename}"-${tag_value}-windows-amd64 LICENSE
 fi
 
