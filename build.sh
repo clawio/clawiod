@@ -57,8 +57,8 @@ if [[ -z "${current_tag_value}" ]]; then
 	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-windows_amd64-${current_date}-${commit_value}
 else
 	# release build
-	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-linux-amd64
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-darwin-amd64
-	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-${tag_value}-windows-amd64
+	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-linux-amd64
+	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-darwin-amd64
+	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o releases/"${output_filename}"-windows-amd64
 fi
 
