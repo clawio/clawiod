@@ -19,7 +19,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-const appName = "ClawIO"
+const appName = "clawiod"
 
 var log = logrus.WithField("module", "main")
 
@@ -35,15 +35,10 @@ var (
 
 // Build information obtained with the help of -ldflags
 var (
-	appVersion = "(untracked dev build)" // inferred at startup
-	devBuild   = true                    // inferred at startup
-
-	buildDate        string // date -u
-	gitTag           string // git describe --exact-match HEAD 2> /dev/null
-	gitNearestTag    string // git describe --abbrev=0 --tags HEAD
-	gitCommit        string // git rev-parse HEAD
-	gitShortStat     string // git diff-index --shortstat
-	gitFilesModified string // git diff-index --name-only HEAD
+	buildDate     string // date -u
+	gitTag        string // git describe --exact-match HEAD
+	gitNearestTag string // git describe --abbrev=0 --tags HEAD
+	gitCommit     string // git rev-parse HEAD
 )
 
 func init() {
@@ -120,10 +115,12 @@ func configureLogger(applogfile string) {
 }
 
 func handleVersion() {
-	fmt.Printf("%s %s\n", appName, appVersion)
-	if devBuild && gitShortStat != "" {
-		fmt.Printf("%s\n%s\n", gitShortStat, gitFilesModified)
+	// if gitTag is not empty we are on release build
+	if gitTag != "" {
+		fmt.Printf("%s %s commit:%s release-build\n", appName, gitNearestTag, gitCommit)
+		return
 	}
+	fmt.Printf("%s %s commit:%s dev-build\n", appName, gitNearestTag, gitCommit)
 	os.Exit(0)
 }
 
