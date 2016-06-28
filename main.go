@@ -1,10 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strconv"
@@ -16,7 +16,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/daemon"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const appName = "clawiod"
@@ -25,12 +24,9 @@ var log = logrus.WithField("module", "main")
 
 // Flags that control program flow or startup
 var (
-	conf        string
-	cpu         string
-	port        int
-	applogfile  string
-	httplogfile string
-	version     bool
+	conf       string
+	showconfig bool
+	version    bool
 )
 
 // Build information obtained with the help of -ldflags
@@ -42,40 +38,32 @@ var (
 )
 
 func init() {
-	flag.StringVar(&conf, "conf", "", "Configuration file to use (default \"./clawiod.conf\")")
-	flag.StringVar(&cpu, "cpu", "100%", "CPU capacity")
-	flag.StringVar(&applogfile, "applogfile", "stdout", "File to log application data")
-	flag.StringVar(&httplogfile, "httplogfile", "stdout", "File to log HTTP requests")
+	flag.StringVar(&conf, "config", "", "Configuration file to use (default \"./clawiod.conf\")")
+	flag.BoolVar(&showconfig, "showconfig", false, "Show loaded configuration")
 	flag.BoolVar(&version, "version", false, "Show version")
-	flag.IntVar(&port, "port", 1502, "Port to listen for requests")
 }
 
 func main() {
 	flag.Parse()
-	configureLogger(applogfile)
 
 	if version {
 		handleVersion()
 	}
 
-	handleCPU()
-
-	log.Info("cli flags parsed")
-	printFlags()
-
-	log.Info("will load configuration")
 	cfg := config.New([]config.Source{defaul.New(), file.New(conf)})
 	if err := cfg.LoadDirectives(); err != nil {
 		log.Fatalf("cannot load configuration: %s", err)
 	}
-	log.Info("configuration loaded")
-	directives := cfg.GetDirectives()
-	configureLogger(directives.Server.AppLog)
+
+	if showconfig {
+		handleShowConfig(cfg)
+	}
 
 	d, err := daemon.New(cfg)
 	if err != nil {
 		log.Fatalf("cannot run clawid daemon because: %s", err)
 	}
+
 	stopChan := d.TrapSignals()
 	go d.Start()
 	err = <-stopChan
@@ -87,31 +75,14 @@ func main() {
 	}
 }
 
-func printFlags() {
-	log.WithField("flagkey", "conf").WithField("flagval", conf).Info("flag detail")
-	log.WithField("flagkey", "cpu").WithField("flagval", cpu).Info("flag detail")
-	log.WithField("flagkey", "applogfile").WithField("flagval", applogfile).Info("flag detail")
-	log.WithField("flagkey", "httplogfile").WithField("flagval", httplogfile).Info("flag detail")
-	log.WithField("flagkey", "port").WithField("flagval", port).Info("flag detail")
-}
-
-func configureLogger(applogfile string) {
-
-	switch applogfile {
-	case "stdout":
-		log.Logger.Out = os.Stdout
-	case "stderr":
-		log.Logger.Out = os.Stderr
-	case "":
-		log.Logger.Out = ioutil.Discard
-	default:
-		log.Logger.Out = &lumberjack.Logger{
-			Filename:   applogfile,
-			MaxSize:    100,
-			MaxAge:     14,
-			MaxBackups: 10,
-		}
+func handleShowConfig(cfg *config.Config) {
+	dirs := cfg.GetDirectives()
+	data, err := json.MarshalIndent(dirs, "", "  ")
+	if err != nil {
+		log.Fatal(err)
 	}
+	fmt.Println(string(data))
+	os.Exit(0)
 }
 
 func handleVersion() {
@@ -124,7 +95,8 @@ func handleVersion() {
 	os.Exit(0)
 }
 
-func handleCPU() {
+func handleCPU(cfg *config.Config) {
+	cpu := cfg.GetDirectives().Server.CPU
 	// Set CPU capacity
 	err := setCPU(cpu)
 	if err != nil {
