@@ -8,6 +8,7 @@ import (
 // must work out-of-the-box without using user supplied config files.
 var DefaultDirectives = config.Directives{
 	Server: config.Server{
+		CPU:                           "100%",
 		BaseURL:                       "/api/v1/",
 		Port:                          1502,
 		JWTSecret:                     "you must change me",

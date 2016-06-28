@@ -81,6 +81,7 @@ type Directives struct {
 
 // Server is the configuration section dedicated to the server.
 type Server struct {
+	CPU                           string   `json:"cpu"`
 	BaseURL                       string   `json:"base_url"`
 	Port                          int      `json:"port"`
 	JWTSecret                     string   `json:"jwt_secret"`
