@@ -175,7 +175,6 @@ type DataSimple struct {
 	TemporaryNamespace   string `json:"temporary_namespace"`
 	Checksum             string `json:"checksum"`
 	VerifyClientChecksum bool   `json:"verify_client_checksum"`
-	UploadMaxFileSize    int    `json:"upload_max_file_size"`
 }
 
 // DataOCSQL is the configuration subsection dedicated to the data owncloud sql controller.
@@ -184,7 +183,6 @@ type DataOCSQL struct {
 	TemporaryNamespace   string `json:"temporary_namespace"`
 	Checksum             string `json:"checksum"`
 	VerifyClientChecksum bool   `json:"verify_client_checksum"`
-	UploadMaxFileSize    int    `json:"upload_max_file_size"`
 }
 
 // WebDAV is the configuration section dedicated to the WebDAV service.

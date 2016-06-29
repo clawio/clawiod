@@ -18,7 +18,7 @@ func (s *svc) Upload(w http.ResponseWriter, r *http.Request) {
 
 	path := mux.Vars(r)["path"]
 	clientChecksum := s.getClientChecksum(r)
-	readCloser := http.MaxBytesReader(w, r.Body, int64(s.conf.GetDirectives().Data.Simple.UploadMaxFileSize))
+	readCloser := http.MaxBytesReader(w, r.Body, int64(s.conf.GetDirectives().Data.UploadMaxFileSize))
 	if err := s.dataController.UploadBLOB(user, path, readCloser, clientChecksum); err != nil {
 		s.handleUploadError(err, w, r)
 		return

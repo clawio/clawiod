@@ -63,19 +63,18 @@ var DefaultDirectives = config.Directives{
 	},
 
 	Data: config.Data{
-		BaseURL: "/data/",
-		Type:    "simple",
+		BaseURL:           "/data/",
+		Type:              "simple",
+		UploadMaxFileSize: 8589934592, // 8 GiB
 
 		Simple: config.DataSimple{
 			Namespace:          "/tmp/clawio-namespace",
 			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
-			UploadMaxFileSize:  8589934592, // 8 GiB
 		},
 
 		OCSQL: config.DataOCSQL{
 			Namespace:          "/tmp/clawio-namespace",
 			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
-			UploadMaxFileSize:  8589934592, // 8 GiB
 		},
 	},
 
