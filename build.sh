@@ -48,7 +48,7 @@ ldflags+=("-X" "\"${commit_name}=${commit_value}\"")
 
 
 releases_dir=${git_repo}/releases
-rm -r ${releases_dir}
+rm -rf ${releases_dir}
 mkdir -p ${releases_dir}
 
 if [[ -z "${current_tag_value}" ]]; then
