@@ -51,23 +51,26 @@ releases_dir=${git_repo}/releases
 rm -rf ${releases_dir}
 mkdir -p ${releases_dir}
 
+os=( "linux" "darwin" "windows" )
+arch=( "amd64")
+
 if [[ -z "${current_tag_value}" ]]; then
 	# dev build
 	current_date=$(date +"%m_%d_%Y_%H_%M_%S")
-	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-linux_amd64-${current_date}-${commit_value}
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-darwin-_md64-${current_date}-${commit_value}
-	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-windows_amd64-${current_date}-${commit_value}
+	for i in "${os[@]}"; do
+		for j in "${arch[@]}"; do
+			GOOS=$i GOARCH=$j go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-$i-$j-${current_date}-${commit_value}
+		done;
+	done;
 else
 	# release build
-	GOOS=linux   GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-linux-amd64
-	GOOS=darwin  GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-darwin-amd64
-	GOOS=windows GOARCH=amd64 go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-windows-amd64
-
-	# tarballs
-	cp LICENSE ${releases_dir}
-	cd ${releases_dir}
-	tar -cvzf "${output_filename}"-${tag_value}-linux-amd64.tar.gz "${output_filename}"-${tag_value}-linux-amd64 LICENSE
-	tar -cvzf "${output_filename}"-${tag_value}-darwin-amd64.tar.gz "${output_filename}"-${tag_value}-darwin-amd64 LICENSE
-	tar -cvzf "${output_filename}"-${tag_value}-windows-amd64.tar.gz "${output_filename}"-${tag_value}-windows-amd64 LICENSE
+	for i in "${os[@]}"; do
+		for j in "${arch[@]}"; do
+			artifact_folder=${releases_dir}/"${output_filename}"-${tag_value}-$i-$j
+			mkdir ${artifact_folder}
+			GOOS=$i GOARCH=$j go build -ldflags "${ldflags[*]}" -o ${artifact_folder}/"${output_filename}"
+			cp LICENSE ${artifact_folder}
+			tar -cvzf "${artifact_folder}".tar.gz "${artifact_folder}"
+		done;
+	done;
 fi
-
