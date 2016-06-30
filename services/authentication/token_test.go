@@ -28,7 +28,7 @@ func TestToken(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler := o.service.Endpoints()["/token"]["POST"]
 	o.wrapRequest(w, r, handler)
-	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, http.StatusCreated, w.Code)
 
 	authNRes := &TokenResponse{}
 	err = json.NewDecoder(w.Body).Decode(authNRes)

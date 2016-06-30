@@ -51,7 +51,8 @@ func (s *svc) Token(w http.ResponseWriter, r *http.Request) {
 	log.WithField("user", authReq.Username).Info("token generated")
 
 	res := &TokenResponse{AccessToken: token}
-	w.WriteHeader(http.StatusOK)
+
+	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(res); err != nil {
 		log.WithError(err).Error("cannot encode")
 	}

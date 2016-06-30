@@ -9,6 +9,7 @@ import (
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/memory"
 	"github.com/clawio/clawiod/services/authentication/authenticationcontroller/sql"
+	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -59,6 +60,9 @@ func (s *svc) BaseURL() string {
 
 // Endpoints is a listing of all endpoints available in the Mixedsvc.
 func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
+	dirs := s.conf.GetDirectives()
+	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
+
 	return map[string]map[string]http.HandlerFunc{
 		"/metrics": {
 			"GET": func(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +71,9 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 		},
 		"/token": {
 			"POST": prometheus.InstrumentHandlerFunc("/token", s.Token),
+		},
+		"/ping": {
+			"GET": prometheus.InstrumentHandlerFunc("/ping", authenticator.JWTHandlerFunc(s.Ping)),
 		},
 	}
 }
