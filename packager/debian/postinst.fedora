@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+cp /opt/clawiod/config/clawiod.conf /etc/clawiod/clawiod.conf
+cp /opt/clawiod/config/fileauth.conf /etc/clawiod/conf.d/fileauth.conf
+cp /opt/clawiod/config/cert.pem /etc/clawiod/conf.d/cert.pem
+cp /opt/clawiod/config/key.pem /etc/clawiod/conf.d/key.pem
+cp /opt/clawiod/init/systemd/clawiod.service /lib/systemd/system/clawiod.service
+mkdir -p /home/clawiod/data/tmp
+mkdir -p /home/clawiod/data/notmp
+chown -R clawiod:clawiod /home/clawiod
+chown -R clawiod:clawiod /etc/clawiod
+chmod -R 755 /home/clawiod/data
