@@ -2,6 +2,7 @@ package ocwebdav
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/keys"
@@ -44,6 +45,14 @@ func New(cfg *config.Config) (services.Service, error) {
 
 	metaDataController, err := metadata.GetMetaDataController(cfg)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(dirs.OCWebDAV.ChunksNamespace, 0755); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(dirs.OCWebDAV.ChunksTemporaryNamespace, 0755); err != nil {
 		return nil, err
 	}
 

@@ -85,6 +85,14 @@ func New(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 		conf:               conf,
 	}
 
+	if err := os.MkdirAll(dirs.MetaData.OCSQL.Namespace, 0755); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(dirs.MetaData.OCSQL.TemporaryNamespace, 0755); err != nil {
+		return nil, err
+	}
+
 	db, err := gorm.Open("mysql", dirs.MetaData.OCSQL.DSN)
 	if err != nil {
 		c.log.Error(err)
