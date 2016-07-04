@@ -20,7 +20,7 @@ var DefaultDirectives = config.Directives{
 		HTTPAccessLogLevel:            "info",
 		HTTPAccessLogMaxSize:          100, // MiB
 		ShutdownTimeout:               10,
-		EnabledServices:               []string{"authentication", "metadata", "data", "webdav", "ocwebdav"},
+		EnabledServices:               []string{"authentication", "metadata", "data", "webdav"},
 		CORSEnabled:                   true,
 		CORSAccessControlAllowOrigin:  []string{},
 		CORSAccessControlAllowMethods: []string{"GET", "POST", "HEAD", "PUT", "DELETE"},
@@ -57,7 +57,7 @@ var DefaultDirectives = config.Directives{
 			MaxSQLIdleConnections:       1024,
 			MaxSQLConcurrentConnections: 1024,
 			SQLLog:        "stdout",
-			SQLLogEnabled: true,
+			SQLLogEnabled: false,
 			SQLLogMaxSize: 100, // MiB
 		},
 	},
