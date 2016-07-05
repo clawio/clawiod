@@ -14,6 +14,7 @@ import (
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication"
 	"github.com/clawio/clawiod/services/data"
+	"github.com/clawio/clawiod/services/link"
 	"github.com/clawio/clawiod/services/metadata"
 	"github.com/clawio/clawiod/services/ocwebdav"
 	"github.com/clawio/clawiod/services/webdav"
@@ -217,6 +218,13 @@ func getServices(conf *config.Config) ([]services.Service, error) {
 		}
 		services = append(services, OCWebDAVService)
 	}
+
+	linkService, err := link.New(conf)
+	if err != nil {
+		return services, err
+	}
+	services = append(services, linkService)
+
 	return services, nil
 }
 func isServiceEnabled(svc string, list []string) bool {

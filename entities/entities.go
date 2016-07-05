@@ -37,4 +37,16 @@ type (
 		Email       string `json:"email"`
 		DisplayName string `json:"display_name"`
 	}
+
+	// SharedLink represents the information contained in a shared link.
+	SharedLink struct {
+		// Without the token there is no way to access to the token
+		Token string `json:"token"`
+
+		// The owner of the token
+		Owner *User `json:"user"`
+
+		// Information about the shared object.
+		ObjectInfo *ObjectInfo `json:"oinfo"`
+	}
 )
