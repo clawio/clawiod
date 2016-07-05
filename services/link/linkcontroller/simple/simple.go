@@ -1,9 +1,12 @@
 package simple
 
 import (
+	"github.com/clawio/clawiod/codes"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/services/link/linkcontroller"
+
 	"github.com/satori/go.uuid"
 )
 
@@ -31,4 +34,48 @@ func (c *controller) CreateSharedLink(user *entities.User, oinfo *entities.Objec
 
 func (c *controller) ListSharedLinks(user *entities.User) ([]*entities.SharedLink, error) {
 	return c.links[user.Username], nil
+}
+
+func (c *controller) IsProtected(token string) (bool, error) {
+	link, err := c.getLinkByToken(token)
+	if err != nil {
+		return false, err
+	}
+	return c.isLinkProtected(link), nil
+}
+
+func (c *controller) Info(token, secret string) (*entities.SharedLink, error) {
+	link, err := c.getLinkByToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	if !c.isSecretCorrect(link, secret) {
+		return nil, codes.NewErr(codes.Forbidden, "secret does not match")
+	}
+
+	// REDACT secret
+	link.Secret = helpers.RedactString(link.Secret)
+	return link, nil
+}
+
+func (c *controller) getLinkByToken(token string) (*entities.SharedLink, error) {
+	for _, links := range c.links {
+		for _, link := range links {
+			if link.Token == token {
+				return link, nil
+			}
+		}
+
+	}
+
+	return nil, codes.NewErr(codes.NotFound, "link not found")
+}
+
+func (c *controller) isLinkProtected(link *entities.SharedLink) bool {
+	return link.Secret != ""
+}
+
+func (c *controller) isSecretCorrect(link *entities.SharedLink, secret string) bool {
+	return link.Secret == secret
 }

@@ -48,5 +48,8 @@ type (
 
 		// Information about the shared object.
 		ObjectInfo *ObjectInfo `json:"oinfo"`
+
+		// A secret password to protect the shared link
+		Secret string `json:"secret"`
 	}
 )

@@ -4,12 +4,17 @@ import (
 	"net/http"
 
 	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/keys"
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication/lib"
+	"github.com/clawio/clawiod/services/data"
+	"github.com/clawio/clawiod/services/data/datacontroller"
 	"github.com/clawio/clawiod/services/link/linkcontroller"
 	"github.com/clawio/clawiod/services/link/linkcontroller/simple"
 	"github.com/clawio/clawiod/services/metadata"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
+
+	"github.com/gorilla/mux"
 )
 
 // ServiceName identifies this service.
@@ -19,6 +24,7 @@ type svc struct {
 	conf               *config.Config
 	linkController     linkcontroller.SharedLinkController
 	metaDataController metadatacontroller.MetaDataController
+	dataController     datacontroller.DataController
 }
 
 // New returns a new Service.
@@ -33,7 +39,17 @@ func New(cfg *config.Config) (services.Service, error) {
 		return nil, err
 	}
 
-	return &svc{conf: cfg, linkController: linkController, metaDataController: metaDataController}, nil
+	dataController, err := data.GetDataController(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &svc{
+		conf:               cfg,
+		linkController:     linkController,
+		metaDataController: metaDataController,
+		dataController:     dataController,
+	}, nil
 }
 
 // GetLinkController returns an already configured meta data controller.
@@ -71,5 +87,33 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 		"/list": {
 			"GET": authenticator.JWTHandlerFunc(s.ListLinks),
 		},
+		"/isprotected/{token}": {
+			"GET": s.IsProtected,
+		},
+		"/info/{token}": {
+			"GET": s.linkAuthHandlerFunc(s.Info),
+		},
+		"/download/{token}/{path:.*}": {
+			"GET": s.linkAuthHandlerFunc(s.Download),
+		},
+	}
+}
+
+// linkAuthHandlerFunc is a middleware function to authenticate HTTP requests.
+func (s *svc) linkAuthHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log := keys.MustGetLog(r)
+		token := mux.Vars(r)["token"]
+		secret := r.URL.Query().Get("secret")
+
+		link, err := s.linkController.Info(token, secret)
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		keys.SetLink(r, link)
+		handler(w, r)
 	}
 }

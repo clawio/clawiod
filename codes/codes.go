@@ -39,6 +39,9 @@ const (
 
 	// TooBig is returned when something is too big to be processed.
 	TooBig
+
+	// Forbidden is returned when something is not allowed
+	Forbidden
 )
 
 // String returns a string representation of the Code

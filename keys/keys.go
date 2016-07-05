@@ -15,7 +15,9 @@ const (
 	userKey contextKey = iota
 
 	// LogKey is the key to use when storing an *logrus.Entry into a context.
-	logKey contextKey = iota
+	logKey
+
+	linkKey
 )
 
 // SetUser stores a user in the request context.
@@ -36,4 +38,12 @@ func MustGetUser(r *http.Request) *entities.User {
 // MustGetLog retrieves a log entry from the request context and panics if not found.
 func MustGetLog(r *http.Request) *logrus.Entry {
 	return context.Get(r, logKey).(*logrus.Entry)
+}
+
+func MustGetLink(r *http.Request) *entities.SharedLink {
+	return context.Get(r, linkKey).(*entities.SharedLink)
+}
+
+func SetLink(r *http.Request, link *entities.SharedLink) {
+	context.Set(r, linkKey, link)
 }
