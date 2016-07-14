@@ -17,11 +17,15 @@ import (
 	"github.com/clawio/clawiod/codes"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/services/data/datacontroller"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type simpleDataController struct {
 	conf *config.Config
+	log  *logrus.Entry
 }
 
 // New returns an implementation of DataController.
@@ -36,6 +40,7 @@ func New(conf *config.Config) (datacontroller.DataController, error) {
 	}
 	return &simpleDataController{
 		conf: conf,
+		log:  helpers.GetAppLogger(conf).WithField("module", "simple:datacontroller"),
 	}, nil
 }
 
@@ -81,11 +86,24 @@ func (c *simpleDataController) UploadBLOB(user *entities.User, pathSpec string, 
 
 func (c *simpleDataController) DownloadBLOB(user *entities.User, pathSpec string) (io.Reader, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
+	c.log.WithField("storagepath", storagePath).Debug("object to be downloaded")
 	fd, err := os.Open(storagePath)
 	if err != nil {
+		c.log.Error(err)
 		if os.IsNotExist(err) {
 			return nil, codes.NewErr(codes.NotFound, err.Error())
 		}
+		return nil, err
+	}
+	info, err := fd.Stat()
+	if err != nil {
+		c.log.Error(err)
+		return nil, err
+	}
+
+	if info.IsDir() {
+		err := codes.NewErr(codes.BadInputData, "object is not a blob")
+		c.log.Error(err)
 		return nil, err
 	}
 	return fd, nil
