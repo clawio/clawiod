@@ -81,11 +81,17 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 	authenticator := lib.NewAuthenticator(dirs.Server.JWTSecret, dirs.Server.JWTSigningMethod)
 
 	return map[string]map[string]http.HandlerFunc{
-		"/createlink/{path:.*}": {
+		"/create/{path:.*}": {
 			"POST": authenticator.JWTHandlerFunc(s.CreateLink),
 		},
 		"/list": {
 			"GET": authenticator.JWTHandlerFunc(s.ListLinks),
+		},
+		"/find/{path:.*}": {
+			"GET": authenticator.JWTHandlerFunc(s.FindLink),
+		},
+		"/delete/{token}": {
+			"DELETE": authenticator.JWTHandlerFunc(s.DeleteLink),
 		},
 		"/isprotected/{token}": {
 			"GET": s.IsProtected,

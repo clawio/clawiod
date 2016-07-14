@@ -9,8 +9,10 @@ import (
 // For public consume of shared links, there is PublicSharedLinkController.
 type SharedLinkController interface {
 	// Authenticated operatations
-	CreateSharedLink(user *entities.User, oinfo *entities.ObjectInfo) (*entities.SharedLink, error)
+	CreateSharedLink(user *entities.User, oinfo *entities.ObjectInfo, password string, expires int) (*entities.SharedLink, error)
 	ListSharedLinks(user *entities.User) ([]*entities.SharedLink, error)
+	FindSharedLink(user *entities.User, pathSpec string) (*entities.SharedLink, error)
+	DeleteSharedLink(user *entities.User, token string) error
 
 	// Non-Authenticated operations
 	IsProtected(token string) (bool, error)

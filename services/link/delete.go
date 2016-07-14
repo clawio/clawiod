@@ -1,7 +1,6 @@
 package link
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/clawio/clawiod/codes"
@@ -10,23 +9,23 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// IsProtected retrieves the information about a link.
-func (s *svc) IsProtected(w http.ResponseWriter, r *http.Request) {
+// DeleteLink deletes a token
+func (s *svc) DeleteLink(w http.ResponseWriter, r *http.Request) {
+	user := keys.MustGetUser(r)
 	token := mux.Vars(r)["token"]
 
-	isProtected, err := s.linkController.IsProtected(token)
+	err := s.linkController.DeleteSharedLink(user, token)
 	if err != nil {
-		s.handleIsProtectedError(err, w, r)
+		s.handleDeleteLinkError(err, w, r)
 		return
 	}
 
-	res := fmt.Sprintf(`{"protected": %t}`, isProtected)
-	w.Write([]byte(res))
-
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *svc) handleIsProtectedError(err error, w http.ResponseWriter, r *http.Request) {
+func (s *svc) handleDeleteLinkError(err error, w http.ResponseWriter, r *http.Request) {
 	log := keys.MustGetLog(r)
+
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			log.WithError(err).Error("link not found")
@@ -34,7 +33,7 @@ func (s *svc) handleIsProtectedError(err error, w http.ResponseWriter, r *http.R
 			return
 		}
 	}
-	log.WithError(err).Error("cannot check link protection")
+	log.WithError(err).Error("cannot find link")
 	w.WriteHeader(http.StatusInternalServerError)
 	return
 }

@@ -40,6 +40,9 @@ type (
 
 	// SharedLink represents the information contained in a shared link.
 	SharedLink struct {
+		// When the link expires
+		Expires int `json:"expires"`
+
 		// Without the token there is no way to access to the token
 		Token string `json:"token"`
 

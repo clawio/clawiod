@@ -23,8 +23,10 @@ func New(conf *config.Config) (linkcontroller.SharedLinkController, error) {
 	return c, nil
 }
 
-func (c *controller) CreateSharedLink(user *entities.User, oinfo *entities.ObjectInfo) (*entities.SharedLink, error) {
+func (c *controller) CreateSharedLink(user *entities.User, oinfo *entities.ObjectInfo, password string, expires int) (*entities.SharedLink, error) {
 	sl := &entities.SharedLink{}
+	sl.Expires = expires
+	sl.Secret = password
 	sl.Token = uuid.NewV4().String()
 	sl.Owner = user
 	sl.ObjectInfo = oinfo
@@ -34,6 +36,21 @@ func (c *controller) CreateSharedLink(user *entities.User, oinfo *entities.Objec
 
 func (c *controller) ListSharedLinks(user *entities.User) ([]*entities.SharedLink, error) {
 	return c.links[user.Username], nil
+}
+
+func (c *controller) FindSharedLink(user *entities.User, pathSpec string) (*entities.SharedLink, error) {
+	return c.getLinkByPathSpec(pathSpec)
+}
+func (c *controller) DeleteSharedLink(user *entities.User, token string) error {
+	for user, links := range c.links {
+		for i, link := range links {
+			if link.Token == token {
+				c.links[user] = append(c.links[user][:i], c.links[user][i+1:]...)
+			}
+		}
+
+	}
+	return nil
 }
 
 func (c *controller) IsProtected(token string) (bool, error) {
@@ -72,6 +89,18 @@ func (c *controller) getLinkByToken(token string) (*entities.SharedLink, error) 
 	return nil, codes.NewErr(codes.NotFound, "link not found")
 }
 
+func (c *controller) getLinkByPathSpec(pathSpec string) (*entities.SharedLink, error) {
+	for _, links := range c.links {
+		for _, link := range links {
+			if link.ObjectInfo.PathSpec == pathSpec {
+				return link, nil
+			}
+		}
+
+	}
+
+	return nil, codes.NewErr(codes.NotFound, "link not found")
+}
 func (c *controller) isLinkProtected(link *entities.SharedLink) bool {
 	return link.Secret != ""
 }
