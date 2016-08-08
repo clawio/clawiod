@@ -14,18 +14,18 @@ var DefaultDirectives = config.Directives{
 		JWTSecret:                     "you must change me",
 		JWTSigningMethod:              "HS256",
 		AppLog:                        "stdout",
-		AppLogLevel:                   "info",
+		AppLogLevel:                   "debug",
 		AppLogMaxSize:                 100, // MiB
 		HTTPAccessLog:                 "stdout",
 		HTTPAccessLogLevel:            "info",
 		HTTPAccessLogMaxSize:          100, // MiB
 		ShutdownTimeout:               10,
-		EnabledServices:               []string{"authentication", "metadata", "data", "webdav"},
+		EnabledServices:               []string{"authentication", "metadata", "data", "webdav", "link"},
 		CORSEnabled:                   true,
 		CORSAccessControlAllowOrigin:  []string{},
 		CORSAccessControlAllowMethods: []string{"GET", "POST", "HEAD", "PUT", "DELETE"},
 		CORSAccessControlAllowHeaders: []string{"*"},
-		CORSEnabledServices:           []string{"authentication", "metadata", "data"},
+		CORSEnabledServices:           []string{"authentication", "metadata", "data", "link"},
 	},
 
 	Authentication: config.Authentication{
@@ -109,9 +109,9 @@ func (c *conf) LoadDirectives() (*config.Directives, error) {
 func getDefaultMemoryUsers() interface{} {
 	users := []map[string]interface{}{}
 	user := map[string]interface{}{}
-	user["username"] = "demo"
-	user["email"] = "demo@example.com"
-	user["display_name"] = "Demo User"
+	user["username"] = "labrador"
+	user["email"] = "contact@hugo.labkode.com"
+	user["display_name"] = "Hugo Gonzalez Labrador"
 	user["password"] = "demo"
 	users = append(users, user)
 	return users

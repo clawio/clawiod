@@ -4,21 +4,25 @@ import (
 	"github.com/clawio/clawiod/codes"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
-	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/services/link/linkcontroller"
 
 	"github.com/satori/go.uuid"
 )
 
+type link struct {
+	*entities.SharedLink
+	secret string
+}
+
 type controller struct {
 	conf  *config.Config
-	links map[string][]*entities.SharedLink
+	links map[string][]*link
 }
 
 // New returns an implementation of LinkController.
 func New(conf *config.Config) (linkcontroller.SharedLinkController, error) {
 	c := &controller{}
-	c.links = make(map[string][]*entities.SharedLink)
+	c.links = make(map[string][]*link)
 	c.conf = conf
 	return c, nil
 }
@@ -26,16 +30,22 @@ func New(conf *config.Config) (linkcontroller.SharedLinkController, error) {
 func (c *controller) CreateSharedLink(user *entities.User, oinfo *entities.ObjectInfo, password string, expires int) (*entities.SharedLink, error) {
 	sl := &entities.SharedLink{}
 	sl.Expires = expires
-	sl.Secret = password
 	sl.Token = uuid.NewV4().String()
 	sl.Owner = user
 	sl.ObjectInfo = oinfo
-	c.links[user.Username] = append(c.links[user.Username], sl)
+	l := &link{}
+	l.SharedLink = sl
+	l.secret = password
+	c.links[user.Username] = append(c.links[user.Username], l)
 	return sl, nil
 }
 
 func (c *controller) ListSharedLinks(user *entities.User) ([]*entities.SharedLink, error) {
-	return c.links[user.Username], nil
+	var links = make([]*entities.SharedLink, len(c.links))
+	for _, l := range c.links[user.Username] {
+		links = append(links, l.SharedLink)
+	}
+	return links, nil
 }
 
 func (c *controller) FindSharedLink(user *entities.User, pathSpec string) (*entities.SharedLink, error) {
@@ -70,13 +80,10 @@ func (c *controller) Info(token, secret string) (*entities.SharedLink, error) {
 	if !c.isSecretCorrect(link, secret) {
 		return nil, codes.NewErr(codes.Forbidden, "secret does not match")
 	}
-
-	// REDACT secret
-	link.Secret = helpers.RedactString(link.Secret)
-	return link, nil
+	return link.SharedLink, nil
 }
 
-func (c *controller) getLinkByToken(token string) (*entities.SharedLink, error) {
+func (c *controller) getLinkByToken(token string) (*link, error) {
 	for _, links := range c.links {
 		for _, link := range links {
 			if link.Token == token {
@@ -93,7 +100,7 @@ func (c *controller) getLinkByPathSpec(pathSpec string) (*entities.SharedLink, e
 	for _, links := range c.links {
 		for _, link := range links {
 			if link.ObjectInfo.PathSpec == pathSpec {
-				return link, nil
+				return link.SharedLink, nil
 			}
 		}
 
@@ -101,10 +108,10 @@ func (c *controller) getLinkByPathSpec(pathSpec string) (*entities.SharedLink, e
 
 	return nil, codes.NewErr(codes.NotFound, "link not found")
 }
-func (c *controller) isLinkProtected(link *entities.SharedLink) bool {
-	return link.Secret != ""
+func (c *controller) isLinkProtected(link *link) bool {
+	return link.secret != ""
 }
 
-func (c *controller) isSecretCorrect(link *entities.SharedLink, secret string) bool {
-	return link.Secret == secret
+func (c *controller) isSecretCorrect(link *link, secret string) bool {
+	return link.secret == secret
 }

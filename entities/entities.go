@@ -47,12 +47,9 @@ type (
 		Token string `json:"token"`
 
 		// The owner of the token
-		Owner *User `json:"user"`
+		Owner *User `json:"owner"`
 
 		// Information about the shared object.
 		ObjectInfo *ObjectInfo `json:"oinfo"`
-
-		// A secret password to protect the shared link
-		Secret string `json:"secret"`
 	}
 )
