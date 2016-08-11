@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/keys"
 	"github.com/clawio/clawiod/services"
 	"github.com/clawio/clawiod/services/authentication/lib"
@@ -54,17 +55,6 @@ func New(cfg *config.Config) (services.Service, error) {
 
 // GetLinkController returns an already configured meta data controller.
 func GetLinkController(conf *config.Config) (linkcontroller.SharedLinkController, error) {
-	/*
-		dirs := conf.GetDirectives()
-		switch dirs.Link.Type {
-		case "simple":
-			return simple.New(conf)
-		case "ocsql":
-			return ocsql.New(conf)
-		default:
-			return nil, errors.New("link type " + dirs.Link.Type + "does not exist")
-		}
-	*/
 	return simple.New(conf)
 }
 
@@ -99,8 +89,28 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 		"/info/{token}": {
 			"GET": s.linkAuthHandlerFunc(s.Info),
 		},
+
+		// Metadata operations on links
+		"/examine/{token}/{path:.*}": {
+			"GET": s.linkAuthHandlerFunc(s.ExamineObject),
+		},
+		"/ls/{token}/{path:.*}": {
+			"GET": s.linkAuthHandlerFunc(s.ListTree),
+		},
+		"/move/{token}/{path:.*}": {
+			"POST": s.linkAuthHandlerFunc(s.MoveObject),
+		},
+		"/delete/{token}/{path:.*}": {
+			"DELETE": s.linkAuthHandlerFunc(s.DeleteObject),
+		},
+		"/createtree/{token}/{path:.*}": {
+			"POST": s.linkAuthHandlerFunc(s.CreateTree),
+		},
 		"/download/{token}/{path:.*}": {
 			"GET": s.linkAuthHandlerFunc(s.Download),
+		},
+		"/upload/{token}/{path:.*}": {
+			"PUT": s.linkAuthHandlerFunc(s.Upload),
 		},
 	}
 }
@@ -119,7 +129,12 @@ func (s *svc) linkAuthHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		// modify the path to add it to the path shared by the link to avoid path
+		// traversal attacks
+		mux.Vars(r)["path"] = helpers.SecureJoin(link.ObjectInfo.PathSpec, mux.Vars(r)["path"])
+
 		keys.SetLink(r, link)
+		keys.SetUser(r, link.Owner)
 		handler(w, r)
 	}
 }

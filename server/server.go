@@ -160,11 +160,8 @@ func (s *Server) configureRouter() error {
 				u := strings.TrimRight(dirs.Server.BaseURL, "/") + svcBase + path
 				prometheus.InstrumentHandler(u, handler)
 
-				//ep := fmt.Sprintf("%s %s", method, u)
 				s.log.WithField("method", method).WithField("endpoint", u).Info("endpoint registered")
 				if isServiceEnabled(svc.Name(), corsEnabled) {
-					//ep := fmt.Sprintf("%s %s", "OPTIONS", u)
-
 					s.log.WithField("method", "OPTIONS").WithField("endpoint", u).Info("endpoint registered (cors)")
 				}
 			}

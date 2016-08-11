@@ -32,3 +32,4 @@ clawiod
 *.pem
 *.bak
 releases
+.idea

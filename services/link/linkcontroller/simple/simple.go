@@ -33,6 +33,9 @@ func (c *controller) CreateSharedLink(user *entities.User, oinfo *entities.Objec
 	sl.Token = uuid.NewV4().String()
 	sl.Owner = user
 	sl.ObjectInfo = oinfo
+	if password != "" {
+		sl.Protected = true
+	}
 	l := &link{}
 	l.SharedLink = sl
 	l.secret = password

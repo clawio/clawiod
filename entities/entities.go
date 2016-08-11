@@ -51,5 +51,8 @@ type (
 
 		// Information about the shared object.
 		ObjectInfo *ObjectInfo `json:"oinfo"`
+
+		// Protected indicates if the link is password protected
+		Protected bool `json:"protected"`
 	}
 )
