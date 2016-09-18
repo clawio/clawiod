@@ -13,7 +13,7 @@ import (
 )
 
 // Daemon is the orchestrator that handles the bootstraping of the application. It loads the configuration, launch the server and listens
-// to system signals for system shutdown or configuration reload.jJ;w
+// to system signals for system shutdown or configuration reload.
 type Daemon struct {
 	log      *logrus.Entry
 	srv      *server.Server
