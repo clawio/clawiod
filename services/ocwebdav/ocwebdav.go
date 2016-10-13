@@ -108,7 +108,7 @@ func (s *svc) basicAuthHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 		if err == nil {
 			user, err := s.authenticator.CreateUserFromToken(authCookie.Value)
 			if err == nil {
-				keys.SetUser(r, user)
+				r = keys.SetUser(r, user)
 				log.WithField("user", user.Username).Info("authenticated request")
 				handler(w, r)
 				return
@@ -144,7 +144,7 @@ func (s *svc) basicAuthHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 
 		user, err := s.authenticator.CreateUserFromToken(token)
 		if err == nil {
-			keys.SetUser(r, user)
+			r = keys.SetUser(r, user)
 			log.WithField("user", user.Username).Info("authenticated request")
 			handler(w, r)
 			return

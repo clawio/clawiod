@@ -96,7 +96,7 @@ func (s *Server) handler() http.Handler {
 		tid := uuid.NewV4().String()
 		cLog := s.log.WithFields(logrus.Fields{"tid": tid})
 		cLog.WithFields(logrus.Fields{"method": r.Method, "uri": helpers.SanitizeURL(r.URL)}).Info("request started")
-		keys.SetLog(r, cLog)
+		r = keys.SetLog(r, cLog)
 		defer func() {
 			cLog.Info("request ended")
 			// Catch panic and return 500 with corresponding tid for debugging

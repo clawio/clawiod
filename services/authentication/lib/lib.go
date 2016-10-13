@@ -105,7 +105,7 @@ func (a *Authenticator) JWTHandlerFunc(handler http.HandlerFunc) http.HandlerFun
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		keys.SetUser(r, user)
+		r = keys.SetUser(r, user)
 		log.WithField("user", user.Username).Info("authenticated request")
 		handler(w, r)
 	}
