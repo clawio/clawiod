@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package proto;
+
+import "error.proto";
+
+service AuthN {
+	rpc Token(TokenRequest) returns (TokenResponse);
+	rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message TokenRequest{
+    string username = 1;
+    string password = 2; 
+    string opaque = 3;
+}
+
+message TokenResponse {
+     string token = 1; 
+     Error error  = 2;
+}
+
+message PingRequest {
+	string token = 1;
+}
+
+message PingResponse {
+	Error error = 1;
+}

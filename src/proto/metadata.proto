@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package proto;
+
+import "error.proto";
+import "secentity.proto";
+
+service MetaData {
+	rpc Mkdir(MkdirRequest) returns (MkdirResponse);
+	rpc Copy(CopyRequest) returns (CopyResponse);
+	rpc Move(MoveRequest) returns (MoveResponse);
+	rpc Remove(RemoveRequest) returns (MoveResponse);
+	rpc Stat(StatRequest) returns (StatResponse);
+}
+
+message MkdirRequest{
+	string path = 1;
+	string opaque = 2;
+	SecEntity sec_entity = 3;
+}
+
+message MkdirResponse {
+	Error error = 1;
+}
+
+message CopyRequest {
+	string source_path = 1;
+	string target_path = 2;
+	SecEntity sec_entity = 3;	
+}
+
+message CopyResponse {
+	Error error = 1;
+}
+
+message MoveRequest {
+	string source_path = 1;
+	string target_path = 2;	
+	SecEntity sec_entity = 3;	
+}
+
+message MoveResponse {
+	Error error = 1;
+}
+
+message RemoveRequest {
+	string path = 1;
+	SecEntity sec_entity = 2;
+}
+
+message RemoveResponse {
+	Error error = 1;
+}
+
+message StatRequest {
+	string path = 1;
+	bool children = 2;
+	SecEntity sec_entity = 3;
+}
+
+message StatResponse {
+	MetaDataInfo meta_data_info = 1;
+	Error error = 2;
+}
+
+message MetaDataInfo {
+	int64 fid = 1;
+	string path = 2;
+	bool directory = 3;
+	int64 size = 4;
+	int64 mtime = 5;
+	string xstype = 6;
+	string xs = 7;
+	string etag = 8;
+	int64 permissions = 9;
+	repeated MetaDataInfo children = 10;
+}

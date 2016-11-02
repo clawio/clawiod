@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package proto;
+
+enum ErrorCode {
+	OK = 0;
+	CREDENTIALS_INVALID = 10;
+	FILE_NOT_FOUND = 20;
+	FILE_EXISTS = 21;
+}
+
+message Error {
+	Error code = 1;
+	string message = 2;
+	string user = 3;
+}
