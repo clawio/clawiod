@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package proto;
+
+enum ProtocolType{
+	BASIC = 0;
+	JWT = 1;
+	KRB = 2;
+}
+
+message SecEntity {
+	string ProtocolType = 1;
+	string username = 2;
+	string host = 3;
+	string vorg = 4;
+	string role = 5;
+	string groups = 6;
+	string endorsements = 7;
+}
+
+message SecCredentials {
+	ProtocolType protocol = 1;
+	string credentials = 2;
+
+}

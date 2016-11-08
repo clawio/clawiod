@@ -3,7 +3,7 @@ syntax = "proto3";
 package proto;
 
 import "error.proto";
-import "secentity.proto";
+import "security.proto";
 
 service MetaData {
 	rpc Mkdir(MkdirRequest) returns (MkdirResponse);
@@ -16,7 +16,7 @@ service MetaData {
 message MkdirRequest{
 	string path = 1;
 	string opaque = 2;
-	SecEntity sec_entity = 3;
+	SecCredentials sec_crendetials= 3;
 }
 
 message MkdirResponse {
@@ -26,7 +26,7 @@ message MkdirResponse {
 message CopyRequest {
 	string source_path = 1;
 	string target_path = 2;
-	SecEntity sec_entity = 3;	
+	SecCredentials sec_crendetials= 3;
 }
 
 message CopyResponse {
@@ -35,8 +35,8 @@ message CopyResponse {
 
 message MoveRequest {
 	string source_path = 1;
-	string target_path = 2;	
-	SecEntity sec_entity = 3;	
+	string target_path = 2;
+	SecCredentials sec_crendetials= 3;
 }
 
 message MoveResponse {
@@ -45,7 +45,7 @@ message MoveResponse {
 
 message RemoveRequest {
 	string path = 1;
-	SecEntity sec_entity = 2;
+	SecCredentials sec_crendetials = 2;
 }
 
 message RemoveResponse {
@@ -55,7 +55,7 @@ message RemoveResponse {
 message StatRequest {
 	string path = 1;
 	bool children = 2;
-	SecEntity sec_entity = 3;
+	SecCredentials sec_crendetials = 3;
 }
 
 message StatResponse {

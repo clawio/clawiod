@@ -2,29 +2,39 @@ package main
 
 import (
 	"google.golang.org/grpc"
-	"github.com/clawio/clawiod/src/proto"
 	"os"
 	"log"
-	"context"
 	"fmt"
 	"flag"
+	"encoding/json"
+	"github.com/clawio/clawiod/src/proto"
+	"context"
 )
 
-var port int
+var address string
 var method string
 var debug bool
+var jsonencoding bool
 
 var tokenrequsername string
 var tokenrequestpassword string
 var tokenrequestopaque string
 
+var pingrequesttoken string
+
 func init() {
-	flag.IntVar(&port, "port", 1502, "port")
+	flag.StringVar(&address, "address", "localhost:1502", "address of remote server")
 	flag.StringVar(&method, "method", "", "method to be call")
 	flag.BoolVar(&debug, "debug", false, "debug mode")
+	flag.BoolVar(&jsonencoding, "jsonencoding", false, "encode request and response as JSON")
 	flag.StringVar(&tokenrequsername, "tokenrequestusername", "", "token request username")
 	flag.StringVar(&tokenrequestpassword, "tokenrequestpassword", "", "token request password")
 	flag.StringVar(&tokenrequestopaque, "tokenrequestopaque", "", "token request opaque")
+	flag.StringVar(&pingrequesttoken, "pingrequesttoken", "", "ping request token")
+	flag.Usage = func() {
+		fmt.Printf("Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 }
 
@@ -45,6 +55,12 @@ func main() {
 }
 
 func debugCall(req interface{}, res interface{}) {
+	if jsonencoding {
+		req, _ = json.Marshal(req)
+		res, _ = json.Marshal(res)
+		req = string(req.([]byte))
+		res = string(res.([]byte))
+	}
 	if debug {
 		fmt.Println(">>>>>>>")
 		fmt.Println(req)
@@ -73,7 +89,7 @@ func tokenRequest(con *grpc.ClientConn) {
 func pingRequest(con *grpc.ClientConn) {
 	client := proto.NewAuthNClient(con)
 	pingRequest := &proto.PingRequest{}
-	pingRequest.Token = "am83089qn jqegj77748nuuq98rnnny756"
+	pingRequest.Token = pingrequesttoken
 	pingResponse, err := client.Ping(context.Background(),pingRequest)
 	if err != nil {
 		log.Fatal(err)
@@ -81,3 +97,4 @@ func pingRequest(con *grpc.ClientConn) {
 	}
 	debugCall(pingRequest, pingResponse)
 }
+

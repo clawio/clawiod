@@ -3,27 +3,29 @@ syntax = "proto3";
 package proto;
 
 import "error.proto";
+import "security.proto";
+
+
 
 service AuthN {
-	rpc Token(TokenRequest) returns (TokenResponse);
-	rpc Ping(PingRequest) returns (PingResponse);
+	rpc GetTicket(GetTicketRequest) returns (GetTicketResponse);
+	rpc Whoami(WhoamiRequest) returns (WhoamiResponse);
 }
 
-message TokenRequest{
-    string username = 1;
-    string password = 2; 
-    string opaque = 3;
+message GetTicketRequest{
+    SecCredentials sec_credentials = 1;
 }
 
-message TokenResponse {
+message GetTicketResponse {
      string token = 1; 
      Error error  = 2;
 }
 
-message PingRequest {
-	string token = 1;
+message WhoamiRequest{
+    SecCredentials sec_credentials = 1;
 }
 
-message PingResponse {
-	Error error = 1;
+message WhoamiResponse {
+    SecEntity sec_entity = 1;
 }
+

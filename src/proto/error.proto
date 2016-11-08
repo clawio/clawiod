@@ -10,7 +10,7 @@ enum ErrorCode {
 }
 
 message Error {
-	Error code = 1;
+	ErrorCode code = 1;
 	string message = 2;
 	string user = 3;
 }
