@@ -10,10 +10,11 @@ It is generated from these files:
 	error.proto
 	metadata.proto
 	security.proto
+	user.proto
 
 It has these top-level messages:
-	GetTicketRequest
-	GetTicketResponse
+	AuthenticateRequest
+	AuthenticateResponse
 	WhoamiRequest
 	WhoamiResponse
 	Error
@@ -30,6 +31,7 @@ It has these top-level messages:
 	MetaDataInfo
 	SecEntity
 	SecCredentials
+	User
 */
 package proto
 
@@ -53,33 +55,33 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto1.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type GetTicketRequest struct {
+type AuthenticateRequest struct {
 	SecCredentials *SecCredentials `protobuf:"bytes,1,opt,name=sec_credentials" json:"sec_credentials,omitempty"`
 }
 
-func (m *GetTicketRequest) Reset()                    { *m = GetTicketRequest{} }
-func (m *GetTicketRequest) String() string            { return proto1.CompactTextString(m) }
-func (*GetTicketRequest) ProtoMessage()               {}
-func (*GetTicketRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (m *AuthenticateRequest) Reset()                    { *m = AuthenticateRequest{} }
+func (m *AuthenticateRequest) String() string            { return proto1.CompactTextString(m) }
+func (*AuthenticateRequest) ProtoMessage()               {}
+func (*AuthenticateRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-func (m *GetTicketRequest) GetSecCredentials() *SecCredentials {
+func (m *AuthenticateRequest) GetSecCredentials() *SecCredentials {
 	if m != nil {
 		return m.SecCredentials
 	}
 	return nil
 }
 
-type GetTicketResponse struct {
-	Token string `protobuf:"bytes,1,opt,name=token" json:"token,omitempty"`
-	Error *Error `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+type AuthenticateResponse struct {
+	Ticket string `protobuf:"bytes,1,opt,name=ticket" json:"ticket,omitempty"`
+	Error  *Error `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
 }
 
-func (m *GetTicketResponse) Reset()                    { *m = GetTicketResponse{} }
-func (m *GetTicketResponse) String() string            { return proto1.CompactTextString(m) }
-func (*GetTicketResponse) ProtoMessage()               {}
-func (*GetTicketResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (m *AuthenticateResponse) Reset()                    { *m = AuthenticateResponse{} }
+func (m *AuthenticateResponse) String() string            { return proto1.CompactTextString(m) }
+func (*AuthenticateResponse) ProtoMessage()               {}
+func (*AuthenticateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-func (m *GetTicketResponse) GetError() *Error {
+func (m *AuthenticateResponse) GetError() *Error {
 	if m != nil {
 		return m.Error
 	}
@@ -87,7 +89,7 @@ func (m *GetTicketResponse) GetError() *Error {
 }
 
 type WhoamiRequest struct {
-	SecCredentials *SecCredentials `protobuf:"bytes,1,opt,name=sec_credentials" json:"sec_credentials,omitempty"`
+	Ticket string `protobuf:"bytes,1,opt,name=ticket" json:"ticket,omitempty"`
 }
 
 func (m *WhoamiRequest) Reset()                    { *m = WhoamiRequest{} }
@@ -95,15 +97,9 @@ func (m *WhoamiRequest) String() string            { return proto1.CompactTextSt
 func (*WhoamiRequest) ProtoMessage()               {}
 func (*WhoamiRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
-func (m *WhoamiRequest) GetSecCredentials() *SecCredentials {
-	if m != nil {
-		return m.SecCredentials
-	}
-	return nil
-}
-
 type WhoamiResponse struct {
-	SecEntity *SecEntity `protobuf:"bytes,1,opt,name=sec_entity" json:"sec_entity,omitempty"`
+	User  *User  `protobuf:"bytes,1,opt,name=user" json:"user,omitempty"`
+	Error *Error `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
 }
 
 func (m *WhoamiResponse) Reset()                    { *m = WhoamiResponse{} }
@@ -111,16 +107,23 @@ func (m *WhoamiResponse) String() string            { return proto1.CompactTextS
 func (*WhoamiResponse) ProtoMessage()               {}
 func (*WhoamiResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
-func (m *WhoamiResponse) GetSecEntity() *SecEntity {
+func (m *WhoamiResponse) GetUser() *User {
 	if m != nil {
-		return m.SecEntity
+		return m.User
+	}
+	return nil
+}
+
+func (m *WhoamiResponse) GetError() *Error {
+	if m != nil {
+		return m.Error
 	}
 	return nil
 }
 
 func init() {
-	proto1.RegisterType((*GetTicketRequest)(nil), "proto.GetTicketRequest")
-	proto1.RegisterType((*GetTicketResponse)(nil), "proto.GetTicketResponse")
+	proto1.RegisterType((*AuthenticateRequest)(nil), "proto.AuthenticateRequest")
+	proto1.RegisterType((*AuthenticateResponse)(nil), "proto.AuthenticateResponse")
 	proto1.RegisterType((*WhoamiRequest)(nil), "proto.WhoamiRequest")
 	proto1.RegisterType((*WhoamiResponse)(nil), "proto.WhoamiResponse")
 }
@@ -133,97 +136,97 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion3
 
-// Client API for AuthN service
+// Client API for Account service
 
-type AuthNClient interface {
-	GetTicket(ctx context.Context, in *GetTicketRequest, opts ...grpc.CallOption) (*GetTicketResponse, error)
+type AccountClient interface {
+	Authenticate(ctx context.Context, in *AuthenticateRequest, opts ...grpc.CallOption) (*AuthenticateResponse, error)
 	Whoami(ctx context.Context, in *WhoamiRequest, opts ...grpc.CallOption) (*WhoamiResponse, error)
 }
 
-type authNClient struct {
+type accountClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewAuthNClient(cc *grpc.ClientConn) AuthNClient {
-	return &authNClient{cc}
+func NewAccountClient(cc *grpc.ClientConn) AccountClient {
+	return &accountClient{cc}
 }
 
-func (c *authNClient) GetTicket(ctx context.Context, in *GetTicketRequest, opts ...grpc.CallOption) (*GetTicketResponse, error) {
-	out := new(GetTicketResponse)
-	err := grpc.Invoke(ctx, "/proto.AuthN/GetTicket", in, out, c.cc, opts...)
+func (c *accountClient) Authenticate(ctx context.Context, in *AuthenticateRequest, opts ...grpc.CallOption) (*AuthenticateResponse, error) {
+	out := new(AuthenticateResponse)
+	err := grpc.Invoke(ctx, "/proto.Account/Authenticate", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authNClient) Whoami(ctx context.Context, in *WhoamiRequest, opts ...grpc.CallOption) (*WhoamiResponse, error) {
+func (c *accountClient) Whoami(ctx context.Context, in *WhoamiRequest, opts ...grpc.CallOption) (*WhoamiResponse, error) {
 	out := new(WhoamiResponse)
-	err := grpc.Invoke(ctx, "/proto.AuthN/Whoami", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.Account/Whoami", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for AuthN service
+// Server API for Account service
 
-type AuthNServer interface {
-	GetTicket(context.Context, *GetTicketRequest) (*GetTicketResponse, error)
+type AccountServer interface {
+	Authenticate(context.Context, *AuthenticateRequest) (*AuthenticateResponse, error)
 	Whoami(context.Context, *WhoamiRequest) (*WhoamiResponse, error)
 }
 
-func RegisterAuthNServer(s *grpc.Server, srv AuthNServer) {
-	s.RegisterService(&_AuthN_serviceDesc, srv)
+func RegisterAccountServer(s *grpc.Server, srv AccountServer) {
+	s.RegisterService(&_Account_serviceDesc, srv)
 }
 
-func _AuthN_GetTicket_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetTicketRequest)
+func _Account_Authenticate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuthenticateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthNServer).GetTicket(ctx, in)
+		return srv.(AccountServer).Authenticate(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.AuthN/GetTicket",
+		FullMethod: "/proto.Account/Authenticate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthNServer).GetTicket(ctx, req.(*GetTicketRequest))
+		return srv.(AccountServer).Authenticate(ctx, req.(*AuthenticateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthN_Whoami_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Account_Whoami_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(WhoamiRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthNServer).Whoami(ctx, in)
+		return srv.(AccountServer).Whoami(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.AuthN/Whoami",
+		FullMethod: "/proto.Account/Whoami",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthNServer).Whoami(ctx, req.(*WhoamiRequest))
+		return srv.(AccountServer).Whoami(ctx, req.(*WhoamiRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _AuthN_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.AuthN",
-	HandlerType: (*AuthNServer)(nil),
+var _Account_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.Account",
+	HandlerType: (*AccountServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetTicket",
-			Handler:    _AuthN_GetTicket_Handler,
+			MethodName: "Authenticate",
+			Handler:    _Account_Authenticate_Handler,
 		},
 		{
 			MethodName: "Whoami",
-			Handler:    _AuthN_Whoami_Handler,
+			Handler:    _Account_Whoami_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -233,21 +236,21 @@ var _AuthN_serviceDesc = grpc.ServiceDesc{
 func init() { proto1.RegisterFile("authn.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 245 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0x4e, 0x2c, 0x2d, 0xc9,
-	0xc8, 0xd3, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0x53, 0x52, 0xdc, 0xa9, 0x45, 0x45,
-	0xf9, 0x45, 0x10, 0x31, 0x29, 0xbe, 0xe2, 0xd4, 0xe4, 0xd2, 0xa2, 0xcc, 0x92, 0x4a, 0x08, 0x5f,
-	0xc9, 0x89, 0x4b, 0xc0, 0x3d, 0xb5, 0x24, 0x24, 0x33, 0x39, 0x3b, 0xb5, 0x24, 0x28, 0xb5, 0xb0,
-	0x34, 0xb5, 0xb8, 0x44, 0x48, 0x8f, 0x8b, 0xbf, 0x38, 0x35, 0x39, 0x3e, 0xb9, 0x28, 0x35, 0x25,
-	0x35, 0xaf, 0x24, 0x33, 0x31, 0xa7, 0x58, 0x82, 0x51, 0x81, 0x51, 0x83, 0xdb, 0x48, 0x14, 0xa2,
-	0x49, 0x2f, 0x38, 0x35, 0xd9, 0x19, 0x21, 0xa9, 0x64, 0xcf, 0x25, 0x88, 0x64, 0x46, 0x71, 0x41,
-	0x7e, 0x5e, 0x71, 0xaa, 0x10, 0x2f, 0x17, 0x6b, 0x49, 0x7e, 0x76, 0x6a, 0x1e, 0x58, 0x2b, 0xa7,
-	0x90, 0x34, 0x17, 0x2b, 0xd8, 0x19, 0x12, 0x4c, 0x60, 0x93, 0x78, 0xa0, 0x26, 0xb9, 0x82, 0xc4,
-	0x94, 0xec, 0xb9, 0x78, 0xc3, 0x33, 0xf2, 0x13, 0x73, 0x33, 0xc9, 0x75, 0x81, 0x19, 0x17, 0x1f,
-	0xcc, 0x00, 0xa8, 0xf5, 0x2a, 0x5c, 0x5c, 0x20, 0x13, 0x40, 0x0a, 0x4a, 0x2a, 0xa1, 0x9a, 0x05,
-	0x10, 0x9a, 0x5d, 0xc1, 0xe2, 0x46, 0x75, 0x5c, 0xac, 0x8e, 0xa5, 0x25, 0x19, 0x7e, 0x42, 0x76,
-	0x5c, 0x9c, 0x70, 0x2f, 0x08, 0x89, 0x43, 0xd5, 0xa1, 0x07, 0x8c, 0x94, 0x04, 0xa6, 0x04, 0xd4,
-	0x3a, 0x53, 0x2e, 0x36, 0x88, 0x03, 0x84, 0x44, 0xa0, 0x6a, 0x50, 0x3c, 0x24, 0x25, 0x8a, 0x26,
-	0x0a, 0xd1, 0x96, 0xc4, 0x06, 0x16, 0x35, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0x34, 0x77, 0x07,
-	0x17, 0xb7, 0x01, 0x00, 0x00,
+	// 253 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x7c, 0x90, 0x41, 0x4b, 0xc3, 0x40,
+	0x10, 0x85, 0x89, 0xd8, 0x88, 0x93, 0x1a, 0x61, 0x6d, 0xa1, 0x6e, 0x0f, 0x4a, 0x4e, 0x9e, 0x72,
+	0xa8, 0xf8, 0x03, 0x4a, 0x29, 0x7a, 0x56, 0xc4, 0xa3, 0xc4, 0x71, 0x20, 0x41, 0xcd, 0xd6, 0x9d,
+	0xd9, 0x83, 0x3f, 0xc1, 0x7f, 0x2d, 0xd9, 0x4c, 0xd1, 0x96, 0xe0, 0x69, 0xd9, 0xf7, 0xe6, 0xbd,
+	0xfd, 0x66, 0x21, 0xab, 0x82, 0xd4, 0x6d, 0xb9, 0xf1, 0x4e, 0x9c, 0x19, 0xc5, 0xc3, 0x66, 0xe4,
+	0xbd, 0xf3, 0xbd, 0x66, 0x73, 0x26, 0x0c, 0xbe, 0x91, 0x2f, 0xbd, 0x43, 0x60, 0x52, 0xaf, 0x58,
+	0xc3, 0xd9, 0x32, 0x48, 0x4d, 0xad, 0x34, 0x58, 0x09, 0xdd, 0xd3, 0x67, 0x20, 0x16, 0x53, 0xc2,
+	0x29, 0x13, 0x3e, 0xa3, 0xa7, 0xd7, 0xce, 0xaa, 0xde, 0x79, 0x96, 0x5c, 0x26, 0x57, 0xd9, 0x62,
+	0xda, 0xe7, 0xca, 0x07, 0xc2, 0xd5, 0xaf, 0x59, 0xac, 0x60, 0xb2, 0x5b, 0xc3, 0x1b, 0xd7, 0x32,
+	0x99, 0x1c, 0x52, 0x69, 0xf0, 0x8d, 0x24, 0xc6, 0x8f, 0xcd, 0x1c, 0x46, 0x91, 0x6c, 0x76, 0x10,
+	0xdb, 0xc6, 0xda, 0xb6, 0xee, 0xb4, 0xe2, 0x02, 0x4e, 0x9e, 0x6a, 0x57, 0x7d, 0x34, 0x5b, 0x8a,
+	0xbd, 0x74, 0x71, 0x07, 0xf9, 0x76, 0x40, 0xfb, 0xcf, 0xe1, 0xb0, 0x5b, 0x46, 0xe1, 0x32, 0xad,
+	0x7b, 0x64, 0xf2, 0xff, 0x3e, 0xb5, 0xf8, 0x4e, 0xe0, 0x68, 0x89, 0xe8, 0x42, 0x2b, 0xe6, 0x16,
+	0xc6, 0x7f, 0xd9, 0x8d, 0xd5, 0xc9, 0x81, 0x7f, 0xb1, 0xf3, 0x41, 0x4f, 0x61, 0x6e, 0x20, 0xed,
+	0xf1, 0xcc, 0x44, 0xc7, 0x76, 0xd6, 0xb1, 0xd3, 0x3d, 0xb5, 0x8f, 0xbd, 0xa4, 0x51, 0xbd, 0xfe,
+	0x09, 0x00, 0x00, 0xff, 0xff, 0x86, 0xbf, 0x26, 0x27, 0xc8, 0x01, 0x00, 0x00,
 }

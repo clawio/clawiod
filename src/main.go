@@ -17,6 +17,7 @@ port=1502
 
 [authn]
 secret=supersecret
+`)
 
 func main() {
 	cfg, err := ini.Load(config)

@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package proto;
+
+import "error.proto";
+import "security.proto";
+import "user.proto";
+
+
+
+service Account {
+	rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+	rpc Whoami(WhoamiRequest) returns (WhoamiResponse);
+}
+
+message AuthenticateRequest {
+    SecCredentials sec_credentials = 1;
+}
+
+message AuthenticateResponse {
+     string ticket = 1;
+     Error error  = 2;
+}
+
+message WhoamiRequest{
+    string ticket = 1;
+}
+
+message WhoamiResponse {
+    User user  = 1;
+    Error error  = 2;
+}
+

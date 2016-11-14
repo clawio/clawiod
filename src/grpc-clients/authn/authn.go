@@ -1,36 +1,32 @@
 package main
 
 import (
-	"google.golang.org/grpc"
-	"os"
-	"log"
-	"fmt"
-	"flag"
-	"encoding/json"
-	"github.com/clawio/clawiod/src/proto"
 	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"github.com/clawio/clawiod/src/proto"
+	"google.golang.org/grpc"
+	"log"
+	"os"
 )
 
 var address string
 var method string
 var debug bool
-var jsonencoding bool
-
-var tokenrequsername string
-var tokenrequestpassword string
-var tokenrequestopaque string
-
-var pingrequesttoken string
+var tojson bool
+var getticketrequestcredentialsprotocol int
+var getticketrequestcredentialscredentials string
+var listmethods bool
 
 func init() {
 	flag.StringVar(&address, "address", "localhost:1502", "address of remote server")
 	flag.StringVar(&method, "method", "", "method to be call")
 	flag.BoolVar(&debug, "debug", false, "debug mode")
-	flag.BoolVar(&jsonencoding, "jsonencoding", false, "encode request and response as JSON")
-	flag.StringVar(&tokenrequsername, "tokenrequestusername", "", "token request username")
-	flag.StringVar(&tokenrequestpassword, "tokenrequestpassword", "", "token request password")
-	flag.StringVar(&tokenrequestopaque, "tokenrequestopaque", "", "token request opaque")
-	flag.StringVar(&pingrequesttoken, "pingrequesttoken", "", "ping request token")
+	flag.BoolVar(&tojson, "tojson", false, "encode req and response as JSON")
+	flag.BoolVar(&listmethods, "listmethods", false, "list available methods")
+	flag.IntVar(&getticketrequestcredentialsprotocol, "getticketrequestcredentialsprotocol", 0, "protocol (0 => Basic, 1 => KRB")
+	flag.StringVar(&getticketrequestcredentialscredentials, "getticketrequestcredentialscredentials", "", "credentials")
 	flag.Usage = func() {
 		fmt.Printf("Usage of %s:\n", os.Args[0])
 		flag.PrintDefaults()
@@ -38,24 +34,29 @@ func init() {
 	flag.Parse()
 }
 
-
 func main() {
-	con, err := grpc.Dial("localhost:1502", grpc.WithInsecure())
+	con, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
 
+	if listmethods {
+		fmt.Println("GetTicket")
+		os.Exit(0)
+	}
+
 	switch method {
-	case "token":
-		tokenRequest(con)
-	case "ping":
-		pingRequest(con)
+	case "GetTicket":
+		getTicketRequest(con)
+	default:
+		log.Fatal("method doesn't exist")
+		os.Exit(1)
 	}
 }
 
 func debugCall(req interface{}, res interface{}) {
-	if jsonencoding {
+	if tojson {
 		req, _ = json.Marshal(req)
 		res, _ = json.Marshal(res)
 		req = string(req.([]byte))
@@ -72,29 +73,19 @@ func debugCall(req interface{}, res interface{}) {
 	}
 }
 
-func tokenRequest(con *grpc.ClientConn) {
+func getTicketRequest(con *grpc.ClientConn) {
+	secCredentials := &proto.SecCredentials{}
+	secCredentials.Protocol = proto.ProtocolType(getticketrequestcredentialsprotocol)
+	secCredentials.Credentials = getticketrequestcredentialscredentials
+
+	ticketRequest := &proto.GetTicketRequest{}
+	ticketRequest.SecCredentials = secCredentials
+
 	client := proto.NewAuthNClient(con)
-	tokenRequest := &proto.TokenRequest{}
-	tokenRequest.Username = tokenrequsername
-	tokenRequest.Password = tokenrequestpassword
-	tokenRequest.Opaque = tokenrequestopaque
-	tokenResponse, err := client.Token(context.Background(), tokenRequest)
+	ticketResponse, err := client.GetTicket(context.Background(), ticketRequest)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	debugCall(tokenRequest, tokenResponse)
+	debugCall(ticketRequest, ticketResponse)
 }
-
-func pingRequest(con *grpc.ClientConn) {
-	client := proto.NewAuthNClient(con)
-	pingRequest := &proto.PingRequest{}
-	pingRequest.Token = pingrequesttoken
-	pingResponse, err := client.Ping(context.Background(),pingRequest)
-	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
-	}
-	debugCall(pingRequest, pingResponse)
-}
-
