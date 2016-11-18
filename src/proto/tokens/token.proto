@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package proto;
+
+service Tokens {
+	rpc Create(CreateRequest) returns (CreateResponse);
+}
+
+message CreateRequest {
+    string credentials = 1;
+}
+
+message CreateResponse {
+    string access_token= 1;
+}
