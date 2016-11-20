@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package proto;
+
+service Users {
+	rpc GetCurrentAccount(GetCurrentAccountReq) returns (GetCurrentAccountRes);
+}
+
+message GetCurrentAccountReq {
+}
+
+message GetCurrentAccountRes {
+	string account_id = 1;
+	string display_name = 2;
+}
+

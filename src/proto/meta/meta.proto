@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package proto;
+
+service Meta {
+	rpc CreateFolder(CreateFolderReq) returns (CreateFolderRes);
+	rpc Copy(CopyReq) returns (CopyRes);
+	rpc Move(MoveReq) returns (MoveRes);
+	rpc Remove(RemoveReq) returns (RemoveRes);
+	rpc GetMeta(GetMetaReq) returns (Metadata);
+}
+
+message CreateFolderReq{
+	string path = 1;
+	string opaque = 2;
+}
+
+message CreateFolderRes {
+	string opaque = 1;
+}
+
+message CopyReq {
+	string from_path = 1;
+	string to_path = 2;
+	string opaque = 3;
+}
+
+message CopyRes {
+	string opaque = 1;
+}
+
+message MoveReq {
+	string from_path = 1;
+	string to_path = 2;	
+	string opaque = 3;
+}
+
+message MoveRes {
+	string opaque = 1;
+}
+
+message RemoveReq {
+	string path = 1;
+	string opaque = 2;
+}
+
+message RemoveRes {
+	string opaque = 1;
+}
+
+message GetMetaReq {
+	string path = 1;
+	bool children = 2;
+	string opaque = 3;
+}
+
+message Metadata {
+	int64 id = 1;
+	string path = 2;
+	bool is_folder = 3;
+	int64 size = 4;
+	int64 client_modification = 5;
+	string server_modification = 6;
+	string xs = 7;
+	string etag = 8;
+	int64 permissions = 9;
+	repeated Metadata children = 10;
+	string opaque = 11;
+}
