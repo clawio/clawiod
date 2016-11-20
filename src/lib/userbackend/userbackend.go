@@ -2,16 +2,15 @@ package userbackend
 
 import (
 	"github.com/clawio/clawiod/src/proto"
-	"github.com/clawio/clawiod/src/lib/sessionbackend"
 )
 
 type UserBackend interface {
 	// GetBackendID returns the ID of the backend.
 	GetBackendID() string
 
-	// ValidateCredentials validate the supplied credentials and returns a
-	// session token
-	Authenticate(secCredentials *proto.SecCredentials) (string, error)
+	// ValidateCredentials checks if the supplied credentials are
+	// valid and returns the userID.
+	Authenticate(secCredentials *proto.SecCredentials) (*proto.User, error)
 
 	// GetUser returns information about an user
 	GetUser(username string) (*proto.User, error)
@@ -25,7 +24,4 @@ type UserBackend interface {
 
 	// GetNumberOfUsers returns the number of users in the backend
 	GetNumberOfUsers() (int, error)
-
-	// GetSessionBackend sets the session
-	GetSessionBackend() (sessionbackend.SessionBackend, error)
 }

@@ -4,6 +4,7 @@ package proto;
 
 enum ErrorCode {
 	OK = 0;
+	INTERNAL = 1;
 	CREDENTIALS_INVALID = 10;
 	FILE_NOT_FOUND = 20;
 	FILE_EXISTS = 21;
