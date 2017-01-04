@@ -14,12 +14,12 @@ func (s *svc) Upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
 	clientChecksum := s.getClientChecksum(r)
 	readCloser := http.MaxBytesReader(w, r.Body, int64(s.conf.GetDirectives().Data.UploadMaxFileSize))
-	if err := s.dataController.UploadBLOB(user, path, readCloser, clientChecksum); err != nil {
+	if err := s.dataController.UploadBLOB(r.Context(), user, path, readCloser, clientChecksum); err != nil {
 		s.handleUploadError(err, w, r)
 		return
 	}
@@ -27,7 +27,7 @@ func (s *svc) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleUploadError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 
 	if err.Error() == "http: request body too large" {
 		log.WithError(err).Error("request body max size exceed")

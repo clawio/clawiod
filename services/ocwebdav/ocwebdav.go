@@ -101,14 +101,14 @@ func (s *svc) Endpoints() map[string]map[string]http.HandlerFunc {
 // basicAuthHandlerFunc is a middleware function to authenticate HTTP requests.
 func (s *svc) basicAuthHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := keys.MustGetLog(r)
+		log := keys.MustGetLog(r.Context())
 
 		// try to get token from cookie
 		authCookie, err := r.Cookie("OC_SessionPassphrase")
 		if err == nil {
 			user, err := s.authenticator.CreateUserFromToken(authCookie.Value)
 			if err == nil {
-				r = keys.SetUser(r, user)
+				r = r.WithContext(keys.SetUser(r.Context(), user))
 				log.WithField("user", user.Username).Info("authenticated request")
 				handler(w, r)
 				return
@@ -144,7 +144,7 @@ func (s *svc) basicAuthHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 
 		user, err := s.authenticator.CreateUserFromToken(token)
 		if err == nil {
-			r = keys.SetUser(r, user)
+			r = r.WithContext(keys.SetUser(r.Context(), user))
 			log.WithField("user", user.Username).Info("authenticated request")
 			handler(w, r)
 			return

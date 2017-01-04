@@ -8,7 +8,7 @@ import (
 
 // Init retrieves the information about an object.
 func (s *svc) Init(w http.ResponseWriter, r *http.Request) {
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 	err := s.metaDataController.Init(user)
 	if err != nil {
 		s.handleInitError(err, w, r)
@@ -17,7 +17,7 @@ func (s *svc) Init(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleInitError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	log.WithError(err).Error("cannot create user home directory")
 	w.WriteHeader(http.StatusInternalServerError)
 	return

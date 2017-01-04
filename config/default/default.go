@@ -76,6 +76,10 @@ var DefaultDirectives = config.Directives{
 			Namespace:          "/tmp/clawio-namespace",
 			TemporaryNamespace: "/tmp/clawio-temporary-namespace",
 		},
+
+		Remote: config.DataRemote{
+			ServiceURL: "http://localhost:1503/api/v1/data/",
+		},
 	},
 
 	WebDAV: config.WebDAV{

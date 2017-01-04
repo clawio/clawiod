@@ -24,7 +24,7 @@ type (
 
 // Authenticate authenticates an user using an username and a password.
 func (s *svc) Token(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 
 	if r.Body == nil {
 		log.WithError(errors.New("body is nil")).Info("cannot read body")
@@ -59,7 +59,7 @@ func (s *svc) Token(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleTokenError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	e := codes.NewErr(codes.BadInputData, "user or password do not match")
 	log.WithError(e).Error(codes.BadInputData.String())
 	w.WriteHeader(http.StatusBadRequest)

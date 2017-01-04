@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	//"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/keys"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/ocsql"
@@ -24,8 +23,8 @@ func (s *svc) PutChunked(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := keys.MustGetUser(r)
-	log := keys.MustGetLog(r)
+	user := keys.MustGetUser(r.Context())
+	log := keys.MustGetLog(r.Context())
 	path := mux.Vars(r)["path"]
 
 	chunkInfo, err := getChunkBLOBInfo(path)
@@ -147,7 +146,7 @@ func (s *svc) PutChunked(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.WithField("pathspec", chunkInfo.pathSpec).Debug("upload chunk to final destination")
-	if err = s.dataController.UploadBLOB(user, chunkInfo.pathSpec, assembledFile, ""); err != nil {
+	if err = s.dataController.UploadBLOB(r.Context(), user, chunkInfo.pathSpec, assembledFile, ""); err != nil {
 		s.handlePutError(err, w, r)
 		return
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/clawio/clawiod/services/data/datacontroller/ocsql"
 	"github.com/clawio/clawiod/services/data/datacontroller/simple"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/clawio/clawiod/services/data/datacontroller/remote"
 )
 
 // ServiceName identities this service.
@@ -38,6 +39,8 @@ func GetDataController(conf *config.Config) (datacontroller.DataController, erro
 		return simple.New(conf)
 	case "ocsql":
 		return ocsql.New(conf)
+	case "remote":
+		return remote.New(conf)
 	default:
 		return nil, errors.New("data type " + dirs.Data.Type + " does not exist")
 	}

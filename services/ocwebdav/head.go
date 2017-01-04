@@ -12,7 +12,7 @@ import (
 
 // Head implements the WebDAV HEAD method.
 func (s *svc) Head(w http.ResponseWriter, r *http.Request) {
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
 	info, err := s.metaDataController.ExamineObject(user, path)
@@ -32,7 +32,7 @@ func (s *svc) Head(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleHeadError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

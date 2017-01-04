@@ -10,7 +10,7 @@ import (
 
 // Status implements the  ownCloud status call
 func (s *svc) Status(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 
 	major := "8"
 	minor := "2"

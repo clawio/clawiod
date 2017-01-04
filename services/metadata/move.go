@@ -22,7 +22,7 @@ func (s *svc) MoveObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 
 	err = s.metaDataController.MoveObject(user, sourcePath, targetPath)
 	if err != nil {
@@ -32,7 +32,7 @@ func (s *svc) MoveObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleMoveObjectError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			log.WithError(err).Error("object not found")

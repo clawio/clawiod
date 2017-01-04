@@ -9,7 +9,7 @@ import (
 
 // Delete implements the WebDAV DELETE method.
 func (s *svc) Delete(w http.ResponseWriter, r *http.Request) {
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
 	err := s.metaDataController.DeleteObject(user, path)
@@ -21,7 +21,7 @@ func (s *svc) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleDeleteError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	log.WithError(err).Error("cannot delete object")
 	w.WriteHeader(http.StatusInternalServerError)
 	return

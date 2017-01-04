@@ -11,7 +11,7 @@ import (
 
 // Options implements the WebDAV GET method to download a file.
 func (s *svc) Options(w http.ResponseWriter, r *http.Request) {
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
 	info, err := s.metaDataController.ExamineObject(user, path)
@@ -34,7 +34,7 @@ func (s *svc) Options(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleOptionsError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			w.WriteHeader(http.StatusNotFound)

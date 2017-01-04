@@ -17,8 +17,8 @@ func (s *svc) Put(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := keys.MustGetUser(r)
-	log := keys.MustGetLog(r)
+	user := keys.MustGetUser(r.Context())
+	log := keys.MustGetLog(r.Context())
 
 	if s.requestHasContentRange(r) {
 		log.Warning("Content-Range header is not accepted on PUT")
@@ -47,7 +47,7 @@ func (s *svc) Put(w http.ResponseWriter, r *http.Request) {
 	}
 
 	readCloser := http.MaxBytesReader(w, r.Body, int64(s.conf.GetDirectives().WebDAV.UploadMaxFileSize))
-	if err := s.dataController.UploadBLOB(user, path, readCloser, ""); err != nil {
+	if err := s.dataController.UploadBLOB(r.Context(), user, path, readCloser, ""); err != nil {
 		s.handlePutError(err, w, r)
 		return
 	}
@@ -62,7 +62,7 @@ func (s *svc) Put(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handlerFinderRequest(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 
 	/*
 	   Many webservers will not cooperate well with Finder PUT requests,
@@ -135,7 +135,7 @@ func (s *svc) isNotFoundError(err error) bool {
 	return false
 }
 func (s *svc) handlePutError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 
 	if err.Error() == "http: request body too large" {
 		log.WithError(err).Error("request body max size exceed")

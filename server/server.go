@@ -96,7 +96,7 @@ func (s *Server) handler() http.Handler {
 		tid := uuid.NewV4().String()
 		cLog := s.log.WithFields(logrus.Fields{"tid": tid})
 		cLog.WithFields(logrus.Fields{"method": r.Method, "uri": helpers.SanitizeURL(r.URL)}).Info("request started")
-		r = keys.SetLog(r, cLog)
+		r = r.WithContext(keys.SetLog(r.Context(), cLog))
 		defer func() {
 			cLog.Info("request ended")
 			// Catch panic and return 500 with corresponding tid for debugging
@@ -159,11 +159,8 @@ func (s *Server) configureRouter() error {
 				u := strings.TrimRight(dirs.Server.BaseURL, "/") + svcBase + path
 				prometheus.InstrumentHandler(u, handler)
 
-				//ep := fmt.Sprintf("%s %s", method, u)
 				s.log.WithField("method", method).WithField("endpoint", u).Info("endpoint registered")
-				if isServiceEnabled(svc.Name(), corsEnabled) {
-					//ep := fmt.Sprintf("%s %s", "OPTIONS", u)
-
+				if  dirs.Server.CORSEnabled && isServiceEnabled(svc.Name(), corsEnabled) {
 					s.log.WithField("method", "OPTIONS").WithField("endpoint", u).Info("endpoint registered (cors)")
 				}
 			}

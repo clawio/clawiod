@@ -7,9 +7,10 @@ import (
 	"github.com/clawio/clawiod/services/data/datacontroller"
 	"github.com/clawio/clawiod/entities"
 	"net/http"
-	"net/url"
-	"strings"
 	"github.com/clawio/clawiod.bak/helpers"
+	"github.com/clawio/clawiod/keys"
+	"github.com/clawio/clawiod.back/codes"
+	"context"
 )
 
 type controller struct {
@@ -17,23 +18,44 @@ type controller struct {
 	client *http.Client
 }
 
-func New(config *config.Config) datacontroller.DataController {
-	return &controller{config: config, client: http.DefaultClient}
+func New(config *config.Config) (datacontroller.DataController, error) {
+	return &controller{config: config, client: http.DefaultClient}, nil
 }
 
-func (c *controller) UploadBLOB(user *entities.User, pathSpec string, r io.Reader, clientChecksum string) error {
-	req, err := http.NewRequest("POST", helpers.SecureJoin(c.config.GetDirectives().Data.Remote.ServiceURL, 'upload'), r)
+func (c *controller) UploadBLOB(ctx context.Context, user *entities.User, pathSpec string, r io.Reader, clientChecksum string) error {
+	token := keys.MustGetToken(ctx)
+	req, err := http.NewRequest("PUT", c.config.GetDirectives().Data.Remote.ServiceURL + helpers.SecureJoin("upload", pathSpec), r)
 	if err != nil {
 		return err
 	}
-	res, err := c.client.Do(r)
+	req.Header.Add("Authorization", "Bearer " + token)
+	res, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated{
+		return nil
+	}
 
-	return nil
+	return codes.NewErr(codes.Internal, "put to remote data server failed")
 }
-func (c *controller) DownloadBLOB(user *entities.User, pathSpec string) (io.Reader, error) {
-	r, _, err := c.sdk.Data.Download(pathSpec)
+func (c *controller) DownloadBLOB(ctx context.Context, user *entities.User, pathSpec string) (io.ReadCloser, error) {
+	token := keys.MustGetToken(ctx)
+	req, err := http.NewRequest(
+		"GET",
+		c.config.GetDirectives().Data.Remote.ServiceURL + helpers.SecureJoin("download", pathSpec),
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+	req.Header.Add("Authorization", "Bearer " + token)
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, codes.NewErr(codes.Internal, "get to remote data server failed")
+	}
+	return res.Body, nil
 }

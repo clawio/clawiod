@@ -11,8 +11,8 @@ import (
 
 // ExamineObject retrieves the information about an object.
 func (s *svc) ExamineObject(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
-	user := keys.MustGetUser(r)
+	log := keys.MustGetLog(r.Context())
+	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
 	oinfo, err := s.metaDataController.ExamineObject(user, path)
@@ -26,7 +26,7 @@ func (s *svc) ExamineObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleExamineObjectError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			log.WithError(err).Error("object not found")

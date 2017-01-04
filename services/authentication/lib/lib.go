@@ -97,7 +97,7 @@ func (a *Authenticator) getTokenFromHeader(r *http.Request) string {
 // JWTHandlerFunc is a middleware function to authenticate HTTP requests.
 func (a *Authenticator) JWTHandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := keys.MustGetLog(r)
+		log := keys.MustGetLog(r.Context())
 		token := a.getTokenFromRequest(r)
 		user, err := a.CreateUserFromToken(token)
 		if err != nil {
@@ -105,7 +105,8 @@ func (a *Authenticator) JWTHandlerFunc(handler http.HandlerFunc) http.HandlerFun
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		r = keys.SetUser(r, user)
+		r = r.WithContext(keys.SetUser(r.Context(), user))
+		r = r.WithContext(keys.SetToken(r.Context(), token))
 		log.WithField("user", user.Username).Info("authenticated request")
 		handler(w, r)
 	}

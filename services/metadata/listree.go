@@ -11,8 +11,8 @@ import (
 
 // ListTree retrieves the information about an object.
 func (s *svc) ListTree(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
-	user := keys.MustGetUser(r)
+	log := keys.MustGetLog(r.Context())
+	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
 	oinfos, err := s.metaDataController.ListTree(user, path)
@@ -26,7 +26,7 @@ func (s *svc) ListTree(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleListTreeError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			log.WithError(err).Error("object not found")

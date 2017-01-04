@@ -1,8 +1,6 @@
 package keys
 
 import (
-	"net/http"
-
 	"context"
 	"github.com/Sirupsen/logrus"
 	"github.com/clawio/clawiod/entities"
@@ -14,28 +12,39 @@ const (
 	// userKey is the key to use when storing an entities.User into a context.
 	userKey contextKey = iota
 
-	// LogKey is the key to use when storing an *logrus.Entry into a context.
+	// logKey is the key to use when storing an *logrus.Entry into a context.
 	logKey contextKey = iota
+
+	// tokenKey is the key to use when storing a JWT token (string) into a context.
+	tokenKey contextKey = iota
 )
 
 // SetUser stores a user in the request context.
-func SetUser(r *http.Request, user *entities.User) *http.Request {
-	ctx := context.WithValue(r.Context(), userKey, user)
-	return r.WithContext(ctx)
-}
-
-// SetLog stores a log entry in the request context.
-func SetLog(r *http.Request, log *logrus.Entry) *http.Request {
-	ctx := context.WithValue(r.Context(), logKey, log)
-	return r.WithContext(ctx)
+func SetUser(ctx context.Context, user *entities.User) context.Context {
+	return context.WithValue(ctx, userKey, user)
 }
 
 // MustGetUser retrieves a user from the request context and panics if not found.
-func MustGetUser(r *http.Request) *entities.User {
-	return r.Context().Value(userKey).(*entities.User)
+func MustGetUser(ctx context.Context) *entities.User {
+	return ctx.Value(userKey).(*entities.User)
+}
+
+// SetLog stores a log entry in the request context.
+func SetLog(ctx context.Context, log *logrus.Entry) context.Context {
+	return context.WithValue(ctx, logKey, log)
 }
 
 // MustGetLog retrieves a log entry from the request context and panics if not found.
-func MustGetLog(r *http.Request) *logrus.Entry {
-	return r.Context().Value(logKey).(*logrus.Entry)
+func MustGetLog(ctx context.Context) *logrus.Entry {
+	return ctx.Value(logKey).(*logrus.Entry)
+}
+
+// SetToken stores a token in the request context.
+func SetToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, tokenKey, token)
+}
+
+// MustGetToken retrieves a token from the request context and panics if not found.
+func MustGetToken(ctx context.Context) string {
+	return ctx.Value(tokenKey).(string)
 }

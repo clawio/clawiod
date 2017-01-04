@@ -19,6 +19,7 @@ import (
 	"github.com/clawio/clawiod/entities"
 	"github.com/clawio/clawiod/services/data/datacontroller"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/ocsql"
+	"context"
 )
 
 type controller struct {
@@ -47,7 +48,7 @@ func New(conf *config.Config) (datacontroller.DataController, error) {
 // 2) Optional: calculate the checksum of the blob if server-checksum is enabled.
 // 3) Optional: if a client-checksum is provided, check if it matches with the server-checksum.
 // 4) Move the blob from the temporary directory to user directory.
-func (c *controller) UploadBLOB(user *entities.User, pathSpec string, r io.Reader, clientchecksum string) error {
+func (c *controller) UploadBLOB(ctx context.Context, user *entities.User, pathSpec string, r io.Reader, clientchecksum string) error {
 	tempFileName, err := c.saveToTempFile(r)
 	if err != nil {
 		return err
@@ -82,7 +83,7 @@ func (c *controller) UploadBLOB(user *entities.User, pathSpec string, r io.Reade
 	return c.metaDataController.SetDBMetaData(c.metaDataController.GetVirtualPath(user, pathSpec), clientchecksum, c.metaDataController.GetVirtualPath(user, "/"))
 }
 
-func (c *controller) DownloadBLOB(user *entities.User, pathSpec string) (io.Reader, error) {
+func (c *controller) DownloadBLOB(ctx context.Context, user *entities.User, pathSpec string) (io.ReadCloser, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	fd, err := os.Open(storagePath)
 	if err != nil {

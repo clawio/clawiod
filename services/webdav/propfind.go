@@ -15,7 +15,7 @@ import (
 
 // Propfind implements the WebDAV PROPFIND method.
 func (s *svc) Propfind(w http.ResponseWriter, r *http.Request) {
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
 	var children bool
@@ -122,7 +122,7 @@ func (s *svc) infoToPropResponse(info *entities.ObjectInfo) (*responseXML, error
 
 }
 func (s *svc) handlePropfindError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

@@ -14,15 +14,16 @@ import (
 
 // Download streams a file to the client.
 func (s *svc) Download(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
-	user := keys.MustGetUser(r)
+	log := keys.MustGetLog(r.Context())
+	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
-	reader, err := s.dataController.DownloadBLOB(user, path)
+	reader, err := s.dataController.DownloadBLOB(r.Context(), user, path)
 	if err != nil {
 		s.handleDownloadError(err, w, r)
 		return
 	}
+	defer reader.Close()
 	// add security headers
 	w.Header().Add("X-Content-Type-Options", "nosniff")
 	w.Header().Add("Content-Type", entities.ObjectTypeBLOBMimeType)
@@ -33,7 +34,7 @@ func (s *svc) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleDownloadError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

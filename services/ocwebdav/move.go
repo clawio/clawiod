@@ -13,7 +13,7 @@ import (
 
 // Move implements the WebDAV MOVE method.
 func (s *svc) Move(w http.ResponseWriter, r *http.Request) {
-	user := keys.MustGetUser(r)
+	user := keys.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
 	destination := r.Header.Get("Destination")
@@ -65,7 +65,7 @@ func (s *svc) Move(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleMoveError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	log.WithError(err).Error("cannot move object")
 	w.WriteHeader(http.StatusInternalServerError)
 	return

@@ -12,8 +12,8 @@ import (
 
 // Get implements the WebDAV GET method to download a file.
 func (s *svc) Get(w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
-	user := keys.MustGetUser(r)
+	log := keys.MustGetLog(r.Context())
+	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
 	info, err := s.metaDataController.ExamineObject(user, path)
@@ -27,7 +27,7 @@ func (s *svc) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reader, err := s.dataController.DownloadBLOB(user, path)
+	reader, err := s.dataController.DownloadBLOB(r.Context(), user, path)
 	if err != nil {
 		s.handleGetError(err, w, r)
 		return
@@ -41,7 +41,7 @@ func (s *svc) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *svc) handleGetError(err error, w http.ResponseWriter, r *http.Request) {
-	log := keys.MustGetLog(r)
+	log := keys.MustGetLog(r.Context())
 	if codeErr, ok := err.(*codes.Err); ok {
 		if codeErr.Code == codes.NotFound {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
