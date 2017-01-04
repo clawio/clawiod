@@ -167,6 +167,7 @@ type Data struct {
 	UploadMaxFileSize int        `json:"upload_max_file_size"`
 	Simple            DataSimple `json:"simple"`
 	OCSQL             DataOCSQL  `json:"ocsql"`
+	Remote            DataRemote `json:"remote"`
 }
 
 // DataSimple is the configuration subsection dedicated to the data simple controller.
@@ -183,6 +184,10 @@ type DataOCSQL struct {
 	TemporaryNamespace   string `json:"temporary_namespace"`
 	Checksum             string `json:"checksum"`
 	VerifyClientChecksum bool   `json:"verify_client_checksum"`
+}
+
+type DataRemote struct {
+	ServiceURL string `json:"service_url"`
 }
 
 // WebDAV is the configuration section dedicated to the WebDAV service.

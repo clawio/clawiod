@@ -88,10 +88,10 @@ func handleShowConfig(cfg *config.Config) {
 func handleVersion() {
 	// if gitTag is not empty we are on release build
 	if gitTag != "" {
-		fmt.Printf("%s %s commit:%s release-build\n", appName, gitNearestTag, gitCommit)
+		fmt.Printf("%s %s commit:%s release-build %s\n", appName, gitNearestTag, gitCommit, buildDate)
 		os.Exit(0)
 	}
-	fmt.Printf("%s %s commit:%s dev-build\n", appName, gitNearestTag, gitCommit)
+	fmt.Printf("%s %s commit:%s dev-build %s\n", appName, gitNearestTag, gitCommit, buildDate)
 	os.Exit(0)
 }
 
