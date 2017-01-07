@@ -17,6 +17,9 @@ const (
 
 	// tokenKey is the key to use when storing a JWT token (string) into a context.
 	tokenKey contextKey = iota
+
+	// tidKey is the key to use when storing a trace identifies into a context.
+	tidKey contextKey = iota
 )
 
 // SetUser stores a user in the request context.
@@ -47,4 +50,16 @@ func SetToken(ctx context.Context, token string) context.Context {
 // MustGetToken retrieves a token from the request context and panics if not found.
 func MustGetToken(ctx context.Context) string {
 	return ctx.Value(tokenKey).(string)
+}
+
+// SetTID stores a tid in the request context.
+func SetTID(ctx context.Context, tid string) context.Context {
+	return context.WithValue(ctx, tidKey, tid)
+}
+
+// MustGetTID retrieves a tid from the request context if there is one.
+func GetTID(ctx context.Context) (string, bool) {
+	str, ok := ctx.Value(tidKey).(string)
+	return str, ok
+
 }

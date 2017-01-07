@@ -24,7 +24,7 @@ func (s *svc) MoveObject(w http.ResponseWriter, r *http.Request) {
 
 	user := keys.MustGetUser(r.Context())
 
-	err = s.metaDataController.MoveObject(user, sourcePath, targetPath)
+	err = s.metaDataController.MoveObject(r.Context(), user, sourcePath, targetPath)
 	if err != nil {
 		s.handleMoveObjectError(err, w, r)
 		return

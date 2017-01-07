@@ -44,13 +44,13 @@ func (s *svc) Move(w http.ResponseWriter, r *http.Request) {
 	toTrim := filepath.Join("/", dirs.Server.BaseURL, dirs.OCWebDAV.BaseURL) + "/remote.php/webdav/"
 	destination = strings.TrimPrefix(destinationURL.Path, toTrim)
 
-	err = s.metaDataController.MoveObject(user, path, destination)
+	err = s.metaDataController.MoveObject(r.Context(), user, path, destination)
 	if err != nil {
 		s.handleMoveError(err, w, r)
 		return
 	}
 
-	info, err := s.metaDataController.ExamineObject(user, destination)
+	info, err := s.metaDataController.ExamineObject(r.Context(), user, destination)
 	if err != nil {
 		s.handleMoveError(err, w, r)
 		return

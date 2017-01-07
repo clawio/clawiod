@@ -51,7 +51,7 @@ func (s *svc) Put(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	info, err := s.metaDataController.ExamineObject(user, path)
+	info, err := s.metaDataController.ExamineObject(r.Context(), user, path)
 	// if err is not found it is okay to continue
 	if err != nil {
 		if !s.isNotFoundError(err) {
@@ -84,7 +84,7 @@ func (s *svc) Put(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newInfo, err := s.metaDataController.ExamineObject(user, path)
+	newInfo, err := s.metaDataController.ExamineObject(r.Context(), user, path)
 	if err != nil {
 		s.handlePutError(err, w, r)
 		return

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"context"
 	"github.com/clawio/clawiod/codes"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
@@ -37,7 +38,7 @@ func New(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 	return c, nil
 }
 
-func (c *controller) Init(user *entities.User) error {
+func (c *controller) Init(ctx context.Context, user *entities.User) error {
 	storagePath := c.getStoragePath(user, "/")
 	if err := os.MkdirAll(storagePath, 0755); err != nil {
 		return err
@@ -45,7 +46,7 @@ func (c *controller) Init(user *entities.User) error {
 	return nil
 }
 
-func (c *controller) CreateTree(user *entities.User, pathSpec string) error {
+func (c *controller) CreateTree(ctx context.Context, user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
 	if err := os.Mkdir(storagePath, 0755); err != nil {
 		return err
@@ -53,7 +54,7 @@ func (c *controller) CreateTree(user *entities.User, pathSpec string) error {
 	return nil
 }
 
-func (c *controller) ExamineObject(user *entities.User, pathSpec string) (*entities.ObjectInfo, error) {
+func (c *controller) ExamineObject(ctx context.Context, user *entities.User, pathSpec string) (*entities.ObjectInfo, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	finfo, err := os.Stat(storagePath)
 	if err != nil {
@@ -66,7 +67,7 @@ func (c *controller) ExamineObject(user *entities.User, pathSpec string) (*entit
 	return oinfo, nil
 }
 
-func (c *controller) ListTree(user *entities.User, pathSpec string) ([]*entities.ObjectInfo, error) {
+func (c *controller) ListTree(ctx context.Context, user *entities.User, pathSpec string) ([]*entities.ObjectInfo, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	finfo, err := os.Stat(storagePath)
 	if err != nil {
@@ -97,12 +98,12 @@ func (c *controller) ListTree(user *entities.User, pathSpec string) ([]*entities
 	return oinfos, nil
 }
 
-func (c *controller) DeleteObject(user *entities.User, pathSpec string) error {
+func (c *controller) DeleteObject(ctx context.Context, user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
 	return os.RemoveAll(storagePath)
 }
 
-func (c *controller) MoveObject(user *entities.User, sourcePathSpec, targetPathSpec string) error {
+func (c *controller) MoveObject(ctx context.Context, user *entities.User, sourcePathSpec, targetPathSpec string) error {
 	sourceStoragePath := c.getStoragePath(user, sourcePathSpec)
 	targetStoragePath := c.getStoragePath(user, targetPathSpec)
 	err := os.Rename(sourceStoragePath, targetStoragePath)

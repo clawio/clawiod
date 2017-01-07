@@ -18,7 +18,7 @@ func (s *svc) Get(w http.ResponseWriter, r *http.Request) {
 	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
-	info, err := s.metaDataController.ExamineObject(user, path)
+	info, err := s.metaDataController.ExamineObject(r.Context(), user, path)
 	if err != nil {
 		s.handleGetError(err, w, r)
 		return
@@ -35,7 +35,7 @@ func (s *svc) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info, err = s.metaDataController.ExamineObject(user, path)
+	info, err = s.metaDataController.ExamineObject(r.Context(), user, path)
 	if err != nil {
 		s.handleGetError(err, w, r)
 		return

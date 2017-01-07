@@ -151,7 +151,7 @@ func (s *svc) PutChunked(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info, err := s.metaDataController.ExamineObject(user, chunkInfo.pathSpec)
+	info, err := s.metaDataController.ExamineObject(r.Context(), user, chunkInfo.pathSpec)
 	if err != nil {
 		s.handlePutError(err, w, r)
 		return

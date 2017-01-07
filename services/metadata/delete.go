@@ -11,7 +11,7 @@ import (
 func (s *svc) DeleteObject(w http.ResponseWriter, r *http.Request) {
 	path := mux.Vars(r)["path"]
 	user := keys.MustGetUser(r.Context())
-	err := s.metaDataController.DeleteObject(user, path)
+	err := s.metaDataController.DeleteObject(r.Context(), user, path)
 	if err != nil {
 		s.handleDeleteObjectError(err, w, r)
 		return

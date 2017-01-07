@@ -9,6 +9,7 @@ import (
 	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/ocsql"
+	"github.com/clawio/clawiod/services/metadata/metadatacontroller/remote"
 	"github.com/clawio/clawiod/services/metadata/metadatacontroller/simple"
 )
 
@@ -37,6 +38,8 @@ func GetMetaDataController(conf *config.Config) (metadatacontroller.MetaDataCont
 		return simple.New(conf)
 	case "ocsql":
 		return ocsql.New(conf)
+	case "remote":
+		return remote.New(conf)
 	default:
 		return nil, errors.New("metadata type " + dirs.MetaData.Type + "does not exist")
 	}

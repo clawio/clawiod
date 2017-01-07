@@ -12,7 +12,7 @@ func (s *svc) Delete(w http.ResponseWriter, r *http.Request) {
 	user := keys.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
-	err := s.metaDataController.DeleteObject(user, path)
+	err := s.metaDataController.DeleteObject(r.Context(), user, path)
 	if err != nil {
 		s.handleDeleteError(err, w, r)
 		return

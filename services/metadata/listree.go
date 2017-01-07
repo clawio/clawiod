@@ -15,7 +15,7 @@ func (s *svc) ListTree(w http.ResponseWriter, r *http.Request) {
 	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
-	oinfos, err := s.metaDataController.ListTree(user, path)
+	oinfos, err := s.metaDataController.ListTree(r.Context(), user, path)
 	if err != nil {
 		s.handleListTreeError(err, w, r)
 		return

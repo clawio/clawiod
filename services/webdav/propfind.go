@@ -26,7 +26,7 @@ func (s *svc) Propfind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var infos []*entities.ObjectInfo
-	info, err := s.metaDataController.ExamineObject(user, path)
+	info, err := s.metaDataController.ExamineObject(r.Context(), user, path)
 	if err != nil {
 		s.handlePropfindError(err, w, r)
 		return
@@ -34,7 +34,7 @@ func (s *svc) Propfind(w http.ResponseWriter, r *http.Request) {
 	infos = append(infos, info)
 
 	if children && info.Type == entities.ObjectTypeTree {
-		childrenInfos, err := s.metaDataController.ListTree(user, path)
+		childrenInfos, err := s.metaDataController.ListTree(r.Context(), user, path)
 		if err != nil {
 			s.handlePropfindError(err, w, r)
 			return

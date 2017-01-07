@@ -3,14 +3,14 @@ package remote
 import (
 	"io"
 
-	"github.com/clawio/clawiod/config"
-	"github.com/clawio/clawiod/services/data/datacontroller"
-	"github.com/clawio/clawiod/entities"
-	"net/http"
-	"github.com/clawio/clawiod.bak/helpers"
-	"github.com/clawio/clawiod/keys"
-	"github.com/clawio/clawiod.back/codes"
 	"context"
+	"github.com/clawio/clawiod.back/codes"
+	"github.com/clawio/clawiod.bak/helpers"
+	"github.com/clawio/clawiod/config"
+	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/keys"
+	"github.com/clawio/clawiod/services/data/datacontroller"
+	"net/http"
 )
 
 type controller struct {
@@ -23,17 +23,19 @@ func New(config *config.Config) (datacontroller.DataController, error) {
 }
 
 func (c *controller) UploadBLOB(ctx context.Context, user *entities.User, pathSpec string, r io.Reader, clientChecksum string) error {
+	tid, _ := keys.GetTID(ctx)
 	token := keys.MustGetToken(ctx)
-	req, err := http.NewRequest("PUT", c.config.GetDirectives().Data.Remote.ServiceURL + helpers.SecureJoin("upload", pathSpec), r)
+	req, err := http.NewRequest("PUT", c.config.GetDirectives().Data.Remote.ServiceURL+helpers.SecureJoin("upload", pathSpec), r)
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer " + token)
+	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("x-clawio-tid", tid)
 	res, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
-	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated{
+	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated {
 		return nil
 	}
 
@@ -43,13 +45,13 @@ func (c *controller) DownloadBLOB(ctx context.Context, user *entities.User, path
 	token := keys.MustGetToken(ctx)
 	req, err := http.NewRequest(
 		"GET",
-		c.config.GetDirectives().Data.Remote.ServiceURL + helpers.SecureJoin("download", pathSpec),
+		c.config.GetDirectives().Data.Remote.ServiceURL+helpers.SecureJoin("download", pathSpec),
 		nil,
 	)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", "Bearer " + token)
+	req.Header.Add("Authorization", "Bearer "+token)
 	res, err := c.client.Do(req)
 	if err != nil {
 		return nil, err

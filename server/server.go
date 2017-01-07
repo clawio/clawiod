@@ -93,7 +93,15 @@ func (s *Server) corsHandler(h http.Handler) http.Handler {
 }
 func (s *Server) handler() http.Handler {
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		tid := uuid.NewV4().String()
+		// TODO(labkode): add trust between servers
+		// if tid is sent in request re-use it, what about non trusted servers sending
+		// their tid? Solution: a node must trust a cluster to trust re-use tid...
+		tid := r.Header.Get("x-clawio-tid")
+		if tid == "" {
+			tid = uuid.NewV4().String()
+		}
+		r = r.WithContext(keys.SetTID(r.Context(), tid))
+
 		cLog := s.log.WithFields(logrus.Fields{"tid": tid})
 		cLog.WithFields(logrus.Fields{"method": r.Method, "uri": helpers.SanitizeURL(r.URL)}).Info("request started")
 		r = r.WithContext(keys.SetLog(r.Context(), cLog))
@@ -160,7 +168,7 @@ func (s *Server) configureRouter() error {
 				prometheus.InstrumentHandler(u, handler)
 
 				s.log.WithField("method", method).WithField("endpoint", u).Info("endpoint registered")
-				if  dirs.Server.CORSEnabled && isServiceEnabled(svc.Name(), corsEnabled) {
+				if dirs.Server.CORSEnabled && isServiceEnabled(svc.Name(), corsEnabled) {
 					s.log.WithField("method", "OPTIONS").WithField("endpoint", u).Info("endpoint registered (cors)")
 				}
 			}

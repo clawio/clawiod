@@ -138,6 +138,7 @@ type MetaData struct {
 	Type    string         `json:"type"`
 	Simple  MetaDataSimple `json:"simple"`
 	OCSQL   MetaDataOCSQL  `json:"ocsql"`
+	Remote  MetaDataRemote `json:"remote"`
 }
 
 // MetaDataSimple is the configuration subsection dedicated to the metadata simple controller.
@@ -158,6 +159,11 @@ type MetaDataOCSQL struct {
 	SQLLogMaxSize               int    `json:"sql_log_max_size"`
 	SQLLogMaxAge                int    `json:"sql_log_max_age"`
 	SQLLogMaxBackups            int    `json:"sql_log_max_backups"`
+}
+
+// MetaDataRemote is the configuration subsection dedicated to the remote metadata controller.
+type MetaDataRemote struct {
+	ServiceURL string `json:"service_url"`
 }
 
 // Data is the configuration section dedicated to the data service.

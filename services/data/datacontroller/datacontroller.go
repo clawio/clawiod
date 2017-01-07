@@ -3,8 +3,8 @@ package datacontroller
 import (
 	"io"
 
-	"github.com/clawio/clawiod/entities"
 	"context"
+	"github.com/clawio/clawiod/entities"
 )
 
 // DataController is an interface to upload and download blobs.

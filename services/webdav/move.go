@@ -43,7 +43,7 @@ func (s *svc) Move(w http.ResponseWriter, r *http.Request) {
 	toTrim := filepath.Join("/", dirs.Server.BaseURL, dirs.WebDAV.BaseURL) + "/home/"
 	destination = strings.TrimPrefix(destinationURL.Path, toTrim)
 
-	err = s.metaDataController.MoveObject(user, path, destination)
+	err = s.metaDataController.MoveObject(r.Context(), user, path, destination)
 	if err != nil {
 		s.handleMoveError(err, w, r)
 		return

@@ -15,7 +15,7 @@ func (s *svc) ExamineObject(w http.ResponseWriter, r *http.Request) {
 	user := keys.MustGetUser(r.Context())
 
 	path := mux.Vars(r)["path"]
-	oinfo, err := s.metaDataController.ExamineObject(user, path)
+	oinfo, err := s.metaDataController.ExamineObject(r.Context(), user, path)
 	if err != nil {
 		s.handleExamineObjectError(err, w, r)
 		return

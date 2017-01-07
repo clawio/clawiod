@@ -60,6 +60,10 @@ var DefaultDirectives = config.Directives{
 			SQLLogEnabled: false,
 			SQLLogMaxSize: 100, // MiB
 		},
+
+		Remote: config.MetaDataRemote{
+			ServiceURL: "http://localhost:1504/api/v1/metadata/",
+		},
 	},
 
 	Data: config.Data{

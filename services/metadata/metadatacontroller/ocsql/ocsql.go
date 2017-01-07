@@ -16,6 +16,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 	// load mysql driver
+	"context"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/satori/go.uuid"
 )
@@ -119,7 +120,7 @@ func New(conf *config.Config) (metadatacontroller.MetaDataController, error) {
 }
 
 // Init initializes the user home directory.
-func (c *Controller) Init(user *entities.User) error {
+func (c *Controller) Init(ctx context.Context, user *entities.User) error {
 	storagePath := c.getStoragePath(user, "/")
 	if err := os.MkdirAll(storagePath, 0755); err != nil {
 		c.log.Error(err)
@@ -135,7 +136,7 @@ func (c *Controller) Init(user *entities.User) error {
 }
 
 // CreateTree creates a new tree.
-func (c *Controller) CreateTree(user *entities.User, pathSpec string) error {
+func (c *Controller) CreateTree(ctx context.Context, user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
 	if err := os.Mkdir(storagePath, 0755); err != nil {
 		return err
@@ -144,7 +145,7 @@ func (c *Controller) CreateTree(user *entities.User, pathSpec string) error {
 }
 
 // ExamineObject returns the metadata associated with the object.
-func (c *Controller) ExamineObject(user *entities.User, pathSpec string) (*entities.ObjectInfo, error) {
+func (c *Controller) ExamineObject(ctx context.Context, user *entities.User, pathSpec string) (*entities.ObjectInfo, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	finfo, err := os.Stat(storagePath)
 	if err != nil {
@@ -164,7 +165,7 @@ func (c *Controller) ExamineObject(user *entities.User, pathSpec string) (*entit
 }
 
 // ListTree returns the contents of the tree.
-func (c *Controller) ListTree(user *entities.User, pathSpec string) ([]*entities.ObjectInfo, error) {
+func (c *Controller) ListTree(ctx context.Context, user *entities.User, pathSpec string) ([]*entities.ObjectInfo, error) {
 	storagePath := c.getStoragePath(user, pathSpec)
 	finfo, err := os.Stat(storagePath)
 	if err != nil {
@@ -200,7 +201,7 @@ func (c *Controller) ListTree(user *entities.User, pathSpec string) ([]*entities
 }
 
 // DeleteObject deletes an object.
-func (c *Controller) DeleteObject(user *entities.User, pathSpec string) error {
+func (c *Controller) DeleteObject(ctx context.Context, user *entities.User, pathSpec string) error {
 	storagePath := c.getStoragePath(user, pathSpec)
 	err := os.RemoveAll(storagePath)
 	if err != nil {
@@ -211,7 +212,7 @@ func (c *Controller) DeleteObject(user *entities.User, pathSpec string) error {
 }
 
 // MoveObject moves an object from source to target.
-func (c *Controller) MoveObject(user *entities.User, sourcePathSpec, targetPathSpec string) error {
+func (c *Controller) MoveObject(ctx context.Context, user *entities.User, sourcePathSpec, targetPathSpec string) error {
 	sourceStoragePath := c.getStoragePath(user, sourcePathSpec)
 	targetStoragePath := c.getStoragePath(user, targetPathSpec)
 	err := os.Rename(sourceStoragePath, targetStoragePath)

@@ -11,7 +11,7 @@ import (
 func (s *svc) CreateTree(w http.ResponseWriter, r *http.Request) {
 	path := mux.Vars(r)["path"]
 	user := keys.MustGetUser(r.Context())
-	err := s.metaDataController.CreateTree(user, path)
+	err := s.metaDataController.CreateTree(r.Context(), user, path)
 	if err != nil {
 		s.handleCreateTreeError(err, w, r)
 		return

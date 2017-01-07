@@ -31,7 +31,7 @@ func (s *svc) Put(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := mux.Vars(r)["path"]
-	info, err := s.metaDataController.ExamineObject(user, path)
+	info, err := s.metaDataController.ExamineObject(r.Context(), user, path)
 	// if err is not found it is okay to continue
 	if err != nil {
 		if !s.isNotFoundError(err) {

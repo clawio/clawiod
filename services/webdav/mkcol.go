@@ -12,7 +12,7 @@ func (s *svc) Mkcol(w http.ResponseWriter, r *http.Request) {
 	user := keys.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
-	err := s.metaDataController.CreateTree(user, path)
+	err := s.metaDataController.CreateTree(r.Context(), user, path)
 	if err != nil {
 		s.handleMkcolError(err, w, r)
 		return

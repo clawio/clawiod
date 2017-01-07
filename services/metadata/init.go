@@ -9,7 +9,7 @@ import (
 // Init retrieves the information about an object.
 func (s *svc) Init(w http.ResponseWriter, r *http.Request) {
 	user := keys.MustGetUser(r.Context())
-	err := s.metaDataController.Init(user)
+	err := s.metaDataController.Init(r.Context(), user)
 	if err != nil {
 		s.handleInitError(err, w, r)
 		return

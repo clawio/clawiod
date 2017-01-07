@@ -9,9 +9,9 @@ import (
 	"github.com/clawio/clawiod/services/authentication/lib"
 	"github.com/clawio/clawiod/services/data/datacontroller"
 	"github.com/clawio/clawiod/services/data/datacontroller/ocsql"
+	"github.com/clawio/clawiod/services/data/datacontroller/remote"
 	"github.com/clawio/clawiod/services/data/datacontroller/simple"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/clawio/clawiod/services/data/datacontroller/remote"
 )
 
 // ServiceName identities this service.
