@@ -8,6 +8,8 @@ import (
 // must work out-of-the-box without using user supplied config files.
 var DefaultDirectives = config.Directives{
 	Server: config.Server{
+		ID:                            "clawiod-default",
+		Rol:                           "all-in-one",
 		CPU:                           "100%",
 		BaseURL:                       "/api/v1/",
 		Port:                          1502,
