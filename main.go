@@ -15,6 +15,7 @@ import (
 	"github.com/clawio/clawiod/config/file"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/clawio/clawiod/config/etcd"
 	"github.com/clawio/clawiod/daemon"
 )
 
@@ -24,9 +25,13 @@ var log = logrus.WithField("module", "main")
 
 // Flags that control program flow or startup
 var (
-	conf       string
-	showconfig bool
-	version    bool
+	conf             string
+	showconfig       bool
+	version          bool
+	etcdconfurls     string
+	etcdconfusername string
+	etcdconfpassword string
+	etcdconfkey      string
 )
 
 // Build information obtained with the help of -ldflags
@@ -38,7 +43,11 @@ var (
 )
 
 func init() {
-	flag.StringVar(&conf, "config", "", "Configuration file to use (default \"./clawiod.conf\")")
+	flag.StringVar(&conf, "config.file", "", "Configuration file to use (default \"./clawiod.conf\")")
+	flag.StringVar(&etcdconfurls, "config.etcd.urls", "", "ETCD urls separated by comma")
+	flag.StringVar(&etcdconfusername, "config.etcd.username", "", "ETCD username")
+	flag.StringVar(&etcdconfpassword, "config.etcd.password", "", "ETCD password")
+	flag.StringVar(&etcdconfkey, "config.etcd.key", "", "ETCD configuration key")
 	flag.BoolVar(&showconfig, "showconfig", false, "Show loaded configuration")
 	flag.BoolVar(&version, "version", false, "Show version")
 }
@@ -50,9 +59,9 @@ func main() {
 		handleVersion()
 	}
 
-	cfg := config.New([]config.Source{defaul.New(), file.New(conf)})
+	cfg := getConfig()
 	if err := cfg.LoadDirectives(); err != nil {
-		log.Fatalf("cannot load configuration: %s", err)
+		log.Fatalf("error loading configuration: %s", err)
 	}
 
 	if showconfig {
@@ -61,16 +70,16 @@ func main() {
 
 	d, err := daemon.New(cfg)
 	if err != nil {
-		log.Fatalf("cannot run clawid daemon because: %s", err)
+		log.Fatalf("error running daemon: %s", err)
 	}
 
 	stopChan := d.TrapSignals()
 	go d.Start()
 	err = <-stopChan
 	if err != nil {
-		log.Fatalf("daemon finished execution with error: %s", err)
+		log.Fatalf("daemon stopped with error: %s", err)
 	} else {
-		log.Info("daemon finished execution successfuly")
+		log.Info("daemon stopped cleanly")
 		os.Exit(0)
 	}
 }
@@ -137,4 +146,18 @@ func setCPU(cpu string) error {
 
 	runtime.GOMAXPROCS(numCPU)
 	return nil
+}
+
+func getConfig() *config.Config {
+	sources := []config.Source{defaul.New()}
+	if etcdconfurls != "" {
+		etcdSource, err := etcd.New(etcdconfurls, etcdconfkey, etcdconfusername, etcdconfpassword)
+		if err != nil{
+			log.Fatal("etcd configuration is bad: %s", err.Error())
+		}
+		sources = append(sources, etcdSource)
+	} else {
+		sources = append(sources, file.New(conf))
+	}
+	return config.New(sources)
 }

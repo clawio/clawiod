@@ -1,4 +1,4 @@
-FROM golang:1.6
+FROM golang:1.7
 MAINTAINER Hugo González Labrador
 
 ADD . /go/src/github.com/clawio/clawiod

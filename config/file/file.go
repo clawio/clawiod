@@ -30,9 +30,11 @@ func (c *conf) LoadDirectives() (*config.Directives, error) {
 func getDirectivesFromFile(path string) (*config.Directives, error) {
 	confData, err := ioutil.ReadFile(path)
 	if err != nil {
-		// if the file is not found we return an empty directives so default is used
-		// when -conf flag is not provided.
-		if os.IsNotExist(err) {
+		// if we try to load the file form default file location
+		// we use the default configuration if the file is not present.
+		// This is needed for letting users run the daemon out-of-the-box
+		// without any configuration parameters.
+		if os.IsNotExist(err) && path == defaultPath {
 			return new(config.Directives), nil
 		}
 		return nil, err

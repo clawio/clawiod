@@ -30,7 +30,7 @@ func (c *Config) GetDirectives() *Directives {
 	return c.dirs
 }
 
-// LoadDirectives retrieves and meges configurations from different sources.
+// LoadDirectives retrieves and merges configurations from different sources.
 func (c *Config) LoadDirectives() error {
 	if len(c.configSources) == 0 {
 		return errors.New("there are not configuration sources")

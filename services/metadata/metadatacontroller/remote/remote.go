@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/clawio/clawiod/codes"
-	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
-	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/entities"
+	"github.com/clawio/clawiod/helpers"
 	"github.com/clawio/clawiod/keys"
+	"github.com/clawio/clawiod/services/metadata/metadatacontroller"
 	"io/ioutil"
 	"net/http"
 )
@@ -79,7 +79,7 @@ func (c *controller) ListTree(ctx context.Context, user *entities.User, pathSpec
 	if pathSpec == "" {
 		pathSpec = "/"
 	}
-	req, err := http.NewRequest("GET", c.config.GetDirectives().MetaData.Remote.ServiceURL+helpers.SecureJoin("list", pathSpec) + "/", nil)
+	req, err := http.NewRequest("GET", c.config.GetDirectives().MetaData.Remote.ServiceURL+helpers.SecureJoin("list", pathSpec)+"/", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (c *controller) CreateTree(ctx context.Context, user *entities.User, pathSp
 	if err != nil {
 		return err
 	}
-	if res.StatusCode == http.StatusCreated{
+	if res.StatusCode == http.StatusCreated {
 		return nil
 	}
 
