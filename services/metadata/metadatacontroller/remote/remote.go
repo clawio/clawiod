@@ -116,7 +116,7 @@ func (c *controller) DeleteObject(ctx context.Context, user *entities.User, path
 	if err != nil {
 		return err
 	}
-	if res.StatusCode == http.StatusNotModified {
+	if res.StatusCode == http.StatusNoContent {
 		return nil
 	}
 
@@ -159,7 +159,7 @@ func (c *controller) CreateTree(ctx context.Context, user *entities.User, pathSp
 	if err != nil {
 		return err
 	}
-	if res.StatusCode == http.StatusOK {
+	if res.StatusCode == http.StatusCreated{
 		return nil
 	}
 

@@ -56,7 +56,7 @@ arch=( "amd64")
 
 if [[ -z "${current_tag_value}" ]]; then
 	# dev build
-	current_date=$(date +"%m_%d_%Y_%H_%M_%S")
+	current_date=$(date +"%Y%m%d%H%M%S")
 	for i in "${os[@]}"; do
 		for j in "${arch[@]}"; do
 			GOOS=$i GOARCH=$j go build -ldflags "${ldflags[*]}" -o ${releases_dir}/"${output_filename}"-${tag_value}-$i-$j-${current_date}-${commit_value}
