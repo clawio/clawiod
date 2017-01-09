@@ -1,25 +1,31 @@
 package daemon
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/helpers"
+	"github.com/clawio/clawiod/injector"
+	"github.com/clawio/clawiod/registry"
 	"github.com/clawio/clawiod/server"
 
 	"github.com/Sirupsen/logrus"
 )
 
-// Daemon is the orchestrator that handles the bootstraping of the application. It loads the configuration, launch the server and listens
-// to system signals for system shutdown or configuration reload.jJ;w
+// Daemon is the orchestrator that handles the bootstrapping of the application.
+// It loads the configuration, launch the server and listens
+// to system signals for system shutdown or configuration reload.
 type Daemon struct {
 	log      *logrus.Entry
 	srv      *server.Server
 	conf     *config.Config
 	stopChan chan error
 	trapChan chan os.Signal
+	registry registry.Registry
 }
 
 // New returns a new Daemon.
@@ -36,11 +42,33 @@ func New(conf *config.Config) (*Daemon, error) {
 		return nil, err
 	}
 	d.srv = srv
+
+	reg, err := injector.GetRegistry(d.conf)
+	if err != nil {
+		return nil, err
+	}
+	d.registry = reg
+
 	return d, nil
 }
 
 // Start starts the daemon.
 func (d *Daemon) Start() {
+	// Register the daemon
+	hostname, _ := os.Hostname()
+	host := fmt.Sprintf("%s:%d", hostname, d.conf.GetDirectives().Server.Port)
+	info := &registry.Node{
+		ID:   host,
+		Rol:  d.conf.GetDirectives().Server.Rol,
+		Host: host,
+	}
+	err := d.registry.Register(context.Background(), info)
+	if err != nil {
+		d.log.Fatal(err)
+		d.stopChan <- err
+	}
+
+	// Listen for HTTP requests
 	d.srv.Start()
 	d.stopChan <- nil
 }

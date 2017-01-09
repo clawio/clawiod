@@ -8,7 +8,6 @@ import (
 // must work out-of-the-box without using user supplied config files.
 var DefaultDirectives = config.Directives{
 	Server: config.Server{
-		ID:                            "clawiod-default",
 		Rol:                           "all-in-one",
 		CPU:                           "100%",
 		BaseURL:                       "/api/v1/",
@@ -28,6 +27,13 @@ var DefaultDirectives = config.Directives{
 		CORSAccessControlAllowMethods: []string{"GET", "POST", "HEAD", "PUT", "DELETE"},
 		CORSAccessControlAllowHeaders: []string{"*"},
 		CORSEnabledServices:           []string{"authentication", "metadata", "data"},
+		Registry: config.ServerRegistry{
+			Type: "etcd",
+			ETCD: config.ServerRegistryETCD{
+				URLs: []string{"http://localhost:2379"},
+				Key:  "/nodes",
+			},
+		},
 	},
 
 	Authentication: config.Authentication{
@@ -64,7 +70,8 @@ var DefaultDirectives = config.Directives{
 		},
 
 		Remote: config.MetaDataRemote{
-			ServiceURL: "http://localhost:1504/api/v1/metadata/",
+			Rol: "metadata-node",
+			BaseURL: "/api/v1/metadata/",
 		},
 	},
 
@@ -84,7 +91,7 @@ var DefaultDirectives = config.Directives{
 		},
 
 		Remote: config.DataRemote{
-			ServiceURL: "http://localhost:1503/api/v1/data/",
+			BaseURL: "/api/v1/data/",
 		},
 	},
 

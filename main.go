@@ -13,9 +13,9 @@ import (
 	"github.com/clawio/clawiod/config"
 	"github.com/clawio/clawiod/config/default"
 	"github.com/clawio/clawiod/config/file"
+	"github.com/clawio/clawiod/config/etcd"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/clawio/clawiod/config/etcd"
 	"github.com/clawio/clawiod/daemon"
 )
 
@@ -43,11 +43,11 @@ var (
 )
 
 func init() {
-	flag.StringVar(&conf, "config.file", "", "Configuration file to use (default \"./clawiod.conf\")")
-	flag.StringVar(&etcdconfurls, "config.etcd.urls", "", "ETCD urls separated by comma")
-	flag.StringVar(&etcdconfusername, "config.etcd.username", "", "ETCD username")
-	flag.StringVar(&etcdconfpassword, "config.etcd.password", "", "ETCD password")
-	flag.StringVar(&etcdconfkey, "config.etcd.key", "", "ETCD configuration key")
+	flag.StringVar(&conf, "config.file", "", "Configuration file to use (default is \"clawiod.conf\")")
+	flag.StringVar(&etcdconfurls, "config.etcd.urls", "", "etcd urls separated by comma")
+	flag.StringVar(&etcdconfusername, "config.etcd.username", "", "etcd username")
+	flag.StringVar(&etcdconfpassword, "config.etcd.password", "", "etcd password")
+	flag.StringVar(&etcdconfkey, "config.etcd.key", "", "etcd configuration key")
 	flag.BoolVar(&showconfig, "showconfig", false, "Show loaded configuration")
 	flag.BoolVar(&version, "version", false, "Show version")
 }

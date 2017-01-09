@@ -81,33 +81,45 @@ type Directives struct {
 
 // Server is the configuration section dedicated to the server.
 type Server struct {
-	ID                            string   `json:"id"`
-	Rol                           string   `json:"rol"`
-	CPU                           string   `json:"cpu"`
-	BaseURL                       string   `json:"base_url"`
-	Port                          int      `json:"port"`
-	JWTSecret                     string   `json:"jwt_secret"`
-	JWTSigningMethod              string   `json:"jwt_signing_method"`
-	HTTPAccessLog                 string   `json:"http_access_log"`
-	HTTPAccessLogLevel            string   `json:"http_access_log_level"`
-	HTTPAccessLogMaxSize          int      `json:"http_access_log_max_size"`
-	HTTPAccessLogMaxAge           int      `json:"http_access_log_max_age"`
-	HTTPAccessLogMaxBackups       int      `json:"http_access_log_max_backups"`
-	AppLog                        string   `json:"app_log"`
-	AppLogLevel                   string   `json:"app_log_level"`
-	AppLogMaxSize                 int      `json:"app_log_max_size"`
-	AppLogMaxAge                  int      `json:"app_log_max_age"`
-	AppLogMaxBackups              int      `json:"app_log_max_backups"`
-	ShutdownTimeout               int      `json:"shutdown_timeout"`
-	TLSEnabled                    bool     `json:"tls_enabled"`
-	TLSCertificate                string   `json:"tls_certificate"`
-	TLSPrivateKey                 string   `json:"tls_private_key"`
-	EnabledServices               []string `json:"enabled_services"`
-	CORSEnabled                   bool     `json:"cors_enabled"`
-	CORSAccessControlAllowOrigin  []string `json:"cors_access_control_allow_origin"`
-	CORSAccessControlAllowMethods []string `json:"cors_access_control_allow_methods"`
-	CORSAccessControlAllowHeaders []string `json:"cors_access_control_allow_headers"`
-	CORSEnabledServices           []string `json:"cors_enabled_services"`
+	Rol                           string         `json:"rol"`
+	CPU                           string         `json:"cpu"`
+	BaseURL                       string         `json:"base_url"`
+	Port                          int            `json:"port"`
+	JWTSecret                     string         `json:"jwt_secret"`
+	JWTSigningMethod              string         `json:"jwt_signing_method"`
+	HTTPAccessLog                 string         `json:"http_access_log"`
+	HTTPAccessLogLevel            string         `json:"http_access_log_level"`
+	HTTPAccessLogMaxSize          int            `json:"http_access_log_max_size"`
+	HTTPAccessLogMaxAge           int            `json:"http_access_log_max_age"`
+	HTTPAccessLogMaxBackups       int            `json:"http_access_log_max_backups"`
+	AppLog                        string         `json:"app_log"`
+	AppLogLevel                   string         `json:"app_log_level"`
+	AppLogMaxSize                 int            `json:"app_log_max_size"`
+	AppLogMaxAge                  int            `json:"app_log_max_age"`
+	AppLogMaxBackups              int            `json:"app_log_max_backups"`
+	ShutdownTimeout               int            `json:"shutdown_timeout"`
+	TLSEnabled                    bool           `json:"tls_enabled"`
+	TLSCertificate                string         `json:"tls_certificate"`
+	TLSPrivateKey                 string         `json:"tls_private_key"`
+	EnabledServices               []string       `json:"enabled_services"`
+	CORSEnabled                   bool           `json:"cors_enabled"`
+	CORSAccessControlAllowOrigin  []string       `json:"cors_access_control_allow_origin"`
+	CORSAccessControlAllowMethods []string       `json:"cors_access_control_allow_methods"`
+	CORSAccessControlAllowHeaders []string       `json:"cors_access_control_allow_headers"`
+	CORSEnabledServices           []string       `json:"cors_enabled_services"`
+	Registry                      ServerRegistry `json:"registry"`
+}
+
+type ServerRegistry struct {
+	Type string             `json:"type"`
+	ETCD ServerRegistryETCD `json:"etcd"`
+}
+
+type ServerRegistryETCD struct {
+	URLs     []string
+	Key      string
+	Username string
+	Password string
 }
 
 // Authentication is the configuration section dedicated to the authentication service.
@@ -165,7 +177,8 @@ type MetaDataOCSQL struct {
 
 // MetaDataRemote is the configuration subsection dedicated to the remote metadata controller.
 type MetaDataRemote struct {
-	ServiceURL string `json:"service_url"`
+	Rol        string `json:"rol"`
+	BaseURL string `json:"base_url"`
 }
 
 // Data is the configuration section dedicated to the data service.
@@ -195,7 +208,8 @@ type DataOCSQL struct {
 }
 
 type DataRemote struct {
-	ServiceURL string `json:"service_url"`
+	Rol string `json:"rol"`
+	BaseURL string `json:"base_url"`
 }
 
 // WebDAV is the configuration section dedicated to the WebDAV service.
