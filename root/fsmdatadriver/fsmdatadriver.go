@@ -138,16 +138,16 @@ func (c *driver) Move(ctx context.Context, user root.User, sourcePath, targetPat
 func (c *driver) getLocalPath(user root.User, path string) string {
 	dataFolder := strings.Trim(c.dataFolder, "/")
 	path = strings.Trim(path, "/")
-	return fmt.Sprintf("/%s/%s/%s", dataFolder, string(user.Username()[0]), user.Username(), filepath.Clean(path))
+	return fmt.Sprintf("/%s/%s/%s/%s", dataFolder, string(user.Username()[0]), user.Username(), filepath.Clean(path))
 }
 
 func (c *driver) convert(path string, fsFileInfo os.FileInfo) root.FileInfo {
-	return &fileInfo{path: path, FileInfo: fsFileInfo}
+	return &fileInfo{path: path, osFileInfo: fsFileInfo}
 }
 
 type fileInfo struct {
-	path string
-	os.FileInfo
+	path       string
+	osFileInfo os.FileInfo
 }
 
 func (f *fileInfo) Path() string {
@@ -155,15 +155,15 @@ func (f *fileInfo) Path() string {
 }
 
 func (f *fileInfo) Folder() bool {
-	return f.IsDir()
+	return f.osFileInfo.IsDir()
 }
 
 func (f *fileInfo) Size() int64 {
-	return int64(f.Size())
+	return int64(f.osFileInfo.Size())
 }
 
 func (f *fileInfo) Modified() int64 {
-	return f.ModTime().Unix()
+	return f.osFileInfo.ModTime().Unix()
 }
 
 func (f *fileInfo) Checksum() string {
@@ -179,6 +179,7 @@ type checksumError string
 func (e checksumError) Error() string {
 	return string(e)
 }
+
 func (e checksumError) Code() root.Code {
 	return root.Code(root.CodeBadChecksum)
 }

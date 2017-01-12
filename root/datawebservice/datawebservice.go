@@ -13,7 +13,7 @@ import (
 
 type service struct {
 	cm                root.ContextManager
-	logger            *levels.Levels
+	logger            levels.Levels
 	dataDriver        root.DataDriver
 	am                root.AuthenticationMiddleware
 	wec               root.WebErrorConverter
@@ -22,7 +22,7 @@ type service struct {
 
 func New(
 	cm root.ContextManager,
-	logger *levels.Levels,
+	logger levels.Levels,
 	dataDriver root.DataDriver,
 	am root.AuthenticationMiddleware,
 	wec root.WebErrorConverter,
@@ -76,6 +76,13 @@ func (s *service) uploadEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(jsonError)
+		return
+	}
+
+	path := filepath.Clean("/" + req.Path)
+	if path == "/" {
+		logger.Warn().Log("msg", "can not upload to root")
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -134,6 +141,13 @@ func (s *service) downloadEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(jsonError)
+		return
+	}
+
+	path := filepath.Clean("/" + req.Path)
+	if path == "/" {
+		logger.Warn().Log("msg", "can not download from root")
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 

@@ -11,18 +11,17 @@ import (
 type authenticator struct {
 	key    string
 	cm     root.ContextManager
-	logger *levels.Levels
+	logger levels.Levels
 }
 
-func New(key string, cm root.ContextManager, logger *levels.Levels) root.TokenDriver {
-	lvls := logger.With("pkg", "jwttokendriver")
-	return &authenticator{key: key, cm: cm, logger: &lvls}
+func New(key string, cm root.ContextManager, logger levels.Levels) root.TokenDriver {
+	logger = logger.With("pkg", "jwttokendriver")
+	return &authenticator{key: key, cm: cm, logger: logger}
 }
 
 func (a *authenticator) CreateToken(user root.User) (string, error) {
 	if user == nil {
-		return "", badUserError("user is <nil>")
-	}
+		return "", badUserError("user is <nil>") }
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
 	claims["username"] = user.Username()

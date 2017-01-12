@@ -74,6 +74,11 @@ type (
 		CreateFolder(ctx context.Context, user User, path string) error
 	}
 
+	OCMetaDataDriver interface {
+		MetaDataDriver
+		PropagateChanges(user User, from, to, checksum string) error
+	}
+
 	UserDriver interface {
 		GetByCredentials(username, password string) (User, error)
 	}
@@ -82,7 +87,6 @@ type (
 		CreateToken(user User) (string, error)
 		UserFromToken(token string) (User, error)
 	}
-
 
 	RegistryNode interface {
 		GetID() string

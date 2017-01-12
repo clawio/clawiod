@@ -9,10 +9,10 @@ import (
 
 type middleware struct {
 	cm     root.ContextManager
-	logger *levels.Levels
+	logger levels.Levels
 }
 
-func New(cm root.ContextManager, logger *levels.Levels) root.AuthenticationMiddleware {
+func New(cm root.ContextManager, logger levels.Levels) root.AuthenticationMiddleware {
 	return &middleware{cm: cm, logger: logger}
 }
 

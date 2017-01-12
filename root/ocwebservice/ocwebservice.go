@@ -3,46 +3,56 @@ package ocwebservice
 import (
 	"net/http"
 
+	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
 	"github.com/gorilla/mux"
 	"io"
+	"io/ioutil"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type service struct {
 	cm                root.ContextManager
-	logger            *levels.Levels
+	logger            levels.Levels
 	dataDriver        root.DataDriver
 	metaDataDriver    root.MetaDataDriver
 	oam               root.OwnCloudBasicAuthMiddleware
 	wec               root.WebErrorConverter
 	mg                root.MimeGuesser
 	uploadMaxFileSize int64
+	chunksFolder      string
 }
 
 func New(
 	cm root.ContextManager,
-	logger *levels.Levels,
+	logger levels.Levels,
 	dataDriver root.DataDriver,
 	metaDataDriver root.MetaDataDriver,
-	am root.AuthenticationMiddleware,
+	oam root.OwnCloudBasicAuthMiddleware,
 	wec root.WebErrorConverter,
 	mg root.MimeGuesser,
-	uploadMaxFileSize int64) root.WebService {
+	uploadMaxFileSize int64,
+	chunksFolder string) root.WebService {
 	return &service{
 		cm:                cm,
 		logger:            logger,
 		dataDriver:        dataDriver,
 		metaDataDriver:    metaDataDriver,
-		oam:               am,
+		oam:               oam,
 		wec:               wec,
 		mg:                mg,
 		uploadMaxFileSize: uploadMaxFileSize,
+		chunksFolder:      chunksFolder,
 	}
 }
 
@@ -160,8 +170,23 @@ func (s *service) getEndpoint(w http.ResponseWriter, r *http.Request) {
 		logger.Crit().Log("error", "no extra attributes in file fileInfo", "msg", "ocwebservice running without a valid metadata driver")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	etag := extraAttributes["etag"]
-	id := extraAttributes["id"]
+	etag, ok := extraAttributes["etag"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	id, ok := extraAttributes["id"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	if etag == "" {
 		logger.Crit().Log("error", "etag is empty")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -217,8 +242,23 @@ func (s *service) headEndpoint(w http.ResponseWriter, r *http.Request) {
 		logger.Crit().Log("error", "no extra attributes in file fileInfo", "msg", "ocwebservice running without a valid metadata driver")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	etag := extraAttributes["etag"]
-	id := extraAttributes["id"]
+	etag, ok := extraAttributes["etag"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	id, ok := extraAttributes["id"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	if etag == "" {
 		logger.Crit().Log("error", "etag is empty")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -254,8 +294,18 @@ func (s *service) optionsEndpoint(w http.ResponseWriter, r *http.Request) {
 		logger.Crit().Log("error", "no extra attributes in file fileInfo", "msg", "ocwebservice running without a valid metadata driver")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	etag := extraAttributes["etag"]
-	id := extraAttributes["id"]
+	etag, ok := extraAttributes["etag"]
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	id, ok := extraAttributes["id"]
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	if etag == "" {
 		logger.Crit().Log("error", "etag is empty")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -331,6 +381,7 @@ func (s *service) proppatchEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 func (s *service) moveEndpoint(w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
 	user := s.cm.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
 
@@ -379,8 +430,18 @@ func (s *service) moveEndpoint(w http.ResponseWriter, r *http.Request) {
 		logger.Crit().Log("error", "no extra attributes in file fileInfo", "msg", "ocwebservice running without a valid metadata driver")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	etag := extraAttributes["etag"]
-	id := extraAttributes["id"]
+	etag, ok := extraAttributes["etag"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	id, ok := extraAttributes["id"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	if etag == "" {
 		logger.Crit().Log("error", "etag is empty")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -458,8 +519,18 @@ func (s *service) putEndpoint(w http.ResponseWriter, r *http.Request) {
 			logger.Crit().Log("error", "no extra attributes in file fileInfo", "msg", "ocwebservice running without a valid metadata driver")
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-		etag := extraAttributes["etag"]
-		id := extraAttributes["id"]
+		etag, ok := extraAttributes["etag"].(string)
+		if !ok {
+			codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+			logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		id, ok := extraAttributes["id"].(string)
+		if !ok {
+			codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+			logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		if etag == "" {
 			logger.Crit().Log("error", "etag is empty")
 			w.WriteHeader(http.StatusInternalServerError)
@@ -495,8 +566,18 @@ func (s *service) putEndpoint(w http.ResponseWriter, r *http.Request) {
 		logger.Crit().Log("error", "no extra attributes in file newInfo", "msg", "ocwebservice running without a valid metadata driver")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	etag := extraAttributes["etag"]
-	id := extraAttributes["id"]
+	etag, ok := extraAttributes["etag"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	id, ok := extraAttributes["id"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	if etag == "" {
 		logger.Crit().Log("error", "etag is empty")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -523,4 +604,680 @@ func (s *service) putEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 	return
 
+}
+
+func (s *service) putChunkedEndpoint(w http.ResponseWriter, r *http.Request) {
+	if r.Body == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	user := s.cm.MustGetUser(r.Context())
+	logger := s.cm.MustGetLog(r.Context())
+	path := mux.Vars(r)["path"]
+
+	chunkInfo, err := getChunkBLOBInfo(path)
+	if err != nil {
+		logger.Error().Log("error", err, "msg", "error getting chunk fileInfo from path")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	logger.Info().Log("chunknum", chunkInfo.currentChunk, "chunks", chunkInfo.totalChunks,
+		"transferid", chunkInfo.transferID, "uploadid", chunkInfo.uploadID())
+
+	chunkTempFilename, chunkTempFile, err := s.createChunkTempFile()
+	if err != nil {
+		logger.Error().Log("error", err, "msg", "error creating chunk file")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer chunkTempFile.Close()
+
+	readCloser := http.MaxBytesReader(w, r.Body, s.uploadMaxFileSize)
+	if _, err := io.Copy(chunkTempFile, readCloser); err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+
+	// force close of the file here because if it is the last chunk to
+	// assemble the big file we need all the chunks closed
+	if err = chunkTempFile.Close(); err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+
+	chunksFolderName, err := s.getChunkFolderName(chunkInfo)
+	if err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+	logger.Info().Log("chunkfolder", chunksFolderName)
+
+	chunkTarget := chunksFolderName + "/" + fmt.Sprintf("%d", chunkInfo.currentChunk)
+	if err = os.Rename(chunkTempFilename, chunkTarget); err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+	logger.Info().Log("chunktarget", chunkTarget)
+
+	// Check that all chunks are uploaded.
+	// This is very inefficient, the server has to check that it has all the
+	// chunks after each uploaded chunk.
+	// A two-phase upload like DropBox is better, because the server will
+	// assembly the chunks when the client asks for it.
+	chunksFolder, err := os.Open(chunksFolderName)
+	if err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+	defer chunksFolder.Close()
+
+	// read all the chunks inside the chunk folder; -1 == all
+	chunks, err := chunksFolder.Readdir(-1)
+	if err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+	logger.Info().Log("msg", "chunkfolder readed", "nchunks", len(chunks))
+
+	// there is still some chunks to be uploaded so we stop here
+	if len(chunks) < int(chunkInfo.totalChunks) {
+		logger.Debug().Log("msg", "current chunk does not complete the file")
+		w.WriteHeader(http.StatusCreated)
+		return
+	}
+
+	assembledFileName, assembledFile, err := s.createChunkTempFile()
+	if err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+	defer assembledFile.Close()
+
+	logger.Info().Log("assembledfile", assembledFileName)
+
+	// walk all chunks and append to assembled file
+	for i := range chunks {
+		target := chunksFolderName + "/" + fmt.Sprintf("%d", i)
+
+		chunk, err := os.Open(target)
+		if err != nil {
+			s.handlePutEndpointError(err, w, r)
+			return
+		}
+
+		if _, err = io.Copy(assembledFile, chunk); err != nil {
+			s.handlePutEndpointError(err, w, r)
+			return
+		}
+		logger.Debug().Log("msg", "chunk appended to assembledfile")
+
+		// we close the chunk here because if the assemnled file contains hundreds of chunks
+		// we will end up with hundreds of open file descriptors
+		if err = chunk.Close(); err != nil {
+			s.handlePutEndpointError(err, w, r)
+			return
+
+		}
+	}
+
+	// at this point the assembled file is complete
+	// so we free space removing the chunks folder
+	defer func() {
+		if err = os.RemoveAll(chunksFolderName); err != nil {
+			logger.Error().Log("error", err, "msg", "error deleting chunk folder")
+		}
+	}()
+
+	// when writing to the assembled file the write pointer points to the end of the file
+	// so we need to seek it to the beginning
+	if _, err = assembledFile.Seek(0, 0); err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+
+	if err = s.dataDriver.UploadFile(r.Context(), user, chunkInfo.path, assembledFile, ""); err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+
+	fileInfo, err := s.metaDataDriver.Examine(r.Context(), user, chunkInfo.path)
+	if err != nil {
+		s.handlePutEndpointError(err, w, r)
+		return
+	}
+
+	extraAttributes := fileInfo.ExtraAttributes()
+	if extraAttributes == nil {
+		logger.Crit().Log("error", "no extra attributes in file fileInfo", "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	etag, ok := extraAttributes["etag"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	id, ok := extraAttributes["id"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if etag == "" {
+		logger.Crit().Log("error", "etag is empty")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if id == "" {
+		logger.Crit().Log("error", "id is empty")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.Header().Add("Content-Type", s.mg.FromString(fileInfo.Path()))
+	w.Header().Set("ETag", etag)
+	w.Header().Set("OC-FileId", id)
+	w.Header().Set("OC-ETag", etag)
+	t := time.Unix(fileInfo.Modified()/1000000000, fileInfo.Modified()%1000000000)
+	lastModifiedString := t.Format(time.RFC1123)
+	w.Header().Set("Last-Modified", lastModifiedString)
+	w.Header().Set("X-OC-MTime", "accepted")
+
+	// if object did not exist, http code is 201, else 204.
+	if fileInfo == nil {
+		w.WriteHeader(http.StatusCreated)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *service) propfindEndpoint(w http.ResponseWriter, r *http.Request) {
+	user := s.cm.MustGetUser(r.Context())
+	path := mux.Vars(r)["path"]
+
+	var children bool
+	depth := r.Header.Get("Depth")
+	// TODO(labkode) Check default for infinity header
+	if depth == "1" {
+		children = true
+	}
+
+	var fileInfos []root.FileInfo
+	fileInfo, err := s.metaDataDriver.Examine(r.Context(), user, path)
+	if err != nil {
+		s.handlePropfindEndpointError(err, w, r)
+		return
+	}
+	fileInfos = append(fileInfos, fileInfo)
+
+	if children && fileInfo.Folder() {
+		childrenInfos, err := s.metaDataDriver.ListFolder(r.Context(), user, path)
+		if err != nil {
+			s.handlePropfindEndpointError(err, w, r)
+			return
+		}
+		fileInfos = append(fileInfos, childrenInfos...)
+	}
+
+	fileInfosInXML, err := s.fileInfosToXML(r.Context(), fileInfos)
+	if err != nil {
+		s.handlePropfindEndpointError(err, w, r)
+		return
+	}
+
+	w.Header().Set("DAV", "1, 3, extended-mkcol")
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(207)
+	w.Write([]byte(fileInfosInXML))
+
+}
+
+func (s *service) isChunkedUpload(path string) (bool, error) {
+	return regexp.MatchString(`-chunking-\w+-[0-9]+-[0-9]+$`, path)
+}
+
+func (s *service) handleIfMatchHeader(clientETag, serverETag string, w http.ResponseWriter, r *http.Request) error {
+	logger := s.cm.MustGetLog(r.Context())
+
+	// ownCloud adds double quotes around ETag value
+	serverETag = fmt.Sprintf(`"%s"`, serverETag)
+	if clientETag != serverETag {
+		err := fmt.Errorf("etags do not match")
+		logger.Error().Log("msg", "can not accept conditional request", "client-etag", clientETag, "server-etag", serverETag)
+		w.WriteHeader(http.StatusPreconditionFailed)
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) handleFinderRequest(w http.ResponseWriter, r *http.Request) error {
+	logger := s.cm.MustGetLog(r.Context())
+
+	/*
+	   Many webservers will not cooperate well with Finder PUT requests,
+	   because it uses 'Chunked' transfer encoding for the request body.
+	   The symptom of this problem is that Finder sends files to the
+	   server, but they arrive as 0-length files in PHP.
+	   If we don't do anything, the user might think they are uploading
+	   files successfully, but they end up empty on the server. Instead,
+	   we throw back an error if we detect this.
+	   The reason Finder uses Chunked, is because it thinks the files
+	   might change as it's being uploaded, and therefore the
+	   Content-Length can vary.
+	   Instead it sends the X-Expected-Entity-Length header with the size
+	   of the file at the very start of the request. If this header is set,
+	   but we don't get a request body we will fail the request to
+	   protect the end-user.
+	*/
+	logger.Warn().Log("msg", "finder problem intercepted", "content-length", r.Header.Get("Content-Length"), "x-expected-entity-length", r.Header.Get("X-Expected-Entity-Length"))
+
+	// The best mitigation to this problem is to tell users to not use crappy Finder.
+	// Another possible mitigation is to change the use the value of X-Expected-Entity-Length header in the Content-Length header.
+	expected := r.Header.Get("X-Expected-Entity-Length")
+	expectedInt, err := strconv.ParseInt(expected, 10, 64)
+	if err != nil {
+		logger.Error().Log("error", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return err
+	}
+	r.ContentLength = expectedInt
+	return nil
+}
+
+func (s *service) requestSuffersFinderProblem(r *http.Request) bool {
+	return r.Header.Get("X-Expected-Entity-Length") != ""
+}
+
+func (s *service) requestHasContentRange(r *http.Request) bool {
+	/*
+	   Content-Range is dangerous for PUT requests:  PUT per definition
+	   stores a full resource.  draft-ietf-httpbis-p2-semantics-15 says
+	   in section 7.6:
+	     An origin server SHOULD reject any PUT request that contains a
+	     Content-Range header field, since it might be misinterpreted as
+	     partial content (or might be partial content that is being mistakenly
+	     PUT as a full representation).  Partial content updates are possible
+	     by targeting a separately identified resource with state that
+	     overlaps a portion of the larger resource, or by using a different
+	     method that has been specifically defined for partial updates (for
+	     example, the PATCH method defined in [RFC5789]).
+	   This clarifies RFC2616 section 9.6:
+	     The recipient of the entity MUST NOT ignore any Content-*
+	     (e.g. Content-Range) headers that it does not understand or implement
+	     and MUST return a 501 (Not Implemented) response in such cases.
+	   OTOH is a PUT request with a Content-Range currently the only way to
+	   continue an aborted upload request and is supported by curl, mod_dav,
+	   Tomcat and others.  Since some clients do use this feature which results
+	   in unexpected behaviour (cf PEAR::HTTP_WebDAV_Client 1.0.1), we reject
+	   all PUT requests with a Content-Range for now.
+	*/
+	return r.Header.Get("Content-Range") != ""
+}
+
+func (s *service) isNotFoundError(err error) bool {
+	codeErr, ok := err.(root.Error)
+	if !ok {
+		return false
+	}
+	if codeErr.Code() == root.CodeNotFound {
+		return true
+	}
+	return false
+}
+
+type chunkHeaderInfo struct {
+	// OC-Chunked = 1
+	ochunked bool
+
+	// OC-Chunk-Size
+	ocChunkSize uint64
+
+	// OC-Total-Length
+	ocTotalLength uint64
+}
+
+type chunkBLOBInfo struct {
+	path         string
+	transferID   string
+	totalChunks  int64
+	currentChunk int64
+}
+
+// not using the resource path in the chunk folder name allows uploading
+// to the same folder after a move without having to restart the chunk
+// upload
+func (c *chunkBLOBInfo) uploadID() string {
+	return fmt.Sprintf("chunking-%s-%d", c.transferID, c.totalChunks)
+}
+
+func getChunkBLOBInfo(path string) (*chunkBLOBInfo, error) {
+	parts := strings.Split(path, "-chunking-")
+	tail := strings.Split(parts[1], "-")
+
+	totalChunks, err := strconv.ParseInt(tail[1], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	currentChunk, err := strconv.ParseInt(tail[2], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	if currentChunk >= totalChunks {
+		return nil, fmt.Errorf("current chunk:%d exceeds total number of chunks:%d", currentChunk, totalChunks)
+	}
+
+	return &chunkBLOBInfo{
+		path:         parts[0],
+		transferID:   tail[0],
+		totalChunks:  totalChunks,
+		currentChunk: currentChunk,
+	}, nil
+}
+
+func (s *service) createChunkTempFile() (string, *os.File, error) {
+	file, err := ioutil.TempFile(s.chunksFolder, "")
+	if err != nil {
+		return "", nil, err
+	}
+
+	return file.Name(), file, nil
+}
+
+func (s *service) getChunkFolderName(i *chunkBLOBInfo) (string, error) {
+	p := s.chunksFolder + filepath.Clean("/"+i.uploadID())
+	if err := os.MkdirAll(p, 0755); err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+func (s *service) handleGetEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}
+	logger.Error().Log("error", "unexpected error getting file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handleHeadEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}
+	logger.Error().Log("error", "unexpected error heading file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handleDeleteEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	logger.Error().Log("error", "unexpected error deleting file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handleMkcolEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	logger.Error().Log("error", "unexpected error creating folder")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handleMoveEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	logger.Error().Log("error", "unexpected error moving file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handleOptionsEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}
+	logger.Error().Log("error", "unexpected error optioning file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handlePutEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	logger.Error().Log("error", err)
+
+	if err.Error() == "http: request body too large" {
+		logger.Error().Log("error", "request body max size exceed")
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if codeErr.Code() == root.CodeBadChecksum {
+			logger.Error().Log("error", "checksum mismatch")
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return
+		}
+	}
+
+	logger.Error().Log("unexpected error puting file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handlePropfindEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	logger.Error().Log("error", err)
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}
+	logger.Error().Log("msg", "unexpected error propfinding file")
+	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) fileInfosToXML(ctx context.Context, fileInfos []root.FileInfo) (string, error) {
+	responses := []*responseXML{}
+	for _, fileInfo := range fileInfos {
+		res, err := s.fileInfoToPropResponse(ctx, fileInfo)
+		if err != nil {
+			return "", err
+		}
+		responses = append(responses, res)
+	}
+	responsesXML, err := xml.Marshal(&responses)
+	if err != nil {
+		return "", err
+	}
+
+	msg := `<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:" `
+	msg += `xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns">`
+	msg += string(responsesXML) + `</d:multistatus>`
+	return msg, nil
+}
+
+func (s *service) fileInfoToPropResponse(ctx context.Context, fileInfo root.FileInfo) (*responseXML, error) {
+	logger := s.cm.MustGetLog(ctx)
+	extraAttributes := fileInfo.ExtraAttributes()
+	if extraAttributes == nil {
+		codeErr := metaDataDriverNotSupportedError("no extra attributes in file fileInfo")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		return nil, codeErr
+	}
+
+	etag, ok := extraAttributes["etag"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("etag attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		return nil, codeErr
+	}
+	id, ok := extraAttributes["id"].(string)
+	if !ok {
+		codeErr := metaDataDriverNotSupportedError("id attribute is not a string")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		return nil, codeErr
+	}
+
+	if etag == "" {
+		codeErr := metaDataDriverNotSupportedError("etag is empty")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		return nil, codeErr
+	}
+	if id == "" {
+		codeErr := metaDataDriverNotSupportedError("id is empty")
+		logger.Crit().Log("error", codeErr, "msg", "ocwebservice running without a valid metadata driver")
+		return nil, codeErr
+	}
+
+	// TODO: clean a little bit this and refactor creation of properties
+	propList := []propertyXML{}
+
+	getETag := propertyXML{
+		xml.Name{Space: "", Local: "d:getetag"},
+		"", []byte(etag)}
+
+	ocPermissions := propertyXML{xml.Name{Space: "", Local: "oc:permissions"},
+		"", []byte("RDNVW")}
+
+	quotaUsedBytes := propertyXML{
+		xml.Name{Space: "", Local: "d:quota-used-bytes"}, "", []byte("0")}
+
+	quotaAvailableBytes := propertyXML{
+		xml.Name{Space: "", Local: "d:quota-available-bytes"}, "",
+		[]byte("1000000000")}
+
+	getContentLegnth := propertyXML{
+		xml.Name{Space: "", Local: "d:getcontentlength"},
+		"", []byte(fmt.Sprintf("%d", fileInfo.Size()))}
+
+	getContentType := propertyXML{
+		xml.Name{Space: "", Local: "d:getcontenttype"},
+		"", []byte(s.mg.FromFileInfo(fileInfo))}
+
+	// Finder needs the the getLastModified property to work.
+	t := time.Unix(int64(fileInfo.Modified()/1000000000), int64(fileInfo.Modified()%1000000000))
+	lasModifiedString := t.Format(time.RFC1123)
+	getLastModified := propertyXML{
+		xml.Name{Space: "", Local: "d:getlastmodified"},
+		"", []byte(lasModifiedString)}
+
+	getResourceType := propertyXML{
+		xml.Name{Space: "", Local: "d:resourcetype"},
+		"", []byte("")}
+
+	if fileInfo.Folder() {
+		getResourceType.InnerXML = []byte("<d:collection/>")
+		getContentType.InnerXML = []byte(s.mg.FromFileInfo(fileInfo))
+		ocPermissions.InnerXML = []byte("RDNVCK")
+	}
+
+	ocID := propertyXML{xml.Name{Space: "", Local: "oc:id"}, "",
+		[]byte(id)}
+
+	ocDownloadURL := propertyXML{xml.Name{Space: "", Local: "oc:downloadURL"},
+		"", []byte("")}
+
+	ocDC := propertyXML{xml.Name{Space: "", Local: "oc:dDC"},
+		"", []byte("")}
+
+	propList = append(propList, getResourceType, getContentLegnth, getContentType, getLastModified, // general WebDAV properties
+		getETag, quotaAvailableBytes, quotaUsedBytes, ocID, ocDownloadURL, ocDC) // properties needed by ownCloud
+
+	// PropStat, only HTTP/1.1 200 is sent.
+	propStatList := []propstatXML{}
+
+	propStat := propstatXML{}
+	propStat.Prop = propList
+	propStat.Status = "HTTP/1.1 200 OK"
+	propStatList = append(propStatList, propStat)
+
+	response := responseXML{}
+
+	response.Href = filepath.Join("/ocwebdav/remote.php/webdav", fileInfo.Path())
+	if fileInfo.Folder() {
+		response.Href = filepath.Join("/ocwebdav/remote.php/webdav", fileInfo.Path()) + "/"
+	}
+
+	response.Propstat = propStatList
+
+	return &response, nil
+
+}
+
+type responseXML struct {
+	XMLName             xml.Name      `xml:"d:response"`
+	Href                string        `xml:"d:href"`
+	Propstat            []propstatXML `xml:"d:propstat"`
+	Status              string        `xml:"d:status,omitempty"`
+	Error               *errorXML     `xml:"d:error"`
+	ResponseDescription string        `xml:"d:responsedescription,omitempty"`
+}
+
+// http://www.ocwebdav.org/specs/rfc4918.html#ELEMENT_propstat
+type propstatXML struct {
+	// Prop requires DAV: to be the default namespace in the enclosing
+	// XML. This is due to the standard encoding/xml package currently
+	// not honoring namespace declarations inside a xmltag with a
+	// parent element for anonymous slice elements.
+	// Use of multistatusWriter takes care of this.
+	Prop                []propertyXML `xml:"d:prop>_ignored_"`
+	Status              string        `xml:"d:status"`
+	Error               *errorXML     `xml:"d:error"`
+	ResponseDescription string        `xml:"d:responsedescription,omitempty"`
+}
+
+// Property represents a single DAV resource property as defined in RFC 4918.
+// http://www.ocwebdav.org/specs/rfc4918.html#data.model.for.resource.properties
+type propertyXML struct {
+	// XMLName is the fully qualified name that identifies this property.
+	XMLName xml.Name
+
+	// Lang is an optional xml:lang attribute.
+	Lang string `xml:"xml:lang,attr,omitempty"`
+
+	// InnerXML contains the XML representation of the property value.
+	// See http://www.ocwebdav.org/specs/rfc4918.html#property_values
+	//
+	// Property values of complex type or mixed-content must have fully
+	// expanded XML namespaces or be self-contained with according
+	// XML namespace declarations. They must not rely on any XML
+	// namespace declarations within the scope of the XML document,
+	// even including the DAV: namespace.
+	InnerXML []byte `xml:",innerxml"`
+}
+
+// http://www.ocwebdav.org/specs/rfc4918.html#ELEMENT_error
+type errorXML struct {
+	XMLName  xml.Name `xml:"d:error"`
+	InnerXML []byte   `xml:",innerxml"`
+}
+
+type metaDataDriverNotSupportedError string
+
+func (e metaDataDriverNotSupportedError) Error() string {
+	return string(e)
+}
+func (e metaDataDriverNotSupportedError) Code() root.Code {
+	return root.Code(root.CodeInternal)
+}
+func (e metaDataDriverNotSupportedError) Message() string {
+	return string(e)
 }

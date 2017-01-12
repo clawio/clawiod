@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
+	"path/filepath"
 )
 
 type service struct {
 	cm             root.ContextManager
-	logger         *levels.Levels
+	logger         levels.Levels
 	metaDataDriver root.MetaDataDriver
 	am             root.AuthenticationMiddleware
 	wec            root.WebErrorConverter
@@ -18,7 +19,7 @@ type service struct {
 
 func New(
 	cm root.ContextManager,
-	logger *levels.Levels,
+	logger levels.Levels,
 	metaDataDriver root.MetaDataDriver,
 	am root.AuthenticationMiddleware,
 	wec root.WebErrorConverter) root.WebService {
@@ -33,19 +34,19 @@ func New(
 
 func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
 	return map[string]map[string]http.HandlerFunc{
-		"/examine": {
+		"/meta/examine": {
 			"POST": s.am.HandlerFunc(s.examineEndpoint),
 		},
-		"/list": {
+		"/meta/list": {
 			"POST": s.am.HandlerFunc(s.listFolderEndpoint),
 		},
-		"/move": {
+		"/meta/move": {
 			"POST": s.am.HandlerFunc(s.moveEndpoint),
 		},
-		"/delete": {
+		"/meta/delete": {
 			"POST": s.am.HandlerFunc(s.deleteEndpoint),
 		},
-		"/makefolder": {
+		"/meta/makefolder": {
 			"POST": s.am.HandlerFunc(s.makeFolderEndpoint),
 		},
 	}
@@ -186,7 +187,15 @@ func (s *service) moveEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.metaDataDriver.Move(r.Context(), user, req.Source, req.Target)
+	sourcePath := filepath.Clean("/" + req.Source)
+	targetPath := filepath.Clean("/" + req.Target)
+	if sourcePath == "/" || targetPath == "/" {
+		logger.Warn().Log("msg", "root can not be moved")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	err := s.metaDataDriver.Move(r.Context(), user, sourcePath, targetPath)
 	if err != nil {
 		s.handleMoveEndpointError(err, w, r)
 		return
@@ -240,6 +249,13 @@ func (s *service) deleteEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	path := filepath.Clean("/" + req.Path)
+	if path == "/" {
+		logger.Warn().Log("msg", "root can not be deleted")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	err := s.metaDataDriver.Delete(r.Context(), user, req.Path)
 	if err != nil {
 		s.handleDeleteEndpointError(err, w, r)
@@ -271,6 +287,13 @@ func (s *service) makeFolderEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(jsonError)
+		return
+	}
+
+	path := filepath.Clean("/" + req.Path)
+	if path == "/" {
+		logger.Warn().Log("msg", "root can not be created")
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 

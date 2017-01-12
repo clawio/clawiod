@@ -10,7 +10,7 @@ import (
 
 type service struct {
 	cm          root.ContextManager
-	logger      *levels.Levels
+	logger      levels.Levels
 	userDriver  root.UserDriver
 	tokenDriver root.TokenDriver
 	am          root.AuthenticationMiddleware
@@ -19,7 +19,7 @@ type service struct {
 
 func New(
 	cm root.ContextManager,
-	logger *levels.Levels,
+	logger levels.Levels,
 	userDriver root.UserDriver,
 	tokenDriver root.TokenDriver,
 	am root.AuthenticationMiddleware,

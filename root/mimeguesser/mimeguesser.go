@@ -1,4 +1,4 @@
-package guesser
+package mimeguesser
 
 import (
 	"github.com/clawio/clawiod/root"
