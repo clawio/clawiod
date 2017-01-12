@@ -72,11 +72,16 @@ type driver struct {
 }
 
 // New returns an implementation of MetaDataDriver
-func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, maxSQLConcurrentConnections int, dataFolder, temporaryFolder, dsn string) (root.MetaDataDriver, error) {
+func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, maxSQLConcurrentConnections int, dataFolder, temporaryFolder, dsn string) (root.OCMetaDataDriver, error) {
+	if sqlLogger == nil {
+		sqlLogger = &gorm.Logger{}
+	}
+
 	c := &driver{
 		logger:          logger,
 		dataFolder:      dataFolder,
 		temporaryFolder: temporaryFolder,
+		sqlLogger:       sqlLogger,
 	}
 
 	if err := os.MkdirAll(dataFolder, 0755); err != nil {
@@ -93,7 +98,8 @@ func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, ma
 		return nil, err
 	}
 
-	db.SetLogger(sqlLogger)
+
+	//db.SetLogger(sqlLogger)
 	db.LogMode(true)
 	db.DB().SetMaxIdleConns(maxSQLIdleConnections)
 	db.DB().SetMaxOpenConns(maxSQLConcurrentConnections)

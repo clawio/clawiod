@@ -62,7 +62,7 @@ type (
 	}
 
 	DataDriver interface {
-		UploadFile(ctx context.Context, user User, path string, r io.Reader, clientChecksum string) error
+		UploadFile(ctx context.Context, user User, path string, r io.ReadCloser, clientChecksum string) error
 		DownloadFile(ctx context.Context, user User, path string) (io.ReadCloser, error)
 	}
 

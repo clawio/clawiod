@@ -55,12 +55,14 @@ func (c *driver) Init(ctx context.Context, user root.User) error {
 // 2) Optional: calculate the checksum of the file if server-checksum is enabled.
 // 3) Optional: if a client-checksum is provided, check if it matches with the server-checksum.
 // 4) Move the file from the temporary folder to user folder.
-func (c *driver) UploadFile(ctx context.Context, user root.User, path string, r io.Reader, clientChecksum string) error {
+func (c *driver) UploadFile(ctx context.Context, user root.User, path string, r io.ReadCloser, clientChecksum string) error {
 	tempFileName, err := c.saveToTempFile(r)
 	if err != nil {
 		c.logger.Error().Log("error", err)
 		return err
 	}
+	defer r.Close()
+
 	var computedChecksum string
 	// 2) Optional: calculate the checksum of the file.
 	if c.checksum != "" {
