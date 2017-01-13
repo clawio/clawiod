@@ -8,7 +8,7 @@ import (
 	"context"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
-	"github.com/go-sql-driver/mysql"
+	"github.com/go-sql-Driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"time"
@@ -60,8 +60,8 @@ type record struct {
 // TableName returns the name of the SQL table.
 func (r *record) TableName() string { return "records" }
 
-// driver implements the MetaDataDriver interface.
-type driver struct {
+// Driver implements the MetaDataDriver interface.
+type Driver struct {
 	logger                      levels.Levels
 	sqlLogger                   mysql.Logger
 	dataFolder                  string
@@ -72,12 +72,12 @@ type driver struct {
 }
 
 // New returns an implementation of MetaDataDriver
-func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, maxSQLConcurrentConnections int, dataFolder, temporaryFolder, dsn string) (root.OCMetaDataDriver, error) {
+func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, maxSQLConcurrentConnections int, dataFolder, temporaryFolder, dsn string) (root.MetaDataDriver, error) {
 	if sqlLogger == nil {
 		sqlLogger = &gorm.Logger{}
 	}
 
-	c := &driver{
+	c := &Driver{
 		logger:          logger,
 		dataFolder:      dataFolder,
 		temporaryFolder: temporaryFolder,
@@ -114,7 +114,7 @@ func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, ma
 }
 
 // Init initializes the user home directory.
-func (c *driver) Init(ctx context.Context, user root.User) error {
+func (c *Driver) Init(ctx context.Context, user root.User) error {
 	localPath := c.getLocalPath(user, "/")
 	if err := os.MkdirAll(localPath, 0755); err != nil {
 		c.logger.Error().Log("error", err)
@@ -130,7 +130,7 @@ func (c *driver) Init(ctx context.Context, user root.User) error {
 }
 
 // CreateTree creates a new tree.
-func (c *driver) CreateFolder(ctx context.Context, user root.User, path string) error {
+func (c *Driver) CreateFolder(ctx context.Context, user root.User, path string) error {
 	localPath := c.getLocalPath(user, path)
 	if err := os.Mkdir(localPath, 0755); err != nil {
 		return err
@@ -139,7 +139,7 @@ func (c *driver) CreateFolder(ctx context.Context, user root.User, path string) 
 }
 
 // ExamineObject returns the metadata associated with the object.
-func (c *driver) Examine(ctx context.Context, user root.User, path string) (root.FileInfo, error) {
+func (c *Driver) Examine(ctx context.Context, user root.User, path string) (root.FileInfo, error) {
 	localPath := c.getLocalPath(user, path)
 	osFileInfo, err := os.Stat(localPath)
 	if err != nil {
@@ -159,7 +159,7 @@ func (c *driver) Examine(ctx context.Context, user root.User, path string) (root
 	return fileInfo, nil
 }
 
-func (c *driver) ListFolder(ctx context.Context, user root.User, path string) ([]root.FileInfo, error) {
+func (c *Driver) ListFolder(ctx context.Context, user root.User, path string) ([]root.FileInfo, error) {
 	localPath := c.getLocalPath(user, path)
 	osFileInfo, err := os.Stat(localPath)
 	if err != nil {
@@ -195,7 +195,7 @@ func (c *driver) ListFolder(ctx context.Context, user root.User, path string) ([
 }
 
 // DeleteObject deletes an object.
-func (c *driver) Delete(ctx context.Context, user root.User, path string) error {
+func (c *Driver) Delete(ctx context.Context, user root.User, path string) error {
 	localPath := c.getLocalPath(user, path)
 	err := os.RemoveAll(localPath)
 	if err != nil {
@@ -206,7 +206,7 @@ func (c *driver) Delete(ctx context.Context, user root.User, path string) error 
 }
 
 // Move moves an object from source to target.
-func (c *driver) Move(ctx context.Context, user root.User, sourcePath, targetPath string) error {
+func (c *Driver) Move(ctx context.Context, user root.User, sourcePath, targetPath string) error {
 	sourceLocalPath := c.getLocalPath(user, sourcePath)
 	targetLocalPath := c.getLocalPath(user, targetPath)
 	err := os.Rename(sourceLocalPath, targetLocalPath)
@@ -224,18 +224,18 @@ func (c *driver) Move(ctx context.Context, user root.User, sourcePath, targetPat
 	return c.MoveDBMetaData(sourceVirtualPath, targetVirtualPath, c.GetVirtualPath(user, "/"))
 }
 
-func (c *driver) getLocalPath(user root.User, path string) string {
+func (c *Driver) getLocalPath(user root.User, path string) string {
 	homeDir := secureJoin("/", string(user.Username()[0]), user.Username())
 	userPath := secureJoin(homeDir, path)
 	return secureJoin(c.dataFolder, userPath)
 }
 
 // GetVirtualPath returns the virtual path inside the database for this user and path.
-func (c *driver) GetVirtualPath(user root.User, path string) string {
+func (c *Driver) GetVirtualPath(user root.User, path string) string {
 	homeDir := secureJoin("/", string(user.Username()[0]), user.Username())
 	return secureJoin(homeDir, path)
 }
-func (c *driver) getObjectInfo(path string, osFileInfo os.FileInfo, rec *record) root.FileInfo {
+func (c *Driver) getObjectInfo(path string, osFileInfo os.FileInfo, rec *record) root.FileInfo {
 	return &fileInfo{path: path, osFileInfo: osFileInfo, checksum: rec.Checksum, etag: rec.ETag, id: rec.ID, mtime: rec.ModTime}
 }
 
@@ -251,7 +251,7 @@ func secureJoin(args ...string) string {
 }
 
 /*
-func (c *driver) getMimeType(path string, otype entities.ObjectType) string {
+func (c *Driver) getMimeType(path string, otype entities.ObjectType) string {
 	if otype == entities.ObjectTypeTree {
 		return entities.ObjectTypeTreeMimeType
 	}
@@ -263,14 +263,14 @@ func (c *driver) getMimeType(path string, otype entities.ObjectType) string {
 }
 */
 
-func (c *driver) getByVirtualPath(virtualPath string) (*record, error) {
+func (c *Driver) getByVirtualPath(virtualPath string) (*record, error) {
 	r := &record{}
 	err := c.db.Where("virtualpath=?", virtualPath).First(r).Error
 	return r, err
 }
 
 // GetDBMetaData returns the metadata kept in the database for this virtualPath.
-func (c *driver) GetDBMetaData(virtualPath string, forceCreateOnMiss bool, ancestorVirtualPath string) (*record, error) {
+func (c *Driver) GetDBMetaData(virtualPath string, forceCreateOnMiss bool, ancestorVirtualPath string) (*record, error) {
 	r, err := c.getByVirtualPath(virtualPath)
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
@@ -295,14 +295,14 @@ func (c *driver) GetDBMetaData(virtualPath string, forceCreateOnMiss bool, ances
 	return r, nil
 }
 
-func (c *driver) PropagateChanges(user root.User, from, to, checksum string) error {
+func (c *Driver) PropagateChanges(user root.User, from, to, checksum string) error {
 	vp := c.GetVirtualPath(user, from)
 	ancestor := c.GetVirtualPath(user, to)
 	return c.SetDBMetaData(vp, checksum, ancestor)
 }
 
 // SetDBMetaData sets the metatadata for this virtualPath.
-func (c *driver) SetDBMetaData(virtualPath, checksum string, ancestorVirtualPath string) error {
+func (c *Driver) SetDBMetaData(virtualPath, checksum string, ancestorVirtualPath string) error {
 	etag := uuid.NewV4().String()
 	modTime := time.Now().UnixNano()
 	id := etag
@@ -336,7 +336,7 @@ func (c *driver) SetDBMetaData(virtualPath, checksum string, ancestorVirtualPath
 }
 
 // MoveDBMetaData moves metadata from one virtualPath to another.
-func (c *driver) MoveDBMetaData(sourceVirtualPath, targetVirtualPath, ancestorVirtualPath string) error {
+func (c *Driver) MoveDBMetaData(sourceVirtualPath, targetVirtualPath, ancestorVirtualPath string) error {
 	records, err := c.getChildrenrecords(sourceVirtualPath)
 	if err != nil {
 		c.logger.Error().Log("error", err, "msg", "error getting children for move")
@@ -374,7 +374,7 @@ func (c *driver) MoveDBMetaData(sourceVirtualPath, targetVirtualPath, ancestorVi
 	return nil
 }
 
-func (c *driver) getChildrenrecords(virtualPath string) ([]record, error) {
+func (c *Driver) getChildrenrecords(virtualPath string) ([]record, error) {
 	var records []record
 
 	err := c.db.Where("virtualpath LIKE ? or virtualpath=?", virtualPath+"/%", virtualPath).Find(&records).Error
@@ -388,7 +388,7 @@ func (c *driver) getChildrenrecords(virtualPath string) ([]record, error) {
 // the etag and mtime values will be updated also at:
 // 1st) /d/demo/photos
 // 2nd) /d/demo
-func (c *driver) propagateChangesInDB(virtualPath, etag string, modTime int64, ancestor string) error {
+func (c *Driver) propagateChangesInDB(virtualPath, etag string, modTime int64, ancestor string) error {
 	c.logger.Debug().Log("virtualpath", virtualPath, "etag", etag, "mtime", modTime, "record that triggered propagation")
 	// virtualPathsToUpdate are sorted from largest to shortest virtual paths.
 	// Ex: "/d/demo/photos" comes before "/d/demo/"
@@ -426,7 +426,7 @@ func (c *driver) propagateChangesInDB(virtualPath, etag string, modTime int64, a
 	return nil
 }
 
-func (c *driver) getVirtualPathsUntilAncestor(virtualPath, ancestor string) []string {
+func (c *Driver) getVirtualPathsUntilAncestor(virtualPath, ancestor string) []string {
 	// virtualPaths is sorted from shortest to largest for easier implementation
 	// this slice is sorted at the end viceverse
 	var virtualPaths []string
@@ -465,7 +465,7 @@ func (c *driver) getVirtualPathsUntilAncestor(virtualPath, ancestor string) []st
 	return virtualPaths
 }
 
-func (c *driver) insertOrUpdateIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
+func (c *Driver) insertOrUpdateIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
 	c.logger.Debug().Log("msg", "record to be inserted", "id", id, "virtualpath", virtualPath, "etag", etag, "mtime", modTime, "checksum", checksum)
 	// this query only works on MySQL/MariaDB databases as it uses ON DUPLICATE KEY UPDATE feature
 	// to implement an atomic operation, either an insert or an update.
@@ -475,19 +475,19 @@ func (c *driver) insertOrUpdateIntoDB(id, virtualPath, checksum, etag string, mo
 	return err
 }
 
-func (c *driver) updateInDB(virtualPath, etag string, modTime int64) int64 {
+func (c *Driver) updateInDB(virtualPath, etag string, modTime int64) int64 {
 	c.logger.Debug().Log("msg", "record to be updated", "virtualpath", virtualPath, "etag", etag, "mtime", modTime)
 	return c.db.Model(&record{}).Where("virtualpath=? AND modtime < ?", virtualPath, modTime).Updates(&record{ETag: etag, ModTime: modTime}).RowsAffected
 }
 
-func (c *driver) insertIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
+func (c *Driver) insertIntoDB(id, virtualPath, checksum, etag string, modTime int64) error {
 	c.logger.Debug().Log("msg", "record to be inserted", "virtualpath", virtualPath, "etag", etag, "mtime", modTime)
 	err := c.db.Exec(`INSERT INTO records (id,virtualpath,checksum, etag, modtime) VALUES (?,?,?,?,?)`,
 		id, virtualPath, checksum, etag, modTime).Error
 	return err
 }
 
-func (c *driver) removeInDB(virtualPath, ancestorVirtualPath string) error {
+func (c *Driver) removeInDB(virtualPath, ancestorVirtualPath string) error {
 	c.logger.Debug().Log("msg", "record to be removed", "virtualpath", virtualPath)
 	removeBeforeTS := time.Now().UnixNano()
 	err := c.db.Where("(virtualpath LIKE ? OR virtualpath=? ) AND modtime < ?", virtualPath+"/%", virtualPath, removeBeforeTS).Delete(&record{}).Error

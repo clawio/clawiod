@@ -74,11 +74,6 @@ type (
 		CreateFolder(ctx context.Context, user User, path string) error
 	}
 
-	OCMetaDataDriver interface {
-		MetaDataDriver
-		PropagateChanges(user User, from, to, checksum string) error
-	}
-
 	UserDriver interface {
 		GetByCredentials(username, password string) (User, error)
 	}
@@ -105,6 +100,9 @@ type (
 		GetLog(ctx context.Context) (*levels.Levels, bool)
 		MustGetLog(ctx context.Context) *levels.Levels
 		SetLog(ctx context.Context, logger *levels.Levels) context.Context
+		GetTraceID(ctx context.Context) (string, bool)
+		MustGetTraceID(ctx context.Context) string
+		SetTraceID(ctx context.Context, traceId string) context.Context
 		GetUser(ctx context.Context) (User, bool)
 		MustGetUser(ctx context.Context) User
 		SetUser(ctx context.Context, user User) context.Context
@@ -121,7 +119,11 @@ type (
 		HandlerFunc(handlerFunc http.HandlerFunc) http.HandlerFunc
 	}
 
-	OwnCloudBasicAuthMiddleware interface {
+	CorsMiddleware interface {
+		Handler(handler http.Handler) http.Handler
+	}
+
+	BasicAuthMiddleware interface {
 		HandlerFunc(handlerFunc http.HandlerFunc) http.HandlerFunc
 	}
 
@@ -150,24 +152,21 @@ type (
 
 	Configuration interface {
 		GetPort() int
-		GetRol() string
 		GetCPU() string
-		GetSessionSecret() string
-		GetHTTPAccessLog() string
-		GetHTTPAccessLogLevel() string
-		GetHTTPAccessLogMaxSize() int
-		GetHTTPAccessLogMaxAge() int
-		GetHTTPAccessLogMaxBackups() int
-		GetShutdownTimeout() int
+
+		GetAppLoggerOut() string
+		GetAppLoggerMaxSize() int
+		GetAppLoggerMaxAge() int
+		GetAppLoggerMaxBackups() int
+
+		GetHTTPAccessLoggerOut() string
+		GetHTTPAccessLoggerMaxSize() int
+		GetHTTPAccessLoggerMaxAge() int
+		GetHTTPAccessLoggerMaxBackups() int
+
 		IsTLSEnabled() bool
 		GetTLSCertificate() string
 		GetTLSPrivateKey() string
-		GetEnabledServices() []string
-		IsCORSEnabled() bool
-		GetCORSAccessControlAllowOrigin() []string
-		GetCORSAccessControlAllowMethods() []string
-		GetCORSAccessControlAllowHeaders() []string
-		GetCORSEnabledServices() []string
 
 		GetUserDriver() string
 		GetMemUserDriverUsers() string
@@ -177,13 +176,33 @@ type (
 		GetFSDataDriverTemporaryFolder() string
 		GetFSDataDriverChecksum() string
 		GetFSDataDriverVerifyClientChecksum() bool
+		GetOCFSDataDriverDataFolder() string
+		GetOCFSDataDriverTemporaryFolder() string
+		GetOCFSDataDriverChecksum() string
+		GetOCFSDataDriverVerifyClientChecksum() bool
+		GetRemoteDataDriverURL() string
 
 		GetMetaDataDriver() string
-		GetFSMetaDataDriverDataFolder() string
-		GetFSMetaDataDriverTemporaryFolder() string
+		GetFSMDataDriverDataFolder() string
+		GetFSMDataDriverTemporaryFolder() string
+		GetOCFSMDataDriverDataFolder() string
+		GetOCFSMDataDriverTemporaryFolder() string
+		GetOCFSMDataDriverMaxSQLIddle() int
+		GetOCFSMDataDriverMaxSQLConcurrent() int
+		GetOCFSMDataDriverDSN() string
+		GetRemoteMDataDriverURL() string
 
 		GetTokenDriver() string
 		GetJWTTokenDriverKey() string
+
+		GetBasicAuthMiddlewareCookieName() string
+		GetCORSMiddlewareAccessControlAllowOrigin() []string
+		GetCORSMiddlewareAccessControlAllowMethods() []string
+		GetCORSMiddlewareAccessControlAllowHeaders() []string
+
+		GetDataWebServiceMaxUploadFileSize() int64
+		GetOCWebServiceMaxUploadFileSize() int64
+		GetOCWebServiceChunksFolder() string
 	}
 
 	ConfigurationSource interface {

@@ -20,8 +20,8 @@ const (
 	// tokenKey is the key to use when storing a JWT token (string) into a context.
 	tokenKey contextKey = iota
 
-	// tidKey is the key to use when storing a trace identifies into a context.
-	tidKey contextKey = iota
+	// traceIDKey is the key to use when storing a trace identifies into a context.
+	traceIDKey contextKey = iota
 )
 
 func New() root.ContextManager {
@@ -67,16 +67,15 @@ func  (m *manager) GetAccessToken(ctx context.Context) (string, bool) {
 	return token, err
 }
 
-func (m *manager) SetTraceID(ctx context.Context, tid string) context.Context {
-	return context.WithValue(ctx, tidKey, tid)
+func (m *manager) SetTraceID(ctx context.Context, traceID string) context.Context {
+	return context.WithValue(ctx, traceIDKey, traceID)
 }
 
 func (m *manager) MustGetTraceID(ctx context.Context) string {
-	return ctx.Value(tidKey).(string)
+	return ctx.Value(traceIDKey).(string)
 }
 
 func  (m *manager) GetTraceID(ctx context.Context) (string, bool) {
-	str, ok := ctx.Value(tidKey).(string)
-	return str, ok
-
+	traceID, err := ctx.Value(traceIDKey).(string)
+	return traceID, err
 }

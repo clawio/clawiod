@@ -26,7 +26,7 @@ type service struct {
 	logger            levels.Levels
 	dataDriver        root.DataDriver
 	metaDataDriver    root.MetaDataDriver
-	oam               root.OwnCloudBasicAuthMiddleware
+	bam               root.BasicAuthMiddleware
 	wec               root.WebErrorConverter
 	mg                root.MimeGuesser
 	uploadMaxFileSize int64
@@ -38,7 +38,7 @@ func New(
 	logger levels.Levels,
 	dataDriver root.DataDriver,
 	metaDataDriver root.MetaDataDriver,
-	oam root.OwnCloudBasicAuthMiddleware,
+	bam root.BasicAuthMiddleware,
 	wec root.WebErrorConverter,
 	mg root.MimeGuesser,
 	uploadMaxFileSize int64,
@@ -48,7 +48,7 @@ func New(
 		logger:            logger,
 		dataDriver:        dataDriver,
 		metaDataDriver:    metaDataDriver,
-		oam:               oam,
+		bam:               bam,
 		wec:               wec,
 		mg:                mg,
 		uploadMaxFileSize: uploadMaxFileSize,
@@ -65,17 +65,17 @@ func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
 			"GET": s.capabilitiesEndpoint,
 		},
 		"/ocwebdav/remote.php/webdav/{path:.*}": {
-			"GET":       s.oam.HandlerFunc(s.getEndpoint),
-			"PUT":       s.oam.HandlerFunc(s.putEndpoint),
-			"OPTIONS":   s.oam.HandlerFunc(s.optionsEndpoint),
-			"LOCK":      s.oam.HandlerFunc(s.lockEndpoint),
-			"UNLOCK":    s.oam.HandlerFunc(s.unlockEndpoint),
-			"HEAD":      s.oam.HandlerFunc(s.headEndpoint),
-			"MKCOL":     s.oam.HandlerFunc(s.mkcolEndpoint),
-			"PROPPATCH": s.oam.HandlerFunc(s.proppatchEndpoint),
-			"PROPFIND":  s.oam.HandlerFunc(s.propfindEndpoint),
-			"DELETE":    s.oam.HandlerFunc(s.deleteEndpoint),
-			"MOVE":      s.oam.HandlerFunc(s.moveEndpoint),
+			"GET":       s.bam.HandlerFunc(s.getEndpoint),
+			"PUT":       s.bam.HandlerFunc(s.putEndpoint),
+			"OPTIONS":   s.bam.HandlerFunc(s.optionsEndpoint),
+			"LOCK":      s.bam.HandlerFunc(s.lockEndpoint),
+			"UNLOCK":    s.bam.HandlerFunc(s.unlockEndpoint),
+			"HEAD":      s.bam.HandlerFunc(s.headEndpoint),
+			"MKCOL":     s.bam.HandlerFunc(s.mkcolEndpoint),
+			"PROPPATCH": s.bam.HandlerFunc(s.proppatchEndpoint),
+			"PROPFIND":  s.bam.HandlerFunc(s.propfindEndpoint),
+			"DELETE":    s.bam.HandlerFunc(s.deleteEndpoint),
+			"MOVE":      s.bam.HandlerFunc(s.moveEndpoint),
 		},
 	}
 }

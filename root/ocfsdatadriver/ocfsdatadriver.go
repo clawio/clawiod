@@ -15,33 +15,46 @@ import (
 	"strings"
 
 	"github.com/clawio/clawiod/root"
+	"github.com/clawio/clawiod/root/ocfsmdatadriver"
 	"github.com/go-kit/kit/log/levels"
 )
 
 type driver struct {
-	logger               levels.Levels
-	dataFolder           string
-	temporaryFolder      string
-	checksum             string
-	verifyClientChecksum bool
-	metaDataDriver       root.OCMetaDataDriver
+	logger                 levels.Levels
+	dataFolder             string
+	temporaryFolder        string
+	checksum               string
+	verifyClientChecksum   bool
+	metaDataDriver         root.MetaDataDriver
+	ownCloudMetaDataDriver *ocfsmdatadriver.Driver
 }
 
 // New returns an implementation of DataDriver.
-func New(logger levels.Levels, dataFolder, temporaryFolder, checksum string, verifyClientChecksum bool, metaDataDriver root.OCMetaDataDriver) (root.DataDriver, error) {
+func New(logger levels.Levels, dataFolder, temporaryFolder, checksum string, verifyClientChecksum bool, metaDataDriver root.MetaDataDriver) (root.DataDriver, error) {
 	if err := os.MkdirAll(dataFolder, 755); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(temporaryFolder, 0755); err != nil {
 		return nil, err
 	}
+
+	// check that metadata driver is compatible with owncloud.
+	// This is an ugly check but is the one needed to keep the metadata driver interface clean
+	// We cast to all compatible implementations.
+	ownCloudMetaDataDriver, ok := metaDataDriver.(*ocfsmdatadriver.Driver)
+	if !ok {
+		logger.Crit().Log("error", "metadata driver is not ocfsmdatadriver")
+		return nil, errors.New("metadata driver is not ocfsmdatadriver")
+	}
+
 	return &driver{
-		logger:               logger,
-		dataFolder:           strings.Trim(dataFolder, "/"),
-		temporaryFolder:      strings.Trim(temporaryFolder, "/"),
-		checksum:             checksum,
-		verifyClientChecksum: verifyClientChecksum,
-		metaDataDriver:       metaDataDriver,
+		logger:                 logger,
+		dataFolder:             strings.Trim(dataFolder, "/"),
+		temporaryFolder:        strings.Trim(temporaryFolder, "/"),
+		checksum:               checksum,
+		verifyClientChecksum:   verifyClientChecksum,
+		metaDataDriver:         metaDataDriver,
+		ownCloudMetaDataDriver: ownCloudMetaDataDriver,
 	}, nil
 }
 
@@ -94,7 +107,7 @@ func (c *driver) UploadFile(ctx context.Context, user root.User, path string, r 
 		return err
 	}
 	c.logger.Info().Log("msg", "atomic rename completed", "source", tempFileName, "target", localPath)
-	if err = c.metaDataDriver.PropagateChanges(user, path, "/", computedChecksum); err != nil {
+	if err = c.ownCloudMetaDataDriver.PropagateChanges(user, path, "/", computedChecksum); err != nil {
 		c.logger.Error().Log("error", err, "msg", "error propagating changes")
 	}
 	return nil
