@@ -28,6 +28,8 @@ const (
 	CodeUserNotFound
 	// CodeInternal
 	CodeInternal
+	// CodeAlreadyExist
+	CodeAlreadyExist
 )
 
 type (
@@ -153,6 +155,7 @@ type (
 	Configuration interface {
 		GetPort() int
 		GetCPU() string
+		GetEnabledWebServices() string
 
 		GetAppLoggerOut() string
 		GetAppLoggerMaxSize() int
@@ -196,11 +199,21 @@ type (
 		GetJWTTokenDriverKey() string
 
 		GetBasicAuthMiddlewareCookieName() string
-		GetCORSMiddlewareAccessControlAllowOrigin() []string
-		GetCORSMiddlewareAccessControlAllowMethods() []string
-		GetCORSMiddlewareAccessControlAllowHeaders() []string
+		IsCORSMiddlewareEnabled() bool
+		GetCORSMiddlewareAccessControlAllowOrigin() string
+		GetCORSMiddlewareAccessControlAllowMethods() string
+		GetCORSMiddlewareAccessControlAllowHeaders() string
 
+		GetAuthenticationWebService() string
+		GetRemoteAuthenticationWebServiceURL() string
+
+		GetDataWebService() string
 		GetDataWebServiceMaxUploadFileSize() int64
+		GetRemoteDataWebServiceURL() string
+
+		GetMetaDataWebService() string
+		GetRemoteMetaDataWebServiceURL() string
+
 		GetOCWebServiceMaxUploadFileSize() int64
 		GetOCWebServiceChunksFolder() string
 	}

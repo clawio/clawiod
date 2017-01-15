@@ -290,13 +290,6 @@ func (s *service) makeFolderEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Clean("/" + req.Path)
-	if path == "/" {
-		logger.Warn().Log("msg", "root can not be created")
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-
 	err := s.metaDataDriver.CreateFolder(r.Context(), user, req.Path)
 	if err != nil {
 		s.handleMakeFolderEndpointError(err, w, r)
@@ -307,6 +300,28 @@ func (s *service) makeFolderEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func (s *service) handleMakeFolderEndpointError(err error, w http.ResponseWriter, r *http.Request) {
 	logger := s.cm.MustGetLog(r.Context())
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if codeErr.Code() == root.CodeBadInputData {
+			jsonErr, err := s.wec.ErrorToJSON(codeErr)
+			if err != nil {
+				s.logger.Error().Log("error", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(jsonErr)
+			return
+		}
+		if codeErr.Code() == root.CodeAlreadyExist {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
 	logger.Error().Log("error", err, "msg", "unexpected error making folder")
 	w.WriteHeader(http.StatusInternalServerError)
 	return

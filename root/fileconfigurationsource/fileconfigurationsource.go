@@ -12,8 +12,9 @@ type configurationSource struct {
 }
 
 type configuration struct {
-	Port int    `json:"port"`
-	CPU  string `json:"cpu"`
+	Port               int    `json:"port"`
+	CPU                string `json:"cpu"`
+	EnabledWebServices string `json:"enabled_web_services"`
 
 	AppLoggerOut        string `json:"app_logger_out"`
 	AppLoggerMaxSize    int    `json:"app_logger_max_size"`
@@ -21,7 +22,6 @@ type configuration struct {
 	AppLoggerMaxBackups int    `json:"app_logger_max_backups"`
 
 	HTTPAccessLoggerOut        string `json:"http_access_logger_out"`
-	HTTPAccessLoggerLevel      string `json:"http_access_logger_level"`
 	HTTPAccessLoggerMaxSize    int    `json:"http_access_logger_max_size"`
 	HTTPAccessLoggerMaxAge     int    `json:"http_access_logger_max_age"`
 	HTTPAccessLoggerMaxBackups int    `json:"http_access_logger_max_backups"`
@@ -57,14 +57,21 @@ type configuration struct {
 	TokenDriver       string `json:"token_driver"`
 	JWTTokenDriverKey string `json:"jwt_token_driver_key"`
 
-	BasicAuthMiddlewareCookieName           string   `json:"basic_auth_middleware_cookie_name"`
-	CORSMiddlewareAccessControlAllowOrigin  []string `json:"cors_middleware_access_control_allow_origin"`
-	CORSMiddlewareAccessControlAllowMethods []string `json:"cors_middleware_access_control_allow_methods"`
-	CORSMiddlewareAccessControlAllowHeaders []string `json:"cors_middleware_access_control_allow_headers"`
+	BasicAuthMiddlewareCookieName           string `json:"basic_auth_middleware_cookie_name"`
+	CORSMiddlewareEnabled                   bool   `json:"cors_middleware_enabled"`
+	CORSMiddlewareAccessControlAllowOrigin  string `json:"cors_middleware_access_control_allow_origin"`
+	CORSMiddlewareAccessControlAllowMethods string `json:"cors_middleware_access_control_allow_methods"`
+	CORSMiddlewareAccessControlAllowHeaders string `json:"cors_middleware_access_control_allow_headers"`
 
-	DataWebServiceMaxUploadFileSize int64  `json:"data_web_service_max_upload_file_size"`
-	OCWebServiceMaxUploadFileSize   int64  `json:"oc_web_service_max_upload_file_size"`
-	OCWebServiceChunksFolder        string `json:"oc_web_service_chunks_folder"`
+	AuthenticationWebService          string `json:"authentication_web_service"`
+	RemoteAuthenticationWebServiceURL string `json:"remote_authentication_web_service_url"`
+	DataWebService                    string `json:"data_web_service"`
+	RemoteDataWebServiceURL           string `json:"remote_data_web_service_url"`
+	DataWebServiceMaxUploadFileSize   int64  `json:"data_web_service_max_upload_file_size"`
+	MetaDataWebService                string `json:"meta_data_web_service"`
+	RemoteMetaDataWebServiceURL       string `json:"remote_meta_data_web_service_url"`
+	OCWebServiceMaxUploadFileSize     int64  `json:"oc_web_service_max_upload_file_size"`
+	OCWebServiceChunksFolder          string `json:"oc_web_service_chunks_folder"`
 }
 
 func New(filename string) (root.ConfigurationSource, error) {
@@ -84,8 +91,9 @@ func (cs *configurationSource) LoadConfiguration() (root.Configuration, error) {
 	return configuration, nil
 }
 
-func (c *configuration) GetPort() int   { return c.Port }
-func (c *configuration) GetCPU() string { return c.CPU }
+func (c *configuration) GetPort() int                  { return c.Port }
+func (c *configuration) GetCPU() string                { return c.CPU }
+func (c *configuration) GetEnabledWebServices() string { return c.EnabledWebServices }
 
 func (c *configuration) GetAppLoggerOut() string     { return c.AppLoggerOut }
 func (c *configuration) GetAppLoggerMaxSize() int    { return c.AppLoggerMaxSize }
@@ -144,14 +152,41 @@ func (c *configuration) GetBasicAuthMiddlewareCookieName() string {
 	return c.BasicAuthMiddlewareCookieName
 }
 
-func (c *configuration) GetCORSMiddlewareAccessControlAllowOrigin() []string {
+func (c *configuration) IsCORSMiddlewareEnabled() bool {
+	return c.CORSMiddlewareEnabled
+}
+
+func (c *configuration) GetCORSMiddlewareAccessControlAllowOrigin() string {
 	return c.CORSMiddlewareAccessControlAllowOrigin
 }
-func (c *configuration) GetCORSMiddlewareAccessControlAllowMethods() []string {
+func (c *configuration) GetCORSMiddlewareAccessControlAllowMethods() string {
 	return c.CORSMiddlewareAccessControlAllowMethods
 }
-func (c *configuration) GetCORSMiddlewareAccessControlAllowHeaders() []string {
+func (c *configuration) GetCORSMiddlewareAccessControlAllowHeaders() string {
 	return c.CORSMiddlewareAccessControlAllowHeaders
+}
+
+func (c *configuration) GetAuthenticationWebService() string {
+	return c.AuthenticationWebService
+}
+
+func (c *configuration) GetRemoteAuthenticationWebServiceURL() string {
+	return c.RemoteAuthenticationWebServiceURL
+}
+
+func (c *configuration) GetDataWebService() string {
+	return c.DataWebService
+}
+
+func (c *configuration) GetRemoteDataWebServiceURL() string {
+	return c.RemoteDataWebServiceURL
+}
+func (c *configuration) GetMetaDataWebService() string {
+	return c.MetaDataWebService
+}
+
+func (c *configuration) GetRemoteMetaDataWebServiceURL() string {
+	return c.RemoteMetaDataWebServiceURL
 }
 
 func (c *configuration) GetDataWebServiceMaxUploadFileSize() int64 {

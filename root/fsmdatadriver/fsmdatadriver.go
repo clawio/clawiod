@@ -49,6 +49,9 @@ func (c *driver) CreateFolder(ctx context.Context, user root.User, path string) 
 	localPath := c.getLocalPath(user, path)
 	if err := os.Mkdir(localPath, 0755); err != nil {
 		c.logger.Error().Log("error", err)
+		if os.IsExist(err) {
+			return alreadyExistError("folder already exist")
+		}
 		return err
 	}
 	c.logger.Info().Log("msg", "folder created", "folder", localPath)
@@ -196,6 +199,18 @@ func (e notFoundError) Code() root.Code {
 	return root.Code(root.CodeNotFound)
 }
 func (e notFoundError) Message() string {
+	return string(e)
+}
+
+type alreadyExistError string
+
+func (e alreadyExistError) Error() string {
+	return string(e)
+}
+func (e alreadyExistError) Code() root.Code {
+	return root.Code(root.CodeAlreadyExist)
+}
+func (e alreadyExistError) Message() string {
 	return string(e)
 }
 

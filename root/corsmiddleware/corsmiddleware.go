@@ -2,19 +2,23 @@ package corsmiddleware
 
 import (
 	"github.com/clawio/clawiod/root"
+	"github.com/go-kit/kit/log/levels"
 	"github.com/rs/cors"
 	"net/http"
 	"strings"
 )
 
 type middleware struct {
+	logger         levels.Levels
 	allowedOrigins string
 	allowedMethods string
 	allowedHeaders string
 }
 
-func New(origins, methods, headers string) root.CorsMiddleware {
+func New(logger levels.Levels, origins, methods, headers string) root.CorsMiddleware {
+	logger.Info().Log("msg", "cors middleware configured", "allowed-origins", origins, "allowed-methods", methods, "allowed-headers", headers)
 	return &middleware{
+		logger:         logger,
 		allowedOrigins: origins,
 		allowedMethods: methods,
 		allowedHeaders: headers,
