@@ -183,7 +183,6 @@ type (
 		GetOCFSDataDriverTemporaryFolder() string
 		GetOCFSDataDriverChecksum() string
 		GetOCFSDataDriverVerifyClientChecksum() bool
-		GetRemoteDataDriverURL() string
 
 		GetMetaDataDriver() string
 		GetFSMDataDriverDataFolder() string
@@ -193,7 +192,6 @@ type (
 		GetOCFSMDataDriverMaxSQLIddle() int
 		GetOCFSMDataDriverMaxSQLConcurrent() int
 		GetOCFSMDataDriverDSN() string
-		GetRemoteMDataDriverURL() string
 
 		GetTokenDriver() string
 		GetJWTTokenDriverKey() string
@@ -214,8 +212,10 @@ type (
 		GetMetaDataWebService() string
 		GetRemoteMetaDataWebServiceURL() string
 
+		GetOCWebService() string
 		GetOCWebServiceMaxUploadFileSize() int64
 		GetOCWebServiceChunksFolder() string
+		GetRemoteOCWebServiceURL() string
 	}
 
 	ConfigurationSource interface {

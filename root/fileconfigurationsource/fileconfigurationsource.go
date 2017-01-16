@@ -42,7 +42,6 @@ type configuration struct {
 	OCFSDataDriverTemporaryFolder      string `json:"ocfs_data_driver_temporary_folder"`
 	OCFSDataDriverChecksum             string `json:"ocfs_data_driver_checksum"`
 	OCFSDataDriverVerifyClientChecksum bool   `json:"ocfs_data_driver_verify_client_checksum"`
-	RemoteDataDriverURL                string `json:"remote_data_driver_url"`
 
 	MetaDataDriver                  string `json:"meta_data_driver"`
 	FSMDataDriverDataFolder         string `json:"fsm_data_driver_data_folder"`
@@ -52,7 +51,6 @@ type configuration struct {
 	OCFSMDataDriverMaxSQLIddle      int    `json:"ocfsm_data_driver_max_sql_iddle"`
 	OCFSMDataDriverMaxSQLConcurrent int    `json:"ocfsm_data_driver_max_sql_concurrent"`
 	OCFSMDataDriverDSN              string `json:"ocfsm_data_driver_dsn"`
-	RemoteMDataDriverURL            string `json:"remote_m_data_driver_url"`
 
 	TokenDriver       string `json:"token_driver"`
 	JWTTokenDriverKey string `json:"jwt_token_driver_key"`
@@ -65,13 +63,18 @@ type configuration struct {
 
 	AuthenticationWebService          string `json:"authentication_web_service"`
 	RemoteAuthenticationWebServiceURL string `json:"remote_authentication_web_service_url"`
-	DataWebService                    string `json:"data_web_service"`
-	RemoteDataWebServiceURL           string `json:"remote_data_web_service_url"`
-	DataWebServiceMaxUploadFileSize   int64  `json:"data_web_service_max_upload_file_size"`
-	MetaDataWebService                string `json:"meta_data_web_service"`
-	RemoteMetaDataWebServiceURL       string `json:"remote_meta_data_web_service_url"`
-	OCWebServiceMaxUploadFileSize     int64  `json:"oc_web_service_max_upload_file_size"`
-	OCWebServiceChunksFolder          string `json:"oc_web_service_chunks_folder"`
+
+	DataWebService                  string `json:"data_web_service"`
+	RemoteDataWebServiceURL         string `json:"remote_data_web_service_url"`
+	DataWebServiceMaxUploadFileSize int64  `json:"data_web_service_max_upload_file_size"`
+
+	MetaDataWebService          string `json:"meta_data_web_service"`
+	RemoteMetaDataWebServiceURL string `json:"remote_meta_data_web_service_url"`
+
+	OCWebService                  string `json:"oc_web_service"`
+	OCWebServiceMaxUploadFileSize int64  `json:"oc_web_service_max_upload_file_size"`
+	OCWebServiceChunksFolder      string `json:"oc_web_service_chunks_folder"`
+	RemoteOCWebServiceURL         string `json:"remote_oc_web_service_url"`
 }
 
 func New(filename string) (root.ConfigurationSource, error) {
@@ -127,7 +130,6 @@ func (c *configuration) GetOCFSDataDriverChecksum() string { return c.OCFSDataDr
 func (c *configuration) GetOCFSDataDriverVerifyClientChecksum() bool {
 	return c.OCFSDataDriverVerifyClientChecksum
 }
-func (c *configuration) GetRemoteDataDriverURL() string { return c.RemoteDataDriverURL }
 
 func (c *configuration) GetMetaDataDriver() string          { return c.MetaDataDriver }
 func (c *configuration) GetFSMDataDriverDataFolder() string { return c.FSMDataDriverDataFolder }
@@ -142,8 +144,7 @@ func (c *configuration) GetOCFSMDataDriverMaxSQLIddle() int { return c.OCFSMData
 func (c *configuration) GetOCFSMDataDriverMaxSQLConcurrent() int {
 	return c.OCFSMDataDriverMaxSQLConcurrent
 }
-func (c *configuration) GetOCFSMDataDriverDSN() string   { return c.OCFSMDataDriverDSN }
-func (c *configuration) GetRemoteMDataDriverURL() string { return c.RemoteMDataDriverURL }
+func (c *configuration) GetOCFSMDataDriverDSN() string { return c.OCFSMDataDriverDSN }
 
 func (c *configuration) GetTokenDriver() string       { return c.TokenDriver }
 func (c *configuration) GetJWTTokenDriverKey() string { return c.JWTTokenDriverKey }
@@ -191,6 +192,13 @@ func (c *configuration) GetRemoteMetaDataWebServiceURL() string {
 
 func (c *configuration) GetDataWebServiceMaxUploadFileSize() int64 {
 	return c.DataWebServiceMaxUploadFileSize
+}
+func (c *configuration) GetOCWebService() string {
+	return c.OCWebService
+}
+
+func (c *configuration) GetRemoteOCWebServiceURL() string {
+	return c.RemoteOCWebServiceURL
 }
 func (c *configuration) GetOCWebServiceMaxUploadFileSize() int64 {
 	return c.OCWebServiceMaxUploadFileSize
