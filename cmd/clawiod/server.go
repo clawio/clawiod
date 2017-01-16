@@ -64,6 +64,8 @@ func (s *server) configureRouter() error {
 	s.logger.Info().Log("msg", "web services enabled", "webservices", config.GetEnabledWebServices())
 
 	router := mux.NewRouter()
+	router.Handle("/metrics", prometheus.Handler()).Methods("GET")
+	s.logger.Info().Log("method", "GET", "endpoint", "/metrics", "msg", "endpoint available - created by prometheus")
 	for key, service := range webServices {
 		s.logger.Info().Log("msg", key+" web service enabled")
 		for path, methods := range service.Endpoints() {
