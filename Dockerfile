@@ -1,4 +1,4 @@
-FROM golang:1.6
+FROM golang:1.7
 MAINTAINER Hugo González Labrador
 
 ADD . /go/src/github.com/clawio/clawiod
@@ -9,8 +9,8 @@ RUN go install
 RUN mkdir /etc/clawiod/
 
 # Create default config file
-RUN echo "{}" > /etc/clawiod/clawiod.conf
+RUN cp etc/* > /etc/clawiod/
 
-CMD /go/bin/clawiod -config /etc/clawiod/clawiod.conf
+CMD /go/bin/clawiod -conf /etc/clawiod/monolithic.conf
 
-EXPOSE 1502
+EXPOSE 1560
