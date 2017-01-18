@@ -16,6 +16,7 @@ import (
 	"github.com/clawio/clawiod/root/fsdatadriver"
 	"github.com/clawio/clawiod/root/fsmdatadriver"
 	"github.com/clawio/clawiod/root/jwttokendriver"
+	"github.com/clawio/clawiod/root/ldapuserdriver"
 	"github.com/clawio/clawiod/root/loggermiddleware"
 	"github.com/clawio/clawiod/root/memuserdriver"
 	"github.com/clawio/clawiod/root/metadatawebservice"
@@ -89,6 +90,18 @@ func getUserDriver(config root.Configuration) (root.UserDriver, error) {
 	switch config.GetUserDriver() {
 	case "memuserdriver":
 		return memuserdriver.New(config.GetMemUserDriverUsers()), nil
+	case "ldapuserdriver":
+		logger, err := getLogger(config)
+		if err != nil {
+			return nil, err
+		}
+		return ldapuserdriver.New(logger,
+			config.GetLDAPUserDriverBindUsername(),
+			config.GetLDAPUserDriverBindPassword(),
+			config.GetLDAPUserDriverHostname(),
+			config.GetLDAPUserDriverPort(),
+			config.GetLDAPUserDriverBaseDN(),
+			config.GetLDAPUserDriverFilter())
 	default:
 		return nil, errors.New("configured user driver does not exist")
 	}

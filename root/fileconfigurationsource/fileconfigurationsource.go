@@ -30,8 +30,14 @@ type configuration struct {
 	TLSCertificate string `json:"tls_certificate"`
 	TLSPrivateKey  string `json:"tls_private_key"`
 
-	UserDriver         string `json:"user_driver"`
-	MemUserDriverUsers string `json:"mem_user_driver_users"`
+	UserDriver                 string `json:"user_driver"`
+	MemUserDriverUsers         string `json:"mem_user_driver_users"`
+	LDAPUserDriverBindUsername string `json:"ldap_user_driver_bind_username"`
+	LDAPUserDriverBindPassword string `json:"ldap_user_driver_bind_password"`
+	LDAPUserDriverHostname     string `json:"ldap_user_driver_hostname"`
+	LDAPUserDriverPort         int    `json:"ldap_user_driver_port"`
+	LDAPUserDriverBaseDN       string `json:"ldap_user_driver_base_dn"`
+	LDAPUserDriverFilter       string `json:"ldap_user_driver_filter"`
 
 	DataDriver                         string `json:"data_driver"`
 	FSDataDriverDataFolder             string `json:"fs_data_driver_data_folder"`
@@ -118,11 +124,33 @@ func (c *configuration) GetTLSPrivateKey() string  { return c.TLSPrivateKey }
 
 func (c *configuration) GetUserDriver() string         { return c.UserDriver }
 func (c *configuration) GetMemUserDriverUsers() string { return c.MemUserDriverUsers }
+func (c *configuration) GetLDAPUserDriverBindUsername() string {
+	return c.LDAPUserDriverBindUsername
+}
+func (c *configuration) GetLDAPUserDriverBindPassword() string {
+	return c.LDAPUserDriverBindPassword
 
-func (c *configuration) GetDataDriver() string                  { return c.DataDriver }
-func (c *configuration) GetFSDataDriverDataFolder() string      { return c.FSDataDriverDataFolder }
-func (c *configuration) GetFSDataDriverTemporaryFolder() string { return c.FSDataDriverTemporaryFolder }
-func (c *configuration) GetFSDataDriverChecksum() string        { return c.FSDataDriverChecksum }
+}
+func (c *configuration) GetLDAPUserDriverHostname() string {
+	return c.LDAPUserDriverHostname
+}
+func (c *configuration) GetLDAPUserDriverPort() int {
+	return c.LDAPUserDriverPort
+}
+func (c *configuration) GetLDAPUserDriverBaseDN() string {
+	return c.LDAPUserDriverBaseDN
+}
+func (c *configuration) GetLDAPUserDriverFilter() string {
+	return c.LDAPUserDriverFilter
+}
+func (c *configuration) GetDataDriver() string {
+	return c.DataDriver
+}
+func (c *configuration) GetFSDataDriverDataFolder() string { return c.FSDataDriverDataFolder }
+func (c *configuration) GetFSDataDriverTemporaryFolder() string {
+	return c.FSDataDriverTemporaryFolder
+}
+func (c *configuration) GetFSDataDriverChecksum() string { return c.FSDataDriverChecksum }
 func (c *configuration) GetFSDataDriverVerifyClientChecksum() bool {
 	return c.FSDataDriverVerifyClientChecksum
 }

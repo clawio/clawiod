@@ -179,6 +179,12 @@ type (
 
 		GetUserDriver() string
 		GetMemUserDriverUsers() string
+		GetLDAPUserDriverBindUsername() string
+		GetLDAPUserDriverBindPassword() string
+		GetLDAPUserDriverHostname() string
+		GetLDAPUserDriverPort() int
+		GetLDAPUserDriverBaseDN() string
+		GetLDAPUserDriverFilter() string
 
 		GetDataDriver() string
 		GetFSDataDriverDataFolder() string
