@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
+	"golang.org/x/net/context"
 	"io"
 	"path/filepath"
 )
@@ -90,6 +91,7 @@ func (s *service) uploadEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	clientChecksum := s.getClientChecksum(r)
 	readCloser := http.MaxBytesReader(w, r.Body, s.uploadMaxFileSize)
+	context.WithValue(r.Context(), "extra", req.Extra)
 	if err := s.dataDriver.UploadFile(r.Context(), user, req.Path, readCloser, clientChecksum); err != nil {
 		s.handleUploadEndpointError(err, w, r)
 		return
@@ -214,5 +216,6 @@ func (e badRequestError) Message() string {
 }
 
 type pathRequest struct {
-	Path string `json:"path"`
+	Path  string      `json:"path"`
+	Extra interface{} `json:"extra"`
 }

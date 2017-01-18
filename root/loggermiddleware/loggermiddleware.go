@@ -30,7 +30,7 @@ func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 		}
 		r = r.WithContext(m.cm.SetTraceID(r.Context(), tid))
 
-		l := m.logger.With("traceid", tid)
+		l := m.logger.With("traceid", tid, "url", r.URL.Path)
 		r = r.WithContext(m.cm.SetLog(r.Context(), &l))
 		start := time.Now()
 		l.Info().Log("msg", "request started")

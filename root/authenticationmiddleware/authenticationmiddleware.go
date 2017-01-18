@@ -27,6 +27,8 @@ func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 		}
 		r = r.WithContext(m.cm.SetUser(r.Context(), user))
 		r = r.WithContext(m.cm.SetAccessToken(r.Context(), token))
+		l := logger.With("user", user.Username())
+		r = r.WithContext(m.cm.SetLog(r.Context(), &l))
 		logger.Info().Log("user", user.Username(), "msg", "request is authenticated")
 		handler(w, r)
 	}

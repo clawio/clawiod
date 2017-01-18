@@ -1,4 +1,4 @@
-package remotedatawebservice
+package proxieddatawebservice
 
 import (
 	"github.com/clawio/clawiod/root"

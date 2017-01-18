@@ -1,4 +1,4 @@
-package remoteauthenticationwebservice
+package proxiedauthenticationwebservice
 
 import (
 	"github.com/clawio/clawiod/root"

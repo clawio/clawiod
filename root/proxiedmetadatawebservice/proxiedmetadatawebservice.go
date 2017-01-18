@@ -1,4 +1,4 @@
-package remotemetadatawebservice
+package proxiedmetadatawebservice
 
 import (
 	"github.com/clawio/clawiod/root"

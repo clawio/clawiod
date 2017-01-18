@@ -25,7 +25,10 @@ func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 		if err == nil {
 			user, err := m.tokenDriver.UserFromToken(authCookie.Value)
 			if err == nil {
+				l := logger.With("user", user.Username())
+				r = r.WithContext(m.cm.SetLog(r.Context(), &l))
 				r = r.WithContext(m.cm.SetUser(r.Context(), user))
+				r = r.WithContext(m.cm.SetAccessToken(r.Context(), authCookie.Value))
 				logger.Info().Log("user", user.Username())
 				handler(w, r)
 				return
@@ -70,6 +73,9 @@ func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 		http.SetCookie(w, cookie)
 
 		r = r.WithContext(m.cm.SetUser(r.Context(), user))
+		r = r.WithContext(m.cm.SetAccessToken(r.Context(), token))
+		l := logger.With("user", user.Username())
+		r = r.WithContext(m.cm.SetLog(r.Context(), &l))
 		logger.Info().Log("user", user.Username(), "msg", "request is authenticated")
 		handler(w, r)
 		return

@@ -140,11 +140,17 @@ type (
 	WebServer interface {
 	}
 
-	Builder interface {
-		Configuration() (Configuration, error)
-		UserDriver() (UserDriver, error)
-		DataDriver() (DataDriver, error)
-		MetaDataDriver() (MetaDataDriver, error)
+	DataWebServiceClient interface {
+		UploadFile(ctx context.Context, user User, path string, r io.ReadCloser, clientChecksum string) error
+		DownloadFile(ctx context.Context, user User, path string) (io.ReadCloser, error)
+	}
+
+	MetaDataWebServiceClient interface {
+		Examine(ctx context.Context, user User, path string) (FileInfo, error)
+		Move(ctx context.Context, user User, sourcePath, targetPath string) error
+		Delete(ctx context.Context, user User, path string) error
+		ListFolder(ctx context.Context, user User, path string) ([]FileInfo, error)
+		CreateFolder(ctx context.Context, user User, path string) error
 	}
 
 	MimeGuesser interface {
@@ -203,19 +209,23 @@ type (
 		GetCORSMiddlewareAccessControlAllowHeaders() string
 
 		GetAuthenticationWebService() string
-		GetRemoteAuthenticationWebServiceURL() string
+		GetProxiedAuthenticationWebServiceURL() string
 
 		GetDataWebService() string
 		GetDataWebServiceMaxUploadFileSize() int64
-		GetRemoteDataWebServiceURL() string
+		GetProxiedDataWebServiceURL() string
 
 		GetMetaDataWebService() string
-		GetRemoteMetaDataWebServiceURL() string
+		GetProxiedMetaDataWebServiceURL() string
 
 		GetOCWebService() string
 		GetOCWebServiceMaxUploadFileSize() int64
 		GetOCWebServiceChunksFolder() string
-		GetRemoteOCWebServiceURL() string
+		GetProxiedOCWebServiceURL() string
+		GetRemoteOCWebServiceDataURL() string
+		GetRemoteOCWebServiceMetaDataURL() string
+		GetRemoteOCWebServiceMaxUploadFileSize() int64
+		GetRemoteOCWebServiceChunksFolder() string
 	}
 
 	ConfigurationSource interface {

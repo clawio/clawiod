@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/clawio/clawiod/root"
@@ -10,6 +11,7 @@ import (
 	"github.com/clawio/clawiod/root/contextmanager"
 	"github.com/clawio/clawiod/root/corsmiddleware"
 	"github.com/clawio/clawiod/root/datawebservice"
+	"github.com/clawio/clawiod/root/datawebserviceclient"
 	"github.com/clawio/clawiod/root/fileconfigurationsource"
 	"github.com/clawio/clawiod/root/fsdatadriver"
 	"github.com/clawio/clawiod/root/fsmdatadriver"
@@ -17,18 +19,19 @@ import (
 	"github.com/clawio/clawiod/root/loggermiddleware"
 	"github.com/clawio/clawiod/root/memuserdriver"
 	"github.com/clawio/clawiod/root/metadatawebservice"
+	"github.com/clawio/clawiod/root/metadatawebserviceclient"
 	"github.com/clawio/clawiod/root/mimeguesser"
 	"github.com/clawio/clawiod/root/ocfsdatadriver"
 	"github.com/clawio/clawiod/root/ocfsmdatadriver"
 	"github.com/clawio/clawiod/root/ocwebservice"
-	"github.com/clawio/clawiod/root/remoteauthenticationwebservice"
-	"github.com/clawio/clawiod/root/remotedatawebservice"
-	"github.com/clawio/clawiod/root/remotemetadatawebservice"
+	"github.com/clawio/clawiod/root/proxiedauthenticationwebservice"
+	"github.com/clawio/clawiod/root/proxieddatawebservice"
+	"github.com/clawio/clawiod/root/proxiedmetadatawebservice"
+	"github.com/clawio/clawiod/root/proxiedocwebservice"
 	"github.com/clawio/clawiod/root/remoteocwebservice"
 	"github.com/clawio/clawiod/root/weberrorconverter"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/levels"
-	"errors"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"io/ioutil"
@@ -300,12 +303,12 @@ func getAuthenticationWebService(config root.Configuration) (root.WebService, er
 			tokenDriver,
 			authenticationMiddleware,
 			webErrorConverter), nil
-	case "remote":
+	case "proxied":
 		logger, err := getLogger(config)
 		if err != nil {
 			return nil, err
 		}
-		return remoteauthenticationwebservice.New(logger, config.GetRemoteAuthenticationWebServiceURL())
+		return proxiedauthenticationwebservice.New(logger, config.GetProxiedAuthenticationWebServiceURL())
 	default:
 		return nil, errors.New("configured authentication web service does not exist")
 
@@ -341,12 +344,12 @@ func getDataWebService(config root.Configuration) (root.WebService, error) {
 			authenticationMiddleware,
 			webErrorConverter,
 			config.GetDataWebServiceMaxUploadFileSize()), nil
-	case "remote":
+	case "proxied":
 		logger, err := getLogger(config)
 		if err != nil {
 			return nil, err
 		}
-		return remotedatawebservice.New(logger, config.GetRemoteDataWebServiceURL())
+		return proxieddatawebservice.New(logger, config.GetProxiedDataWebServiceURL())
 
 	default:
 		return nil, errors.New("configured data webservice does not exist")
@@ -384,12 +387,12 @@ func getMetaDataWebService(config root.Configuration) (root.WebService, error) {
 			authenticationMiddleware,
 			webErrorConverter,
 		), nil
-	case "remote":
+	case "proxied":
 		logger, err := getLogger(config)
 		if err != nil {
 			return nil, err
 		}
-		return remotemetadatawebservice.New(logger, config.GetRemoteMetaDataWebServiceURL())
+		return proxiedmetadatawebservice.New(logger, config.GetProxiedMetaDataWebServiceURL())
 	default:
 		return nil, errors.New("configured metadata webservice does not exist")
 	}
@@ -435,12 +438,44 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 			mimeGuesser,
 			config.GetOCWebServiceMaxUploadFileSize(),
 			config.GetOCWebServiceChunksFolder()), nil
+	case "proxied":
+		logger, err := getLogger(config)
+		if err != nil {
+			return nil, err
+		}
+		return proxiedocwebservice.New(logger, config.GetProxiedOCWebServiceURL())
 	case "remote":
 		logger, err := getLogger(config)
 		if err != nil {
 			return nil, err
 		}
-		return remoteocwebservice.New(logger, config.GetRemoteOCWebServiceURL())
+		cm, err := getContextManager(config)
+		if err != nil {
+			return nil, err
+		}
+		webErrorConverter, err := getWebErrorConverter(config)
+		if err != nil {
+			return nil, err
+		}
+		mimeGuesser, err := getMimeGuesser(config)
+		if err != nil {
+			return nil, err
+		}
+		basicAuthMiddleware, err := getBasicAuthMiddleware(config)
+		if err != nil {
+			return nil, err
+		}
+		dataWebServiceClient := datawebserviceclient.New(logger, cm, config.GetRemoteOCWebServiceDataURL())
+		metaDataWebServiceClient := metadatawebserviceclient.New(logger, cm, config.GetRemoteOCWebServiceMetaDataURL())
+		return remoteocwebservice.New(cm,
+			logger,
+			dataWebServiceClient,
+			metaDataWebServiceClient,
+			basicAuthMiddleware,
+			webErrorConverter,
+			mimeGuesser,
+			config.GetRemoteOCWebServiceMaxUploadFileSize(),
+			config.GetRemoteOCWebServiceChunksFolder()), nil
 	default:
 		return nil, errors.New("configured oc webservice does not exist")
 

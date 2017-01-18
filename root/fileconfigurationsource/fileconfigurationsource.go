@@ -61,20 +61,24 @@ type configuration struct {
 	CORSMiddlewareAccessControlAllowMethods string `json:"cors_middleware_access_control_allow_methods"`
 	CORSMiddlewareAccessControlAllowHeaders string `json:"cors_middleware_access_control_allow_headers"`
 
-	AuthenticationWebService          string `json:"authentication_web_service"`
-	RemoteAuthenticationWebServiceURL string `json:"remote_authentication_web_service_url"`
+	AuthenticationWebService           string `json:"authentication_web_service"`
+	ProxiedAuthenticationWebServiceURL string `json:"proxied_authentication_web_service_url"`
 
 	DataWebService                  string `json:"data_web_service"`
-	RemoteDataWebServiceURL         string `json:"remote_data_web_service_url"`
 	DataWebServiceMaxUploadFileSize int64  `json:"data_web_service_max_upload_file_size"`
+	ProxiedDataWebServiceURL        string `json:"proxied_data_web_service_url"`
 
-	MetaDataWebService          string `json:"meta_data_web_service"`
-	RemoteMetaDataWebServiceURL string `json:"remote_meta_data_web_service_url"`
+	MetaDataWebService           string `json:"meta_data_web_service"`
+	ProxiedMetaDataWebServiceURL string `json:"proxied_meta_data_web_service_url"`
 
-	OCWebService                  string `json:"oc_web_service"`
-	OCWebServiceMaxUploadFileSize int64  `json:"oc_web_service_max_upload_file_size"`
-	OCWebServiceChunksFolder      string `json:"oc_web_service_chunks_folder"`
-	RemoteOCWebServiceURL         string `json:"remote_oc_web_service_url"`
+	OCWebService                        string `json:"oc_web_service"`
+	OCWebServiceMaxUploadFileSize       int64  `json:"oc_web_service_max_upload_file_size"`
+	OCWebServiceChunksFolder            string `json:"oc_web_service_chunks_folder"`
+	ProxiedOCWebServiceURL              string `json:"proxied_oc_web_service_url"`
+	RemoteOCWebServiceDataURL           string `json:"remote_oc_web_service_data_url"`
+	RemoteOCWebServiceMetaDataURL       string `json:"remote_oc_web_service_meta_data_url"`
+	RemoteOCWebServiceMaxUploadFileSize int64  `json:"remote_oc_web_service_max_upload_file_size"`
+	RemoteOCWebServiceChunksFolder      string `json:"remote_oc_web_service_chunks_folder"`
 }
 
 func New(filename string) (root.ConfigurationSource, error) {
@@ -171,23 +175,23 @@ func (c *configuration) GetAuthenticationWebService() string {
 	return c.AuthenticationWebService
 }
 
-func (c *configuration) GetRemoteAuthenticationWebServiceURL() string {
-	return c.RemoteAuthenticationWebServiceURL
+func (c *configuration) GetProxiedAuthenticationWebServiceURL() string {
+	return c.ProxiedAuthenticationWebServiceURL
 }
 
 func (c *configuration) GetDataWebService() string {
 	return c.DataWebService
 }
 
-func (c *configuration) GetRemoteDataWebServiceURL() string {
-	return c.RemoteDataWebServiceURL
+func (c *configuration) GetProxiedDataWebServiceURL() string {
+	return c.ProxiedDataWebServiceURL
 }
 func (c *configuration) GetMetaDataWebService() string {
 	return c.MetaDataWebService
 }
 
-func (c *configuration) GetRemoteMetaDataWebServiceURL() string {
-	return c.RemoteMetaDataWebServiceURL
+func (c *configuration) GetProxiedMetaDataWebServiceURL() string {
+	return c.ProxiedMetaDataWebServiceURL
 }
 
 func (c *configuration) GetDataWebServiceMaxUploadFileSize() int64 {
@@ -197,10 +201,24 @@ func (c *configuration) GetOCWebService() string {
 	return c.OCWebService
 }
 
-func (c *configuration) GetRemoteOCWebServiceURL() string {
-	return c.RemoteOCWebServiceURL
+func (c *configuration) GetProxiedOCWebServiceURL() string {
+	return c.ProxiedOCWebServiceURL
 }
 func (c *configuration) GetOCWebServiceMaxUploadFileSize() int64 {
 	return c.OCWebServiceMaxUploadFileSize
 }
-func (c *configuration) GetOCWebServiceChunksFolder() string { return c.OCWebServiceChunksFolder }
+func (c *configuration) GetOCWebServiceChunksFolder() string {
+	return c.OCWebServiceChunksFolder
+}
+func (c *configuration) GetRemoteOCWebServiceDataURL() string {
+	return c.RemoteOCWebServiceDataURL
+}
+func (c *configuration) GetRemoteOCWebServiceMetaDataURL() string {
+	return c.RemoteOCWebServiceMetaDataURL
+}
+func (c *configuration) GetRemoteOCWebServiceMaxUploadFileSize() int64 {
+	return c.RemoteOCWebServiceMaxUploadFileSize
+}
+func (c *configuration) GetRemoteOCWebServiceChunksFolder() string {
+	return c.RemoteOCWebServiceChunksFolder
+}
