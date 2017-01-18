@@ -5,6 +5,7 @@ import (
 )
 
 import (
+	"crypto/tls"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
 	"gopkg.in/ldap.v2"
@@ -41,22 +42,13 @@ func New(logger levels.Levels,
 }
 
 func (c *driver) GetByCredentials(username, password string) (root.User, error) {
-	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", c.hostname, c.port))
+	l, err := ldap.DialTLS("tcp", fmt.Sprintf("%s:%d", c.hostname, c.port), &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		c.logger.Error().Log("error", err)
 		return nil, err
 	}
 	defer l.Close()
 	c.logger.Info().Log("msg", "connection stablished")
-
-	// Reconnect with TLS
-	/*
-	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		c.logger.Error().Log("error", err)
-		return nil, err
-	}
-	*/
 
 	// First bind with a read only user
 	err = l.Bind(c.bindUsername, c.bindPassword)
@@ -69,7 +61,6 @@ func (c *driver) GetByCredentials(username, password string) (root.User, error) 
 	searchRequest := ldap.NewSearchRequest(
 		c.baseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		//fmt.Sprintf("(&(objectClass=user)&(samaccountname=%s))", username),
 		fmt.Sprintf(c.filter, username),
 		[]string{"dn"},
 		nil,
@@ -96,6 +87,7 @@ func (c *driver) GetByCredentials(username, password string) (root.User, error) 
 		c.logger.Error().Log("error", err)
 		return nil, err
 	}
+	c.logger.Info().Log("msg", "binding ok")
 
 	// TODO(labkode) Get more attrs from LDAP query like email and displayName at least
 	u := &user{
