@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
 # ClawIO build script. Add build variables to compiled binary.
-#
-# Usage:
+# # Usage:
 #
 #     $ ./build.bash [output_filename] [git_repo]
 #
@@ -45,6 +44,10 @@ ldflags+=("-X" "\"${tag_name}=${tag_value}\"")
 commit_name="${pkg}.gitCommit"
 commit_value="$(git -C "${git_repo}" rev-parse --short HEAD)"
 ldflags+=("-X" "\"${commit_name}=${commit_value}\"")
+
+# Application name
+app_name="${pkg}.appName"
+ldflags+=("-X" "\"${app_name}=${output_filename}\"")
 
 
 releases_dir=${git_repo}/releases

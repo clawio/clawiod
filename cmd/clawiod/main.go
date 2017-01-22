@@ -44,14 +44,31 @@ import (
 	"strings"
 )
 
-var flagConfigurationSource string
+var (
+	flagConfigurationSource string
+	flagVersion             bool
+)
+
+// Build information obtained with the help of -ldflags
+var (
+	appName       string
+	buildDate     string // date -u
+	gitTag        string // git describe --exact-match HEAD
+	gitNearestTag string // git describe --abbrev=0 --tags HEAD
+	gitCommit     string // git rev-parse HEAD
+)
 
 func init() {
 	flag.StringVar(&flagConfigurationSource, "conf", "file:clawiod.conf", "Configuration source where to obtain the configuration")
+	flag.BoolVar(&flagVersion, "version", false, "Show version")
 	flag.Parse()
 }
 
 func main() {
+	if flagVersion {
+		handleVersion()
+	}
+
 	configurationSource, err := getConfigurationSource(flagConfigurationSource)
 	if err != nil {
 		fmt.Println(err)
@@ -109,6 +126,15 @@ func main() {
 	}
 }
 
+func handleVersion() {
+	// if gitTag is not empty we are on release build
+	if gitTag != "" {
+		fmt.Printf("%s %s commit:%s release-build\n", appName, gitNearestTag, gitCommit)
+		os.Exit(0)
+	}
+	fmt.Printf("%s %s commit:%s dev-build\n", appName, gitNearestTag, gitCommit)
+	os.Exit(0)
+}
 func getUserDriver(config root.Configuration) (root.UserDriver, error) {
 	switch config.GetUserDriver() {
 	case "memuserdriver":
