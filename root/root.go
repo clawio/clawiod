@@ -30,6 +30,12 @@ const (
 	CodeInternal
 	// CodeAlreadyExist
 	CodeAlreadyExist
+	// CodeUploadIsPartial is the error to return when the upload of file
+	// is in a partial state, like an owncloud chunk upload where the upload of a chunk
+	// does not complete the upload.
+	CodeUploadIsPartial
+	// CodeForbidden is used when something is forbidden, like uploading to root
+	CodeForbidden
 )
 
 type (
@@ -57,12 +63,6 @@ type (
 		ExtraAttributes() map[string]interface{}
 	}
 
-	StorageDriver interface {
-		Init(ctx context.Context, user User) error
-		DataDriver
-		MetaDataDriver
-	}
-
 	DataDriver interface {
 		UploadFile(ctx context.Context, user User, path string, r io.ReadCloser, clientChecksum string) error
 		DownloadFile(ctx context.Context, user User, path string) (io.ReadCloser, error)
@@ -86,15 +86,16 @@ type (
 	}
 
 	RegistryNode interface {
-		GetID() string
-		GetRol() string
-		GetSystemVersion() string
-		GetHost() string
+		ID() string
+		Rol() string
+		Version() string
+		Host() string
+		URL() string
 	}
 
 	RegistryDriver interface {
 		Register(ctx context.Context, node RegistryNode) error
-		UnRegister(ctx context.Context, id string) error
+		//UnRegister(ctx context.Context, id string) error
 		GetNodesForRol(ctx context.Context, rol string) ([]RegistryNode, error)
 	}
 
@@ -193,6 +194,7 @@ type (
 		GetFSDataDriverVerifyClientChecksum() bool
 		GetOCFSDataDriverDataFolder() string
 		GetOCFSDataDriverTemporaryFolder() string
+		GetOCFSDataDriverChunksFolder() string
 		GetOCFSDataDriverChecksum() string
 		GetOCFSDataDriverVerifyClientChecksum() bool
 
@@ -208,6 +210,12 @@ type (
 		GetTokenDriver() string
 		GetJWTTokenDriverKey() string
 
+		GetRegistryDriver() string
+		GetETCDRegistryDriverUrls() string
+		GetETCDRegistryDriverUsername() string
+		GetETCDRegistryDriverPassword() string
+		GetETCDRegistryDriverKey() string
+
 		GetBasicAuthMiddlewareCookieName() string
 		IsCORSMiddlewareEnabled() bool
 		GetCORSMiddlewareAccessControlAllowOrigin() string
@@ -215,6 +223,7 @@ type (
 		GetCORSMiddlewareAccessControlAllowHeaders() string
 
 		GetAuthenticationWebService() string
+		GetAuthenticationWebServiceMethodAgnostic() bool
 		GetProxiedAuthenticationWebServiceURL() string
 
 		GetDataWebService() string
@@ -226,12 +235,10 @@ type (
 
 		GetOCWebService() string
 		GetOCWebServiceMaxUploadFileSize() int64
-		GetOCWebServiceChunksFolder() string
 		GetProxiedOCWebServiceURL() string
 		GetRemoteOCWebServiceDataURL() string
 		GetRemoteOCWebServiceMetaDataURL() string
 		GetRemoteOCWebServiceMaxUploadFileSize() int64
-		GetRemoteOCWebServiceChunksFolder() string
 	}
 
 	ConfigurationSource interface {

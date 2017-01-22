@@ -14,6 +14,7 @@ type configurationSource struct {
 type configuration struct {
 	Port               int    `json:"port"`
 	CPU                string `json:"cpu"`
+	Label              string `json:"label"`
 	EnabledWebServices string `json:"enabled_web_services"`
 
 	AppLoggerOut        string `json:"app_logger_out"`
@@ -46,6 +47,7 @@ type configuration struct {
 	FSDataDriverVerifyClientChecksum   bool   `json:"fs_data_driver_verify_client_checksum"`
 	OCFSDataDriverDataFolder           string `json:"ocfs_data_driver_data_folder"`
 	OCFSDataDriverTemporaryFolder      string `json:"ocfs_data_driver_temporary_folder"`
+	OCFSDataDriverChunksFolder         string `json:"ocfs_data_driver_chunks_folder"`
 	OCFSDataDriverChecksum             string `json:"ocfs_data_driver_checksum"`
 	OCFSDataDriverVerifyClientChecksum bool   `json:"ocfs_data_driver_verify_client_checksum"`
 
@@ -61,14 +63,21 @@ type configuration struct {
 	TokenDriver       string `json:"token_driver"`
 	JWTTokenDriverKey string `json:"jwt_token_driver_key"`
 
+	RegistryDriver             string `json:"registry_driver"`
+	ETCDRegistryDriverUrls     string `json:"etcd_registry_driver_urls"`
+	ETCDRegistryDriverUsername string `json:"etcd_registry_driver_username"`
+	ETCDRegistryDriverPassword string `json:"etcd_registry_driver_password"`
+	ETCDRegistryDriverKey      string `json:"etcd_registry_driver_key"`
+
 	BasicAuthMiddlewareCookieName           string `json:"basic_auth_middleware_cookie_name"`
 	CORSMiddlewareEnabled                   bool   `json:"cors_middleware_enabled"`
 	CORSMiddlewareAccessControlAllowOrigin  string `json:"cors_middleware_access_control_allow_origin"`
 	CORSMiddlewareAccessControlAllowMethods string `json:"cors_middleware_access_control_allow_methods"`
 	CORSMiddlewareAccessControlAllowHeaders string `json:"cors_middleware_access_control_allow_headers"`
 
-	AuthenticationWebService           string `json:"authentication_web_service"`
-	ProxiedAuthenticationWebServiceURL string `json:"proxied_authentication_web_service_url"`
+	AuthenticationWebService               string `json:"authentication_web_service"`
+	AuthenticationWebServiceMethodAgnostic bool   `json:"authentication_web_service_method_agnostic"`
+	ProxiedAuthenticationWebServiceURL     string `json:"proxied_authentication_web_service_url"`
 
 	DataWebService                  string `json:"data_web_service"`
 	DataWebServiceMaxUploadFileSize int64  `json:"data_web_service_max_upload_file_size"`
@@ -79,12 +88,10 @@ type configuration struct {
 
 	OCWebService                        string `json:"oc_web_service"`
 	OCWebServiceMaxUploadFileSize       int64  `json:"oc_web_service_max_upload_file_size"`
-	OCWebServiceChunksFolder            string `json:"oc_web_service_chunks_folder"`
 	ProxiedOCWebServiceURL              string `json:"proxied_oc_web_service_url"`
 	RemoteOCWebServiceDataURL           string `json:"remote_oc_web_service_data_url"`
 	RemoteOCWebServiceMetaDataURL       string `json:"remote_oc_web_service_meta_data_url"`
 	RemoteOCWebServiceMaxUploadFileSize int64  `json:"remote_oc_web_service_max_upload_file_size"`
-	RemoteOCWebServiceChunksFolder      string `json:"remote_oc_web_service_chunks_folder"`
 }
 
 func New(filename string) (root.ConfigurationSource, error) {
@@ -106,6 +113,7 @@ func (cs *configurationSource) LoadConfiguration() (root.Configuration, error) {
 
 func (c *configuration) GetPort() int                  { return c.Port }
 func (c *configuration) GetCPU() string                { return c.CPU }
+func (c *configuration) GetLabel() string              { return c.Label }
 func (c *configuration) GetEnabledWebServices() string { return c.EnabledWebServices }
 
 func (c *configuration) GetAppLoggerOut() string     { return c.AppLoggerOut }
@@ -158,6 +166,9 @@ func (c *configuration) GetOCFSDataDriverDataFolder() string { return c.OCFSData
 func (c *configuration) GetOCFSDataDriverTemporaryFolder() string {
 	return c.OCFSDataDriverTemporaryFolder
 }
+func (c *configuration) GetOCFSDataDriverChunksFolder() string {
+	return c.OCFSDataDriverChunksFolder
+}
 func (c *configuration) GetOCFSDataDriverChecksum() string { return c.OCFSDataDriverChecksum }
 func (c *configuration) GetOCFSDataDriverVerifyClientChecksum() bool {
 	return c.OCFSDataDriverVerifyClientChecksum
@@ -181,6 +192,12 @@ func (c *configuration) GetOCFSMDataDriverDSN() string { return c.OCFSMDataDrive
 func (c *configuration) GetTokenDriver() string       { return c.TokenDriver }
 func (c *configuration) GetJWTTokenDriverKey() string { return c.JWTTokenDriverKey }
 
+func (c *configuration) GetRegistryDriver() string             { return c.RegistryDriver }
+func (c *configuration) GetETCDRegistryDriverUrls() string     { return c.ETCDRegistryDriverUrls }
+func (c *configuration) GetETCDRegistryDriverUsername() string { return c.ETCDRegistryDriverUsername }
+func (c *configuration) GetETCDRegistryDriverPassword() string { return c.ETCDRegistryDriverPassword }
+func (c *configuration) GetETCDRegistryDriverKey() string      { return c.ETCDRegistryDriverKey }
+
 func (c *configuration) GetBasicAuthMiddlewareCookieName() string {
 	return c.BasicAuthMiddlewareCookieName
 }
@@ -201,6 +218,10 @@ func (c *configuration) GetCORSMiddlewareAccessControlAllowHeaders() string {
 
 func (c *configuration) GetAuthenticationWebService() string {
 	return c.AuthenticationWebService
+}
+
+func (c *configuration) GetAuthenticationWebServiceMethodAgnostic() bool {
+	return c.AuthenticationWebServiceMethodAgnostic
 }
 
 func (c *configuration) GetProxiedAuthenticationWebServiceURL() string {
@@ -235,9 +256,6 @@ func (c *configuration) GetProxiedOCWebServiceURL() string {
 func (c *configuration) GetOCWebServiceMaxUploadFileSize() int64 {
 	return c.OCWebServiceMaxUploadFileSize
 }
-func (c *configuration) GetOCWebServiceChunksFolder() string {
-	return c.OCWebServiceChunksFolder
-}
 func (c *configuration) GetRemoteOCWebServiceDataURL() string {
 	return c.RemoteOCWebServiceDataURL
 }
@@ -246,7 +264,4 @@ func (c *configuration) GetRemoteOCWebServiceMetaDataURL() string {
 }
 func (c *configuration) GetRemoteOCWebServiceMaxUploadFileSize() int64 {
 	return c.RemoteOCWebServiceMaxUploadFileSize
-}
-func (c *configuration) GetRemoteOCWebServiceChunksFolder() string {
-	return c.RemoteOCWebServiceChunksFolder
 }

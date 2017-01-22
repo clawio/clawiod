@@ -2,29 +2,47 @@ package datawebserviceclient
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"strings"
-
 	"encoding/json"
+	"fmt"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
+	"io"
+	"math/rand"
 	"net/http"
+	"time"
 )
 
 type webServiceClient struct {
-	logger levels.Levels
-	cm     root.ContextManager
-	url    string
-	client *http.Client
+	logger         levels.Levels
+	cm             root.ContextManager
+	client         *http.Client
+	registryDriver root.RegistryDriver
 }
 
 // New returns an implementation of DataDriver.
-func New(logger levels.Levels, cm root.ContextManager, url string) root.DataWebServiceClient {
-	url = strings.TrimRight(url, "/")
-	return &webServiceClient{logger: logger, cm: cm, url: url, client: http.DefaultClient}
+func New(logger levels.Levels, cm root.ContextManager, registryDriver root.RegistryDriver) root.DataWebServiceClient {
+	rand.Seed(time.Now().Unix()) // initialize global pseudorandom generator
+	return &webServiceClient{logger: logger, cm: cm, client: http.DefaultClient, registryDriver: registryDriver}
 }
 
+func (c *webServiceClient) getDataURL(ctx context.Context) (string, error) {
+	// TODO(labkode) the logic for choosing a node is very rudimentary.
+	// In the future would be nice to have at least RoundRobin.
+	// Thanks that clients are registry aware we an use our own algorithms
+	// based on some prometheus metrics like load.
+	// TODO(labkode) add caching behaviour
+	nodes, err := c.registryDriver.GetNodesForRol(ctx, "data-node")
+	if err != nil {
+		return "", err
+	}
+	if len(nodes) == 0 {
+		return "", fmt.Errorf("there are not data-nodes alive")
+	}
+	c.logger.Info().Log("msg", "got data-nodes", "numnodes", len(nodes))
+	chosenNode := nodes[rand.Intn(len(nodes))]
+	c.logger.Info().Log("msg", "data-node chosen", "data-node-url", chosenNode.URL())
+	return chosenNode.URL() + "/data", nil
+}
 func (c *webServiceClient) UploadFile(ctx context.Context, user root.User, path string, r io.ReadCloser, clientChecksum string) error {
 	traceID := c.cm.MustGetTraceID(ctx)
 	token := c.cm.MustGetAccessToken(ctx)
@@ -36,7 +54,12 @@ func (c *webServiceClient) UploadFile(ctx context.Context, user root.User, path 
 		return err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/upload", r)
+	url, err := c.getDataURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url+"/upload", r)
 	if err != nil {
 		return err
 	}
@@ -48,11 +71,26 @@ func (c *webServiceClient) UploadFile(ctx context.Context, user root.User, path 
 	if err != nil {
 		return err
 	}
-	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated {
+	if res.StatusCode == http.StatusCreated {
 		return nil
 	}
 	if res.StatusCode == http.StatusNotFound {
 		return notFoundError("")
+	}
+	if res.StatusCode == http.StatusPartialContent {
+		return partialUploadError("")
+	}
+	if res.StatusCode == http.StatusPreconditionFailed {
+		return checksumError("checksum mismatch")
+	}
+	if res.StatusCode == http.StatusRequestEntityTooLarge {
+		return tooBigError("maximun file size exceeded")
+	}
+	if res.StatusCode == http.StatusForbidden {
+		return forbiddenError("")
+	}
+	if res.StatusCode == http.StatusBadRequest {
+		return badInputDataError("")
 	}
 
 	return internalError(fmt.Sprintf("http status code: %d", res.StatusCode))
@@ -69,7 +107,12 @@ func (c *webServiceClient) DownloadFile(ctx context.Context, user root.User, pat
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/download", nil)
+	url, err := c.getDataURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", url+"/download", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +142,7 @@ func (e internalError) Error() string {
 	return string(e)
 }
 func (e internalError) Code() root.Code {
-	return root.Code(root.CodeNotFound)
+	return root.Code(root.CodeInternal)
 }
 func (e internalError) Message() string {
 	return string(e)
@@ -138,5 +181,53 @@ func (e isFolderError) Code() root.Code {
 	return root.Code(root.CodeBadInputData)
 }
 func (e isFolderError) Message() string {
+	return string(e)
+}
+
+type tooBigError string
+
+func (e tooBigError) Error() string {
+	return string(e)
+}
+func (e tooBigError) Code() root.Code {
+	return root.Code(root.CodeTooBig)
+}
+func (e tooBigError) Message() string {
+	return string(e)
+}
+
+type forbiddenError string
+
+func (e forbiddenError) Error() string {
+	return string(e)
+}
+func (e forbiddenError) Code() root.Code {
+	return root.Code(root.CodeForbidden)
+}
+func (e forbiddenError) Message() string {
+	return string(e)
+}
+
+type badInputDataError string
+
+func (e badInputDataError) Error() string {
+	return string(e)
+}
+func (e badInputDataError) Code() root.Code {
+	return root.Code(root.CodeBadInputData)
+}
+func (e badInputDataError) Message() string {
+	return string(e)
+}
+
+type partialUploadError string
+
+func (e partialUploadError) Error() string {
+	return string(e)
+}
+func (e partialUploadError) Code() root.Code {
+	return root.Code(root.CodeUploadIsPartial)
+}
+func (e partialUploadError) Message() string {
 	return string(e)
 }

@@ -9,12 +9,13 @@ import (
 )
 
 type service struct {
-	cm          root.ContextManager
-	logger      levels.Levels
-	userDriver  root.UserDriver
-	tokenDriver root.TokenDriver
-	am          root.AuthenticationMiddleware
-	wec         root.WebErrorConverter
+	cm             root.ContextManager
+	logger         levels.Levels
+	userDriver     root.UserDriver
+	tokenDriver    root.TokenDriver
+	am             root.AuthenticationMiddleware
+	wec            root.WebErrorConverter
+	methodAgnostic bool
 }
 
 func New(
@@ -23,18 +24,30 @@ func New(
 	userDriver root.UserDriver,
 	tokenDriver root.TokenDriver,
 	am root.AuthenticationMiddleware,
-	wec root.WebErrorConverter) root.WebService {
+	wec root.WebErrorConverter,
+	methodAgnostic bool) root.WebService {
 	return &service{
-		cm:          cm,
-		logger:      logger,
-		userDriver:  userDriver,
-		tokenDriver: tokenDriver,
-		am:          am,
-		wec:         wec,
+		cm:             cm,
+		logger:         logger,
+		userDriver:     userDriver,
+		tokenDriver:    tokenDriver,
+		am:             am,
+		wec:            wec,
+		methodAgnostic: methodAgnostic,
 	}
 }
 
 func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
+	if s.methodAgnostic {
+		return map[string]map[string]http.HandlerFunc{
+			"/auth/token": {
+				"*": s.tokenEndpoint,
+			},
+			"/auth/ping": {
+				"GET": s.am.HandlerFunc(s.pingEndpoint),
+			},
+		}
+	}
 	return map[string]map[string]http.HandlerFunc{
 		"/auth/token": {
 			"POST": s.tokenEndpoint,
@@ -48,28 +61,32 @@ func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
 func (s *service) tokenEndpoint(w http.ResponseWriter, r *http.Request) {
 	logger := s.cm.MustGetLog(r.Context())
 
-	if r.Body == nil {
-		logger.Error().Log("err", "body is <nil>")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	var username, password string
 
-	req := &tokenRequest{}
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		logger.Error().Log("error", err)
-		err = badRequestError("invalid json")
-		jsonError, err := s.wec.ErrorToJSON(err)
-		if err != nil {
+	username, password, ok := r.BasicAuth()
+	if ok {
+		s.logger.Info().Log("msg", "credentials source is basic auth")
+	} else {
+		s.logger.Info().Log("msg", "credentials source is request body")
+		req := &tokenRequest{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 			logger.Error().Log("error", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			err = badRequestError("invalid json")
+			jsonError, err := s.wec.ErrorToJSON(err)
+			if err != nil {
+				logger.Error().Log("error", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(jsonError)
 			return
 		}
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(jsonError)
-		return
+		username = req.Username
+		password = req.Password
 	}
 
-	user, err := s.userDriver.GetByCredentials(req.Username, req.Password)
+	user, err := s.userDriver.GetByCredentials(username, password)
 	if err != nil {
 		s.handleTokenEndpointError(err, w, r)
 		return
@@ -102,7 +119,7 @@ func (s *service) handleTokenEndpointError(err error, w http.ResponseWriter, r *
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusBadRequest)
+	w.WriteHeader(http.StatusUnauthorized)
 	w.Write(jsonErr)
 	return
 }

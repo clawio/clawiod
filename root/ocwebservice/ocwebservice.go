@@ -11,9 +11,7 @@ import (
 	"github.com/go-kit/kit/log/levels"
 	"github.com/gorilla/mux"
 	"io"
-	"io/ioutil"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -30,7 +28,6 @@ type service struct {
 	wec               root.WebErrorConverter
 	mg                root.MimeGuesser
 	uploadMaxFileSize int64
-	chunksFolder      string
 }
 
 func New(
@@ -41,8 +38,7 @@ func New(
 	bam root.BasicAuthMiddleware,
 	wec root.WebErrorConverter,
 	mg root.MimeGuesser,
-	uploadMaxFileSize int64,
-	chunksFolder string) root.WebService {
+	uploadMaxFileSize int64) root.WebService {
 	return &service{
 		cm:                cm,
 		logger:            logger,
@@ -52,7 +48,6 @@ func New(
 		wec:               wec,
 		mg:                mg,
 		uploadMaxFileSize: uploadMaxFileSize,
-		chunksFolder:      chunksFolder,
 	}
 }
 
@@ -605,7 +600,6 @@ func (s *service) putEndpoint(w http.ResponseWriter, r *http.Request) {
 	return
 
 }
-
 func (s *service) putChunkedEndpoint(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -622,122 +616,11 @@ func (s *service) putChunkedEndpoint(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	logger.Info().Log("chunknum", chunkInfo.currentChunk, "chunks", chunkInfo.totalChunks,
-		"transferid", chunkInfo.transferID, "uploadid", chunkInfo.uploadID())
-
-	chunkTempFilename, chunkTempFile, err := s.createChunkTempFile()
-	if err != nil {
-		logger.Error().Log("error", err, "msg", "error creating chunk file")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer chunkTempFile.Close()
 
 	readCloser := http.MaxBytesReader(w, r.Body, s.uploadMaxFileSize)
-	if _, err := io.Copy(chunkTempFile, readCloser); err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-
-	// force close of the file here because if it is the last chunk to
-	// assemble the big file we need all the chunks closed
-	if err = chunkTempFile.Close(); err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-
-	chunksFolderName, err := s.getChunkFolderName(chunkInfo)
+	err = s.dataDriver.UploadFile(r.Context(), user, path, readCloser, "")
 	if err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-	logger.Info().Log("chunkfolder", chunksFolderName)
-
-	chunkTarget := chunksFolderName + "/" + fmt.Sprintf("%d", chunkInfo.currentChunk)
-	if err = os.Rename(chunkTempFilename, chunkTarget); err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-	logger.Info().Log("chunktarget", chunkTarget)
-
-	// Check that all chunks are uploaded.
-	// This is very inefficient, the server has to check that it has all the
-	// chunks after each uploaded chunk.
-	// A two-phase upload like DropBox is better, because the server will
-	// assembly the chunks when the client asks for it.
-	chunksFolder, err := os.Open(chunksFolderName)
-	if err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-	defer chunksFolder.Close()
-
-	// read all the chunks inside the chunk folder; -1 == all
-	chunks, err := chunksFolder.Readdir(-1)
-	if err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-	logger.Info().Log("msg", "chunkfolder readed", "nchunks", len(chunks))
-
-	// there is still some chunks to be uploaded so we stop here
-	if len(chunks) < int(chunkInfo.totalChunks) {
-		logger.Debug().Log("msg", "current chunk does not complete the file")
-		w.WriteHeader(http.StatusCreated)
-		return
-	}
-
-	assembledFileName, assembledFile, err := s.createChunkTempFile()
-	if err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-	defer assembledFile.Close()
-
-	logger.Info().Log("assembledfile", assembledFileName)
-
-	// walk all chunks and append to assembled file
-	for i := range chunks {
-		target := chunksFolderName + "/" + fmt.Sprintf("%d", i)
-
-		chunk, err := os.Open(target)
-		if err != nil {
-			s.handlePutEndpointError(err, w, r)
-			return
-		}
-
-		if _, err = io.Copy(assembledFile, chunk); err != nil {
-			s.handlePutEndpointError(err, w, r)
-			return
-		}
-		logger.Debug().Log("msg", "chunk appended to assembledfile")
-
-		// we close the chunk here because if the assemnled file contains hundreds of chunks
-		// we will end up with hundreds of open file descriptors
-		if err = chunk.Close(); err != nil {
-			s.handlePutEndpointError(err, w, r)
-			return
-
-		}
-	}
-
-	// at this point the assembled file is complete
-	// so we free space removing the chunks folder
-	defer func() {
-		if err = os.RemoveAll(chunksFolderName); err != nil {
-			logger.Error().Log("error", err, "msg", "error deleting chunk folder")
-		}
-	}()
-
-	// when writing to the assembled file the write pointer points to the end of the file
-	// so we need to seek it to the beginning
-	if _, err = assembledFile.Seek(0, 0); err != nil {
-		s.handlePutEndpointError(err, w, r)
-		return
-	}
-
-	if err = s.dataDriver.UploadFile(r.Context(), user, chunkInfo.path, assembledFile, ""); err != nil {
-		s.handlePutEndpointError(err, w, r)
+		s.handlePutChunkedEndpointError(err, w, r)
 		return
 	}
 
@@ -789,7 +672,6 @@ func (s *service) putChunkedEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-
 func (s *service) propfindEndpoint(w http.ResponseWriter, r *http.Request) {
 	user := s.cm.MustGetUser(r.Context())
 	path := mux.Vars(r)["path"]
@@ -976,23 +858,6 @@ func getChunkBLOBInfo(path string) (*chunkBLOBInfo, error) {
 	}, nil
 }
 
-func (s *service) createChunkTempFile() (string, *os.File, error) {
-	file, err := ioutil.TempFile(s.chunksFolder, "")
-	if err != nil {
-		return "", nil, err
-	}
-
-	return file.Name(), file, nil
-}
-
-func (s *service) getChunkFolderName(i *chunkBLOBInfo) (string, error) {
-	p := s.chunksFolder + filepath.Clean("/"+i.uploadID())
-	if err := os.MkdirAll(p, 0755); err != nil {
-		return "", err
-	}
-	return p, nil
-}
-
 func (s *service) handleGetEndpointError(err error, w http.ResponseWriter, r *http.Request) {
 	logger := s.cm.MustGetLog(r.Context())
 	if codeErr, ok := err.(root.Error); ok {
@@ -1073,10 +938,36 @@ func (s *service) handlePutEndpointError(err error, w http.ResponseWriter, r *ht
 			w.WriteHeader(http.StatusPreconditionFailed)
 			return
 		}
+		if codeErr.Code() == root.CodeBadChecksum {
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return
+		}
+		if codeErr.Code() == root.CodeUploadIsPartial {
+			w.WriteHeader(http.StatusPartialContent)
+			return
+		}
+		if codeErr.Code() == root.CodeForbidden {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 	}
 
 	logger.Error().Log("unexpected error puting file")
 	w.WriteHeader(http.StatusInternalServerError)
+	return
+}
+
+func (s *service) handlePutChunkedEndpointError(err error, w http.ResponseWriter, r *http.Request) {
+	logger := s.cm.MustGetLog(r.Context())
+	logger.Error().Log("error", err)
+
+	if codeErr, ok := err.(root.Error); ok {
+		if codeErr.Code() == root.CodeUploadIsPartial {
+			w.WriteHeader(http.StatusCreated)
+			return
+		}
+	}
+	s.handlePutEndpointError(err, w, r)
 	return
 }
 

@@ -8,18 +8,38 @@ import (
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 )
 
 type webServiceClient struct {
-	logger levels.Levels
-	cm     root.ContextManager
-	url    string
-	client *http.Client
+	logger         levels.Levels
+	cm             root.ContextManager
+	client         *http.Client
+	registryDriver root.RegistryDriver
 }
 
-func New(logger levels.Levels, cm root.ContextManager, url string) root.MetaDataWebServiceClient {
-	return &webServiceClient{logger: logger, cm: cm, url: url, client: http.DefaultClient}
+func New(logger levels.Levels, cm root.ContextManager, registryDriver root.RegistryDriver) root.MetaDataWebServiceClient {
+	return &webServiceClient{logger: logger, cm: cm, registryDriver: registryDriver, client: http.DefaultClient}
+}
+
+func (c *webServiceClient) getMetaDataURL(ctx context.Context) (string, error) {
+	// TODO(labkode) the logic for choosing a node is very rudimentary.
+	// In the future would be nice to have at least RoundRobin.
+	// Thanks that clients are registry aware we an use our own algorithms
+	// based on some prometheus metrics like load.
+	// TODO(labkode) add caching behaviour
+	nodes, err := c.registryDriver.GetNodesForRol(ctx, "metadata-node")
+	if err != nil {
+		return "", err
+	}
+	if len(nodes) == 0 {
+		return "", fmt.Errorf("there are not metadata-nodes alive")
+	}
+	c.logger.Info().Log("msg", "got metadata-nodes", "numnodes", len(nodes))
+	chosenNode := nodes[rand.Intn(len(nodes))]
+	c.logger.Info().Log("msg", "metadata-node chosen", "metadata-node-url", chosenNode.URL())
+	return chosenNode.URL() + "/meta", nil
 }
 
 func (c *webServiceClient) Examine(ctx context.Context, user root.User, path string) (root.FileInfo, error) {
@@ -33,7 +53,11 @@ func (c *webServiceClient) Examine(ctx context.Context, user root.User, path str
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/examine", bytes.NewReader(jsonBody))
+	url, err := c.getMetaDataURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url+"/examine", bytes.NewReader(jsonBody))
 	if err != nil {
 		c.logger.Error().Log("error", err)
 		return nil, err
@@ -79,7 +103,11 @@ func (c *webServiceClient) ListFolder(ctx context.Context, user root.User, path 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/list", bytes.NewReader(jsonBody))
+	url, err := c.getMetaDataURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url+"/list", bytes.NewReader(jsonBody))
 	if err != nil {
 		c.logger.Error().Log("error", err)
 		return nil, err
@@ -131,7 +159,12 @@ func (c *webServiceClient) Delete(ctx context.Context, user root.User, path stri
 		return err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/delete", bytes.NewReader(jsonBody))
+	url, err := c.getMetaDataURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url+"/delete", bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
 	}
@@ -165,7 +198,11 @@ func (c *webServiceClient) Move(ctx context.Context, user root.User, sourcePath,
 		return err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/move", bytes.NewReader(jsonBody))
+	url, err := c.getMetaDataURL(ctx)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", url+"/move", bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
 	}
@@ -200,7 +237,11 @@ func (c *webServiceClient) CreateFolder(ctx context.Context, user root.User, pat
 		return err
 	}
 
-	req, err := http.NewRequest("POST", c.url+"/makefolder", bytes.NewReader(jsonBody))
+	url, err := c.getMetaDataURL(ctx)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", url+"/makefolder", bytes.NewReader(jsonBody))
 	if err != nil {
 		return err
 	}

@@ -120,6 +120,10 @@ func (s *service) handleUploadEndpointError(err error, w http.ResponseWriter, r 
 			w.WriteHeader(http.StatusPreconditionFailed)
 			return
 		}
+		if codeErr.Code() == root.CodeUploadIsPartial {
+			w.WriteHeader(http.StatusPartialContent)
+			return
+		}
 	}
 
 	logger.Error().Log("error", err, "msg", "unexpected error uploading file")

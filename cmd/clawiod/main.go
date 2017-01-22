@@ -12,6 +12,7 @@ import (
 	"github.com/clawio/clawiod/root/corsmiddleware"
 	"github.com/clawio/clawiod/root/datawebservice"
 	"github.com/clawio/clawiod/root/datawebserviceclient"
+	"github.com/clawio/clawiod/root/etcdregistrydriver"
 	"github.com/clawio/clawiod/root/fileconfigurationsource"
 	"github.com/clawio/clawiod/root/fsdatadriver"
 	"github.com/clawio/clawiod/root/fsmdatadriver"
@@ -38,6 +39,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -70,6 +73,14 @@ func main() {
 	}
 
 	mainLogger := logger.With("pkg", "main")
+
+	// Set CPU capacity
+	err = setCPU(config.GetCPU())
+	if err != nil {
+		mainLogger.Crit().Log("msg", "error tweaking cpu", "error", err)
+		os.Exit(1)
+	}
+
 	server, err := newServer(config)
 	if err != nil {
 		mainLogger.Error().Log("error", err)
@@ -82,8 +93,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	mainLogger.Info().Log("msg", "server is listening", "port", config.GetPort(), "url", fmt.Sprintf("http://%s:%d", hostname, config.GetPort()))
-	mainLogger.Error().Log("error", http.ListenAndServe(fmt.Sprintf(":%d", config.GetPort()), server))
+	addr := fmt.Sprintf(":%d", config.GetPort())
+	if config.IsTLSEnabled() {
+		mainLogger.Info().Log("msg", "serving secure client requests", "addr", fmt.Sprintf("https://%s:%d", hostname, config.GetPort()))
+		mainLogger.Error().Log("error", http.ListenAndServeTLS(
+			addr,
+			config.GetTLSCertificate(),
+			config.GetTLSPrivateKey(),
+			server))
+	} else {
+		mainLogger.Warn().Log("msg", "serving insecure client requests", "addr", fmt.Sprintf("http://%s:%d", hostname, config.GetPort()))
+		mainLogger.Error().Log("error", http.ListenAndServe(
+			addr,
+			server))
+	}
 }
 
 func getUserDriver(config root.Configuration) (root.UserDriver, error) {
@@ -149,7 +172,8 @@ func getDataDriver(config root.Configuration) (root.DataDriver, error) {
 		}
 		return ocfsdatadriver.New(logger,
 			config.GetOCFSDataDriverDataFolder(),
-			config.GetOCFSDataDriverDataFolder(),
+			config.GetOCFSDataDriverTemporaryFolder(),
+			config.GetOCFSDataDriverChunksFolder(),
 			config.GetOCFSDataDriverChecksum(),
 			config.GetOCFSDataDriverVerifyClientChecksum(),
 			metaDataDriver)
@@ -315,7 +339,8 @@ func getAuthenticationWebService(config root.Configuration) (root.WebService, er
 			userDriver,
 			tokenDriver,
 			authenticationMiddleware,
-			webErrorConverter), nil
+			webErrorConverter,
+			false), nil
 	case "proxied":
 		logger, err := getLogger(config)
 		if err != nil {
@@ -449,8 +474,7 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 			basicAuthMiddleware,
 			webErrorConverter,
 			mimeGuesser,
-			config.GetOCWebServiceMaxUploadFileSize(),
-			config.GetOCWebServiceChunksFolder()), nil
+			config.GetOCWebServiceMaxUploadFileSize()), nil
 	case "proxied":
 		logger, err := getLogger(config)
 		if err != nil {
@@ -478,8 +502,12 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 		if err != nil {
 			return nil, err
 		}
-		dataWebServiceClient := datawebserviceclient.New(logger, cm, config.GetRemoteOCWebServiceDataURL())
-		metaDataWebServiceClient := metadatawebserviceclient.New(logger, cm, config.GetRemoteOCWebServiceMetaDataURL())
+		registryDriver, err := getRegistryDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		dataWebServiceClient := datawebserviceclient.New(logger, cm, registryDriver)
+		metaDataWebServiceClient := metadatawebserviceclient.New(logger, cm, registryDriver)
 		return remoteocwebservice.New(cm,
 			logger,
 			dataWebServiceClient,
@@ -487,8 +515,7 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 			basicAuthMiddleware,
 			webErrorConverter,
 			mimeGuesser,
-			config.GetRemoteOCWebServiceMaxUploadFileSize(),
-			config.GetRemoteOCWebServiceChunksFolder()), nil
+			config.GetRemoteOCWebServiceMaxUploadFileSize()), nil
 	default:
 		return nil, errors.New("configured oc webservice does not exist")
 
@@ -519,6 +546,26 @@ func getConfigurationSource(source string) (root.ConfigurationSource, error) {
 
 	}
 
+}
+
+func getRegistryDriver(config root.Configuration) (root.RegistryDriver, error) {
+	logger, err := getLogger(config)
+	if err != nil {
+		return nil, err
+	}
+	logger = logger.With("pkg", "etcdregistrydriver")
+
+	switch config.GetRegistryDriver() {
+	case "etcd":
+		return etcdregistrydriver.New(
+			logger,
+			config.GetETCDRegistryDriverUrls(),
+			config.GetETCDRegistryDriverKey(),
+			config.GetETCDRegistryDriverUsername(),
+			config.GetETCDRegistryDriverPassword())
+	default:
+		return nil, fmt.Errorf("registry driver does not exist")
+	}
 }
 
 func getWebErrorConverter(config root.Configuration) (root.WebErrorConverter, error) {
@@ -582,4 +629,39 @@ func getWebServices(config root.Configuration) (map[string]root.WebService, erro
 		webServices["owncloud"] = ownCloudWebService
 	}
 	return webServices, nil
+}
+
+// setCPU parses string cpu and sets GOMAXPROCS
+// according to its value. It accepts either
+// a number (e.g. 3) or a percent (e.g. 50%).
+func setCPU(cpu string) error {
+	var numCPU int
+
+	availCPU := runtime.NumCPU()
+
+	if strings.HasSuffix(cpu, "%") {
+		// Percent
+		var percent float32
+		pctStr := cpu[:len(cpu)-1]
+		pctInt, err := strconv.Atoi(pctStr)
+		if err != nil || pctInt < 1 || pctInt > 100 {
+			return errors.New("invalid CPU value: percentage must be between 1-100")
+		}
+		percent = float32(pctInt) / 100
+		numCPU = int(float32(availCPU) * percent)
+	} else {
+		// Number
+		num, err := strconv.Atoi(cpu)
+		if err != nil || num < 1 {
+			return errors.New("invalid CPU value: provide a number or percent greater than 0")
+		}
+		numCPU = num
+	}
+
+	if numCPU > availCPU {
+		numCPU = availCPU
+	}
+
+	runtime.GOMAXPROCS(numCPU)
+	return nil
 }
