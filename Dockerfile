@@ -7,6 +7,4 @@ WORKDIR /go/src/github.com/clawio/clawiod/cmd/clawiod
 RUN go get ./...
 RUN go install
 
-CMD /go/bin/clawiod -conf /go/src/github.com/clawio/clawiod/etc/monolithic.conf
-
-EXPOSE 1560
+CMD /go/bin/clawiod -conf /go/src/github.com/clawio/clawiod/etc/clawiod.conf
