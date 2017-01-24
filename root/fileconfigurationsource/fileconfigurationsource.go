@@ -69,6 +69,7 @@ type configuration struct {
 	ETCDRegistryDriverPassword string `json:"etcd_registry_driver_password"`
 	ETCDRegistryDriverKey      string `json:"etcd_registry_driver_key"`
 
+	BasicAuthMiddleware                     string `json:"basic_auth_middleware"`
 	BasicAuthMiddlewareCookieName           string `json:"basic_auth_middleware_cookie_name"`
 	CORSMiddlewareEnabled                   bool   `json:"cors_middleware_enabled"`
 	CORSMiddlewareAccessControlAllowOrigin  string `json:"cors_middleware_access_control_allow_origin"`
@@ -77,20 +78,14 @@ type configuration struct {
 
 	AuthenticationWebService               string `json:"authentication_web_service"`
 	AuthenticationWebServiceMethodAgnostic bool   `json:"authentication_web_service_method_agnostic"`
-	ProxiedAuthenticationWebServiceURL     string `json:"proxied_authentication_web_service_url"`
 
 	DataWebService                  string `json:"data_web_service"`
 	DataWebServiceMaxUploadFileSize int64  `json:"data_web_service_max_upload_file_size"`
-	ProxiedDataWebServiceURL        string `json:"proxied_data_web_service_url"`
 
-	MetaDataWebService           string `json:"meta_data_web_service"`
-	ProxiedMetaDataWebServiceURL string `json:"proxied_meta_data_web_service_url"`
+	MetaDataWebService string `json:"meta_data_web_service"`
 
 	OCWebService                        string `json:"oc_web_service"`
 	OCWebServiceMaxUploadFileSize       int64  `json:"oc_web_service_max_upload_file_size"`
-	ProxiedOCWebServiceURL              string `json:"proxied_oc_web_service_url"`
-	RemoteOCWebServiceDataURL           string `json:"remote_oc_web_service_data_url"`
-	RemoteOCWebServiceMetaDataURL       string `json:"remote_oc_web_service_meta_data_url"`
 	RemoteOCWebServiceMaxUploadFileSize int64  `json:"remote_oc_web_service_max_upload_file_size"`
 }
 
@@ -198,6 +193,9 @@ func (c *configuration) GetETCDRegistryDriverUsername() string { return c.ETCDRe
 func (c *configuration) GetETCDRegistryDriverPassword() string { return c.ETCDRegistryDriverPassword }
 func (c *configuration) GetETCDRegistryDriverKey() string      { return c.ETCDRegistryDriverKey }
 
+func (c *configuration) GetBasicAuthMiddleware() string {
+	return c.BasicAuthMiddleware
+}
 func (c *configuration) GetBasicAuthMiddlewareCookieName() string {
 	return c.BasicAuthMiddlewareCookieName
 }
@@ -224,23 +222,12 @@ func (c *configuration) GetAuthenticationWebServiceMethodAgnostic() bool {
 	return c.AuthenticationWebServiceMethodAgnostic
 }
 
-func (c *configuration) GetProxiedAuthenticationWebServiceURL() string {
-	return c.ProxiedAuthenticationWebServiceURL
-}
-
 func (c *configuration) GetDataWebService() string {
 	return c.DataWebService
 }
 
-func (c *configuration) GetProxiedDataWebServiceURL() string {
-	return c.ProxiedDataWebServiceURL
-}
 func (c *configuration) GetMetaDataWebService() string {
 	return c.MetaDataWebService
-}
-
-func (c *configuration) GetProxiedMetaDataWebServiceURL() string {
-	return c.ProxiedMetaDataWebServiceURL
 }
 
 func (c *configuration) GetDataWebServiceMaxUploadFileSize() int64 {
@@ -250,17 +237,8 @@ func (c *configuration) GetOCWebService() string {
 	return c.OCWebService
 }
 
-func (c *configuration) GetProxiedOCWebServiceURL() string {
-	return c.ProxiedOCWebServiceURL
-}
 func (c *configuration) GetOCWebServiceMaxUploadFileSize() int64 {
 	return c.OCWebServiceMaxUploadFileSize
-}
-func (c *configuration) GetRemoteOCWebServiceDataURL() string {
-	return c.RemoteOCWebServiceDataURL
-}
-func (c *configuration) GetRemoteOCWebServiceMetaDataURL() string {
-	return c.RemoteOCWebServiceMetaDataURL
 }
 func (c *configuration) GetRemoteOCWebServiceMaxUploadFileSize() int64 {
 	return c.RemoteOCWebServiceMaxUploadFileSize

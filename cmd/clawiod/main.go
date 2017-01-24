@@ -7,6 +7,7 @@ import (
 	"github.com/clawio/clawiod/root"
 	"github.com/clawio/clawiod/root/authenticationmiddleware"
 	"github.com/clawio/clawiod/root/authenticationwebservice"
+	"github.com/clawio/clawiod/root/authenticationwebserviceclient"
 	"github.com/clawio/clawiod/root/basicauthmiddleware"
 	"github.com/clawio/clawiod/root/contextmanager"
 	"github.com/clawio/clawiod/root/corsmiddleware"
@@ -30,6 +31,7 @@ import (
 	"github.com/clawio/clawiod/root/proxieddatawebservice"
 	"github.com/clawio/clawiod/root/proxiedmetadatawebservice"
 	"github.com/clawio/clawiod/root/proxiedocwebservice"
+	"github.com/clawio/clawiod/root/remotebasicauthmiddleware"
 	"github.com/clawio/clawiod/root/remoteocwebservice"
 	"github.com/clawio/clawiod/root/weberrorconverter"
 	"github.com/go-kit/kit/log"
@@ -260,22 +262,45 @@ func getAuthenticationMiddleware(config root.Configuration) (root.Authentication
 }
 
 func getBasicAuthMiddleware(config root.Configuration) (root.BasicAuthMiddleware, error) {
-	cm, err := getContextManager(config)
-	if err != nil {
-		return nil, err
+	switch config.GetBasicAuthMiddleware() {
+	case "local":
+		cm, err := getContextManager(config)
+		if err != nil {
+			return nil, err
+		}
+		tokenDriver, err := getTokenDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		userDriver, err := getUserDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		return basicauthmiddleware.New(cm, userDriver, tokenDriver, config.GetBasicAuthMiddlewareCookieName()), nil
+	case "remote":
+		cm, err := getContextManager(config)
+		if err != nil {
+			return nil, err
+		}
+		tokenDriver, err := getTokenDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		authenticationWebServiceClient, err := getAuthenticationWebServiceClient(config)
+		if err != nil {
+			return nil, err
+		}
+		return remotebasicauthmiddleware.New(cm, authenticationWebServiceClient, tokenDriver, config.GetBasicAuthMiddleware()), nil
+	default:
+		return nil, fmt.Errorf("configured basic auth middleware does not exit")
 	}
-	tokenDriver, err := getTokenDriver(config)
-	if err != nil {
-		return nil, err
-	}
-	userDriver, err := getUserDriver(config)
-	if err != nil {
-		return nil, err
-	}
-	return basicauthmiddleware.New(cm, userDriver, tokenDriver, config.GetBasicAuthMiddlewareCookieName()), nil
 }
 
 func getLogger(config root.Configuration) (levels.Levels, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return levels.Levels{}, err
+	}
 	var out io.Writer
 	switch config.GetAppLoggerOut() {
 	case "1":
@@ -286,14 +311,10 @@ func getLogger(config root.Configuration) (levels.Levels, error) {
 		out = ioutil.Discard
 	default:
 		out = &lumberjack.Logger{
-			Filename:   config.GetAppLoggerOut(),
+			Filename:   config.GetAppLoggerOut() + "@" + hostname,
 			MaxSize:    config.GetAppLoggerMaxSize(),
 			MaxAge:     config.GetAppLoggerMaxAge(),
 			MaxBackups: config.GetAppLoggerMaxBackups()}
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return levels.Levels{}, err
 	}
 	hostname = fmt.Sprintf("%s:%d", hostname, config.GetPort())
 	l := log.NewLogfmtLogger(log.NewSyncWriter(out))
@@ -302,6 +323,10 @@ func getLogger(config root.Configuration) (levels.Levels, error) {
 }
 
 func getHTTPLogger(config root.Configuration) (io.Writer, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
 	var out io.Writer
 	switch config.GetAppLoggerOut() {
 	case "1":
@@ -312,7 +337,7 @@ func getHTTPLogger(config root.Configuration) (io.Writer, error) {
 		out = ioutil.Discard
 	default:
 		out = &lumberjack.Logger{
-			Filename:   config.GetHTTPAccessLoggerOut(),
+			Filename:   config.GetHTTPAccessLoggerOut() + "@" + hostname,
 			MaxAge:     config.GetHTTPAccessLoggerMaxAge(),
 			MaxBackups: config.GetHTTPAccessLoggerMaxBackups(),
 			MaxSize:    config.GetHTTPAccessLoggerMaxSize(),
@@ -372,7 +397,13 @@ func getAuthenticationWebService(config root.Configuration) (root.WebService, er
 		if err != nil {
 			return nil, err
 		}
-		return proxiedauthenticationwebservice.New(logger, config.GetProxiedAuthenticationWebServiceURL())
+		logger.With("pkg", "proxiedauthenticationwebservice")
+
+		registryDriver, err := getRegistryDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		return proxiedauthenticationwebservice.New(logger, registryDriver)
 	default:
 		return nil, errors.New("configured authentication web service does not exist")
 
@@ -413,7 +444,14 @@ func getDataWebService(config root.Configuration) (root.WebService, error) {
 		if err != nil {
 			return nil, err
 		}
-		return proxieddatawebservice.New(logger, config.GetProxiedDataWebServiceURL())
+		logger = logger.With("pkg", "proxieddatawebservice")
+
+		registryDriver, err := getRegistryDriver(config)
+		if err != nil {
+			return nil, err
+		}
+
+		return proxieddatawebservice.New(logger, registryDriver)
 
 	default:
 		return nil, errors.New("configured data webservice does not exist")
@@ -456,7 +494,13 @@ func getMetaDataWebService(config root.Configuration) (root.WebService, error) {
 		if err != nil {
 			return nil, err
 		}
-		return proxiedmetadatawebservice.New(logger, config.GetProxiedMetaDataWebServiceURL())
+		logger = logger.With("pkg", "proxiedmetadatawebservice")
+
+		registryDriver, err := getRegistryDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		return proxiedmetadatawebservice.New(logger, registryDriver)
 	default:
 		return nil, errors.New("configured metadata webservice does not exist")
 	}
@@ -506,7 +550,13 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 		if err != nil {
 			return nil, err
 		}
-		return proxiedocwebservice.New(logger, config.GetProxiedOCWebServiceURL())
+		logger = logger.With("pkg", "proxiedocwebservice")
+
+		registryDriver, err := getRegistryDriver(config)
+		if err != nil {
+			return nil, err
+		}
+		return proxiedocwebservice.New(logger, registryDriver)
 	case "remote":
 		logger, err := getLogger(config)
 		if err != nil {
@@ -528,12 +578,14 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 		if err != nil {
 			return nil, err
 		}
-		registryDriver, err := getRegistryDriver(config)
+		dataWebServiceClient, err := getDataWebServiceClient(config)
 		if err != nil {
 			return nil, err
 		}
-		dataWebServiceClient := datawebserviceclient.New(logger, cm, registryDriver)
-		metaDataWebServiceClient := metadatawebserviceclient.New(logger, cm, registryDriver)
+		metaDataWebServiceClient, err := getMetaDataWebServiceClient(config)
+		if err != nil {
+			return nil, err
+		}
 		return remoteocwebservice.New(cm,
 			logger,
 			dataWebServiceClient,
@@ -548,6 +600,54 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 	}
 }
 
+func getDataWebServiceClient(config root.Configuration) (root.DataWebServiceClient, error) {
+	logger, err := getLogger(config)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := getContextManager(config)
+	if err != nil {
+		return nil, err
+	}
+	registryDriver, err := getRegistryDriver(config)
+	if err != nil {
+		return nil, err
+	}
+	return datawebserviceclient.New(logger, cm, registryDriver), nil
+}
+
+func getMetaDataWebServiceClient(config root.Configuration) (root.MetaDataWebServiceClient, error) {
+	logger, err := getLogger(config)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := getContextManager(config)
+	if err != nil {
+		return nil, err
+	}
+	registryDriver, err := getRegistryDriver(config)
+	if err != nil {
+		return nil, err
+	}
+	return metadatawebserviceclient.New(logger, cm, registryDriver), nil
+
+}
+
+func getAuthenticationWebServiceClient(config root.Configuration) (root.AuthenticationWebServiceClient, error) {
+	logger, err := getLogger(config)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := getContextManager(config)
+	if err != nil {
+		return nil, err
+	}
+	registryDriver, err := getRegistryDriver(config)
+	if err != nil {
+		return nil, err
+	}
+	return authenticationwebserviceclient.New(logger, cm, registryDriver), nil
+}
 func getConfigurationSource(source string) (root.ConfigurationSource, error) {
 	var protocol string
 	var specific string

@@ -37,6 +37,10 @@ func New(
 	}
 }
 
+func (s *service) IsProxy() bool {
+	return false
+}
+
 func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
 	if s.methodAgnostic {
 		return map[string]map[string]http.HandlerFunc{

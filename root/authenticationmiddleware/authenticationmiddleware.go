@@ -54,4 +54,3 @@ func (a *middleware) getTokenFromHeader(r *http.Request) string {
 	}
 	return parts[1]
 }
-

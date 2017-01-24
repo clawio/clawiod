@@ -225,7 +225,7 @@ func (c *Driver) Move(ctx context.Context, user root.User, sourcePath, targetPat
 }
 
 func (c *Driver) getLocalPath(user root.User, path string) string {
-	homeDir := secureJoin("/", string(user.Username()[0]), user.Username())
+	homeDir := secureJoin("/", user.Username())
 	userPath := secureJoin(homeDir, path)
 	return secureJoin(c.dataFolder, userPath)
 }

@@ -32,6 +32,10 @@ func New(
 	}
 }
 
+func (s *service) IsProxy() bool {
+	return false
+}
+
 func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
 	return map[string]map[string]http.HandlerFunc{
 		"/meta/examine": {

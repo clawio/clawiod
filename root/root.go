@@ -13,7 +13,7 @@ const (
 	// InvalidToken is returned when the auth token is invalid or has expired
 	CodeInvalidToken Code = iota
 	// Unauthenticated is returned when authentication is needed for execution.
-	CodeUnauthenticated
+	CodeUnauthorized
 	// BadAuthenticationData is returned when the authentication fails.
 	CodeBadAuthenticationData
 	// BadInputData is returned when the input parameters are not valid.
@@ -131,6 +131,7 @@ type (
 	}
 
 	WebService interface {
+		IsProxy() bool
 		Endpoints() map[string]map[string]http.HandlerFunc
 	}
 
@@ -139,6 +140,12 @@ type (
 	}
 
 	WebServer interface {
+	}
+
+	AuthenticationWebServiceClient interface {
+		Token(ctx context.Context, username, password string) (string, error)
+		Ping(ctx context.Context, token string) error
+
 	}
 
 	DataWebServiceClient interface {
@@ -216,7 +223,9 @@ type (
 		GetETCDRegistryDriverPassword() string
 		GetETCDRegistryDriverKey() string
 
+		GetBasicAuthMiddleware() string
 		GetBasicAuthMiddlewareCookieName() string
+
 		IsCORSMiddlewareEnabled() bool
 		GetCORSMiddlewareAccessControlAllowOrigin() string
 		GetCORSMiddlewareAccessControlAllowMethods() string
@@ -224,20 +233,14 @@ type (
 
 		GetAuthenticationWebService() string
 		GetAuthenticationWebServiceMethodAgnostic() bool
-		GetProxiedAuthenticationWebServiceURL() string
 
 		GetDataWebService() string
 		GetDataWebServiceMaxUploadFileSize() int64
-		GetProxiedDataWebServiceURL() string
 
 		GetMetaDataWebService() string
-		GetProxiedMetaDataWebServiceURL() string
 
 		GetOCWebService() string
 		GetOCWebServiceMaxUploadFileSize() int64
-		GetProxiedOCWebServiceURL() string
-		GetRemoteOCWebServiceDataURL() string
-		GetRemoteOCWebServiceMetaDataURL() string
 		GetRemoteOCWebServiceMaxUploadFileSize() int64
 	}
 

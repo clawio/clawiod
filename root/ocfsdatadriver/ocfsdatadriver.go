@@ -381,7 +381,7 @@ func (c *driver) computeChecksum(fn string) (string, error) {
 
 func (c *driver) getLocalPath(user root.User, path string) string {
 	path = strings.Trim(path, "/")
-	return fmt.Sprintf("/%s/%s/%s/%s", c.dataFolder, string(user.Username()[0]), user.Username(), path)
+	return fmt.Sprintf("/%s/%s/%s", c.dataFolder, user.Username(), path)
 }
 
 func (c *driver) isChunkedUpload(path string) (bool, error) {

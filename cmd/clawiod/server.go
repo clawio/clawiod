@@ -66,14 +66,19 @@ func (s *server) registerNode() error {
 		s.logger.Error().Log("error", err)
 		return err
 	}
-	for key := range s.webServices {
+	for key, ws := range s.webServices {
 		rol := key + "-node"
+		if ws.IsProxy() {
+			rol = rol + "-proxy"
+		}
+
 		url := fmt.Sprintf("%s:%d", hostname, s.config.GetPort())
 		if s.config.IsTLSEnabled() {
 			url = fmt.Sprintf("https://%s", url)
 		} else {
 			url = fmt.Sprintf("http://%s", url)
 		}
+
 		node := &node{
 			xhost:    fmt.Sprintf("%s:%d", hostname, s.config.GetPort()),
 			xid:      fmt.Sprintf("%s:%d", hostname, s.config.GetPort()),

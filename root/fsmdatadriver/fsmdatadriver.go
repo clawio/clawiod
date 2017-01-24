@@ -141,7 +141,7 @@ func (c *driver) Move(ctx context.Context, user root.User, sourcePath, targetPat
 func (c *driver) getLocalPath(user root.User, path string) string {
 	dataFolder := strings.Trim(c.dataFolder, "/")
 	path = strings.Trim(path, "/")
-	return fmt.Sprintf("/%s/%s/%s/%s", dataFolder, string(user.Username()[0]), user.Username(), filepath.Clean(path))
+	return fmt.Sprintf("/%s/%s/%s", dataFolder, user.Username(), filepath.Clean(path))
 }
 
 func (c *driver) convert(path string, fsFileInfo os.FileInfo) root.FileInfo {
@@ -166,7 +166,7 @@ func (f *fileInfo) Size() int64 {
 }
 
 func (f *fileInfo) Modified() int64 {
-	return f.osFileInfo.ModTime().Unix()
+	return f.osFileInfo.ModTime().UnixNano()
 }
 
 func (f *fileInfo) Checksum() string {

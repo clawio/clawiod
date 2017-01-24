@@ -1,4 +1,4 @@
-package basicauthmiddleware
+package remotebasicauthmiddleware
 
 import (
 	"github.com/clawio/clawiod/root"
@@ -6,14 +6,14 @@ import (
 )
 
 type middleware struct {
-	cookieName  string
-	cm          root.ContextManager
-	userDriver  root.UserDriver
-	tokenDriver root.TokenDriver
+	cookieName     string
+	cm             root.ContextManager
+	authenticationWebServiceClient root.AuthenticationWebServiceClient
+	tokenDriver    root.TokenDriver
 }
 
-func New(cm root.ContextManager, userDriver root.UserDriver, tokenDriver root.TokenDriver, cookieName string) root.BasicAuthMiddleware {
-	return &middleware{cm: cm, userDriver: userDriver, tokenDriver: tokenDriver, cookieName: cookieName}
+func New(cm root.ContextManager, authenticationWebServiceClient root.AuthenticationWebServiceClient, tokenDriver root.TokenDriver, cookieName string) root.BasicAuthMiddleware {
+	return &middleware{cm: cm, authenticationWebServiceClient: authenticationWebServiceClient, tokenDriver: tokenDriver, cookieName: cookieName}
 }
 
 func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
@@ -36,7 +36,7 @@ func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 			logger.Warn().Log("err", "cookie token is invalid or not longer valid")
 
 		} else {
-			logger.Info().Log("msg", "cookie oc_sessionpassphrase not set")
+			logger.Info().Log("msg", "cookie not set in request")
 		}
 
 		// try to get credentials using basic auth
@@ -48,17 +48,15 @@ func (m *middleware) HandlerFunc(handler http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// try to authenticate user with username and password
-		user, err := m.userDriver.GetByCredentials(username, password)
+		token, err := m.authenticationWebServiceClient.Token(r.Context(), username, password)
 		if err != nil {
 			logger.Error().Log("error", err)
 			w.Header().Set("WWW-Authenticate", "Basic Realm='clawio credentials'")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
-
 		}
 
-		token, err := m.tokenDriver.CreateToken(user)
+		user, err := m.tokenDriver.UserFromToken(token)
 		if err != nil {
 			logger.Error().Log("error", err)
 			w.Header().Set("WWW-Authenticate", "Basic Realm='clawio credentials'")
