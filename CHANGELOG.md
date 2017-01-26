@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2017-01-26
+### Added
+- Log output will be appended with "@<hostname>"
+- In-memory cache for registry discovery calls
+
 ## [1.1.0] - 2017-01-22
 ### Added
 - LDAPv3 user driver
