@@ -29,29 +29,29 @@ func New(logger levels.Levels, cm root.ContextManager, registryDriver root.Regis
 }
 
 func (c *webServiceClient) getDataURL(ctx context.Context) (string, error) {
-	u, ok := c.cache.Get("url")
-	if ok {
-		c.logger.Info().Log("msg", "data-node chosen from cache", "data-node-url", u.(string))
-		return u.(string), nil
-	}
+	var nodes []root.RegistryNode
 
-	// TODO(labkode) the logic for choosing a node is very rudimentary.
-	// In the future would be nice to have at least RoundRobin.
-	// Thanks that clients are registry aware we an use our own algorithms
-	// based on some prometheus metrics like load.
-	// TODO(labkode) add caching behaviour
-	nodes, err := c.registryDriver.GetNodesForRol(ctx, "data-node")
-	if err != nil {
-		return "", err
+	v, ok := c.cache.Get("nodes")
+	if ok {
+		c.logger.Info().Log("msg", "nodes obtained from cache")
+		nodes = v.([]root.RegistryNode)
+	} else {
+		ns, err := c.registryDriver.GetNodesForRol(ctx, "data-node")
+		if err != nil {
+			return "", err
+		}
+		if len(ns) == 0 {
+			return "", fmt.Errorf("there are not data-nodes alive")
+		}
+		c.logger.Info().Log("msg", "nodes obtained from registry")
+		nodes = ns
 	}
-	if len(nodes) == 0 {
-		return "", fmt.Errorf("there are not data-nodes alive")
-	}
+	c.cache.Set("nodes", nodes, cache.DefaultExpiration)
+
 	c.logger.Info().Log("msg", "got data-nodes", "numnodes", len(nodes))
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "data-node chosen", "data-node-url", chosenNode.URL())
 	chosenURL := chosenNode.URL() + "/data"
-	c.cache.Set("url", chosenURL, cache.DefaultExpiration)
 	return chosenURL, nil
 }
 func (c *webServiceClient) UploadFile(ctx context.Context, user root.User, path string, r io.ReadCloser, clientChecksum string) error {

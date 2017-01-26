@@ -28,29 +28,29 @@ func New(logger levels.Levels, cm root.ContextManager, registryDriver root.Regis
 }
 
 func (c *webServiceClient) getMetaDataURL(ctx context.Context) (string, error) {
-	u, ok := c.cache.Get("url")
-	if ok {
-		c.logger.Info().Log("msg", "metadata-node chosen from cache", "metadata-node-url", u.(string))
-		return u.(string), nil
-	}
+	var nodes []root.RegistryNode
 
-	// TODO(labkode) the logic for choosing a node is very rudimentary.
-	// In the future would be nice to have at least RoundRobin.
-	// Thanks that clients are registry aware we an use our own algorithms
-	// based on some prometheus metrics like load.
-	// TODO(labkode) add caching behaviour
-	nodes, err := c.registryDriver.GetNodesForRol(ctx, "metadata-node")
-	if err != nil {
-		return "", err
+	v, ok := c.cache.Get("nodes")
+	if ok {
+		nodes = v.([]root.RegistryNode)
+		c.logger.Info().Log("msg", "nodes obtained from cache")
+	} else {
+		ns, err := c.registryDriver.GetNodesForRol(ctx, "metadata-node")
+		if err != nil {
+			return "", err
+		}
+		if len(ns) == 0 {
+			return "", fmt.Errorf("there are not metadata-nodes alive")
+		}
+		c.logger.Info().Log("msg", "nodes obtained from registry")
+		nodes = ns
 	}
-	if len(nodes) == 0 {
-		return "", fmt.Errorf("there are not metadata-nodes alive")
-	}
+	c.cache.Set("nodes", nodes, cache.DefaultExpiration)
+
 	c.logger.Info().Log("msg", "got metadata-nodes", "numnodes", len(nodes))
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "metadata-node chosen", "metadata-node-url", chosenNode.URL())
 	chosenURL := chosenNode.URL() + "/meta"
-	c.cache.Set("url", chosenURL, cache.DefaultExpiration)
 	return chosenURL, nil
 }
 

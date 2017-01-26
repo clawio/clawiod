@@ -30,29 +30,28 @@ func New(logger levels.Levels, cm root.ContextManager, registryDriver root.Regis
 }
 
 func (c *webServiceClient) getAuthenticationURL(ctx context.Context) (string, error) {
-	u, ok := c.cache.Get("url")
+	var nodes []root.RegistryNode
+	v, ok := c.cache.Get("nodes")
 	if ok {
-		c.logger.Info().Log("msg", "authentication-node chosen from cache", "authentication-node-url", u.(string))
-		return u.(string), nil
+		c.logger.Info().Log("msg", "nodes obtained from cache")
+		nodes = v.([]root.RegistryNode)
+	} else {
+		ns, err := c.registryDriver.GetNodesForRol(ctx, "authentication-node")
+		if err != nil {
+			return "", err
+		}
+		if len(ns) == 0 {
+			return "", fmt.Errorf("there are not authentication-nodes alive")
+		}
+		c.logger.Info().Log("msg", "nodes obtained from registry")
+		nodes = ns
 	}
+	c.cache.Set("nodes", nodes, cache.DefaultExpiration)
 
-	// TODO(labkode) the logic for choosing a node is very rudimentary.
-	// In the future would be nice to have at least RoundRobin.
-	// Thanks that clients are registry aware we an use our own algorithms
-	// based on some prometheus metrics like load.
-	// TODO(labkode) add caching behaviour
-	nodes, err := c.registryDriver.GetNodesForRol(ctx, "authentication-node")
-	if err != nil {
-		return "", err
-	}
-	if len(nodes) == 0 {
-		return "", fmt.Errorf("there are not authentication-nodes alive")
-	}
 	c.logger.Info().Log("msg", "got authentication-nodes", "numnodes", len(nodes))
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "authentication-node chosen", "authentication-node-url", chosenNode.URL())
 	chosenURL := chosenNode.URL() + "/auth"
-	c.cache.Set("url", chosenURL, cache.DefaultExpiration)
 	return chosenURL, nil
 }
 
