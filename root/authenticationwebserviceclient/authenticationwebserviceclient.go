@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
+	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -18,15 +19,22 @@ type webServiceClient struct {
 	cm             root.ContextManager
 	client         *http.Client
 	registryDriver root.RegistryDriver
+	cache          *cache.Cache
 }
 
 // New returns an implementation of DataDriver.
-func New(logger levels.Levels, cm root.ContextManager, registryDriver root.RegistryDriver) root.AuthenticationWebServiceClient{
-	rand.Seed(time.Now().Unix()) // initialize global pseudorandom generator
-	return &webServiceClient{logger: logger, cm: cm, client: http.DefaultClient, registryDriver: registryDriver}
+func New(logger levels.Levels, cm root.ContextManager, registryDriver root.RegistryDriver) root.AuthenticationWebServiceClient {
+	cache := cache.New(time.Second*10, time.Second*10)
+	rand.Seed(time.Now().Unix()) // initialize global pseudo-random generator
+	return &webServiceClient{logger: logger, cm: cm, client: http.DefaultClient, registryDriver: registryDriver, cache: cache}
 }
 
 func (c *webServiceClient) getAuthenticationURL(ctx context.Context) (string, error) {
+	u, ok := c.cache.Get("url")
+	if ok {
+		return u.(string), nil
+	}
+
 	// TODO(labkode) the logic for choosing a node is very rudimentary.
 	// In the future would be nice to have at least RoundRobin.
 	// Thanks that clients are registry aware we an use our own algorithms
@@ -42,7 +50,9 @@ func (c *webServiceClient) getAuthenticationURL(ctx context.Context) (string, er
 	c.logger.Info().Log("msg", "got authentication-nodes", "numnodes", len(nodes))
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "authentication-node chosen", "authentication-node-url", chosenNode.URL())
-	return chosenNode.URL() + "/auth", nil
+	chosenURL := chosenNode.URL() + "/auth"
+	c.cache.Set("url", chosenURL, cache.NoExpiration)
+	return chosenURL, nil
 }
 
 func (c *webServiceClient) Token(ctx context.Context, username, password string) (string, error) {

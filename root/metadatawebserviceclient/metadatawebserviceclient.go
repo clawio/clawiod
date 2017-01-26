@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
+	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"time"
 )
 
 type webServiceClient struct {
@@ -17,13 +19,20 @@ type webServiceClient struct {
 	cm             root.ContextManager
 	client         *http.Client
 	registryDriver root.RegistryDriver
+	cache          *cache.Cache
 }
 
 func New(logger levels.Levels, cm root.ContextManager, registryDriver root.RegistryDriver) root.MetaDataWebServiceClient {
-	return &webServiceClient{logger: logger, cm: cm, registryDriver: registryDriver, client: http.DefaultClient}
+	cache := cache.New(time.Second*10, time.Second*10)
+	return &webServiceClient{logger: logger, cm: cm, registryDriver: registryDriver, client: http.DefaultClient, cache: cache}
 }
 
 func (c *webServiceClient) getMetaDataURL(ctx context.Context) (string, error) {
+	u, ok := c.cache.Get("url")
+	if ok {
+		return u.(string), nil
+	}
+
 	// TODO(labkode) the logic for choosing a node is very rudimentary.
 	// In the future would be nice to have at least RoundRobin.
 	// Thanks that clients are registry aware we an use our own algorithms
@@ -39,7 +48,8 @@ func (c *webServiceClient) getMetaDataURL(ctx context.Context) (string, error) {
 	c.logger.Info().Log("msg", "got metadata-nodes", "numnodes", len(nodes))
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "metadata-node chosen", "metadata-node-url", chosenNode.URL())
-	return chosenNode.URL() + "/meta", nil
+	chosenURL := chosenNode.URL() + "/meta"
+	return chosenURL, nil
 }
 
 func (c *webServiceClient) Examine(ctx context.Context, user root.User, path string) (root.FileInfo, error) {

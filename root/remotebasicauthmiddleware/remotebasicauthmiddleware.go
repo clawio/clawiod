@@ -6,10 +6,10 @@ import (
 )
 
 type middleware struct {
-	cookieName     string
-	cm             root.ContextManager
+	cookieName                     string
+	cm                             root.ContextManager
 	authenticationWebServiceClient root.AuthenticationWebServiceClient
-	tokenDriver    root.TokenDriver
+	tokenDriver                    root.TokenDriver
 }
 
 func New(cm root.ContextManager, authenticationWebServiceClient root.AuthenticationWebServiceClient, tokenDriver root.TokenDriver, cookieName string) root.BasicAuthMiddleware {

@@ -5,25 +5,35 @@ import (
 	"fmt"
 	"github.com/clawio/clawiod/root"
 	"github.com/go-kit/kit/log/levels"
+	"github.com/patrickmn/go-cache"
 	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
 type service struct {
 	logger         levels.Levels
 	registryDriver root.RegistryDriver
+	cache          *cache.Cache
 }
 
 func New(logger levels.Levels, registryDriver root.RegistryDriver) (root.WebService, error) {
+	cache := cache.New(time.Second*10, time.Second*10)
 	return &service{
 		logger:         logger,
 		registryDriver: registryDriver,
+		cache:          cache,
 	}, nil
 }
 
 func (s *service) getProxy(ctx context.Context) (*httputil.ReverseProxy, error) {
+	p, ok := s.cache.Get("proxy")
+	if ok {
+		return p.(*httputil.ReverseProxy), nil
+	}
+
 	// TODO(labkode) the logic for choosing a node is very rudimentary.
 	// In the future would be nice to have at least RoundRobin.
 	// Thanks that clients are registry aware we an use our own algorithms
@@ -43,7 +53,9 @@ func (s *service) getProxy(ctx context.Context) (*httputil.ReverseProxy, error) 
 	if err != nil {
 		return nil, err
 	}
-	return httputil.NewSingleHostReverseProxy(u), nil
+	proxy := httputil.NewSingleHostReverseProxy(u)
+	s.cache.Set("proxy", proxy, cache.NoExpiration)
+	return proxy, nil
 }
 
 func (s *service) IsProxy() bool {
