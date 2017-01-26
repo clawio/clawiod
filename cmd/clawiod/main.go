@@ -328,7 +328,7 @@ func getHTTPLogger(config root.Configuration) (io.Writer, error) {
 		return nil, err
 	}
 	var out io.Writer
-	switch config.GetAppLoggerOut() {
+	switch config.GetHTTPAccessLoggerOut() {
 	case "1":
 		out = os.Stdout
 	case "2":
