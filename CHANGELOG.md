@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2017-01-26
+### Fixed
+- HTTP logger output respected the configuration file 
+
 ## [1.2.0] - 2017-01-26
 ### Added
 - Log output will be appended with "@<hostname>"
