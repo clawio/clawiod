@@ -30,6 +30,7 @@ func New(logger levels.Levels, cm root.ContextManager, registryDriver root.Regis
 func (c *webServiceClient) getMetaDataURL(ctx context.Context) (string, error) {
 	u, ok := c.cache.Get("url")
 	if ok {
+		c.logger.Info().Log("msg", "metadata-node chosen from cache", "metadata-node-url", u.(string))
 		return u.(string), nil
 	}
 
@@ -49,6 +50,7 @@ func (c *webServiceClient) getMetaDataURL(ctx context.Context) (string, error) {
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "metadata-node chosen", "metadata-node-url", chosenNode.URL())
 	chosenURL := chosenNode.URL() + "/meta"
+	c.cache.Set("url", chosenURL, cache.DefaultExpiration)
 	return chosenURL, nil
 }
 
@@ -263,12 +265,12 @@ func (c *webServiceClient) CreateFolder(ctx context.Context, user root.User, pat
 		return err
 	}
 
-	if res.StatusCode == http.StatusCreated {
+	if res.StatusCode == http.StatusOK {
 		return nil
 	}
 
 	c.logger.Error().Log("error", "error creating folder on remote", "httpstatuscode", res.StatusCode)
-	return internalError(fmt.Sprintf("error creating folder on remote"))
+	return internalError("error creating folder on remote")
 }
 
 type pathReq struct {

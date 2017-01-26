@@ -45,7 +45,6 @@ func newServer(config root.Configuration) (*server, error) {
 			s.logger.Error().Log("error", "error registering node")
 		}
 		for range time.Tick(time.Second * 5) {
-			s.logger.Info().Log("msg", "keep alive is issued every 5 seconds: re-registering node")
 			err = s.registerNode()
 			if err != nil {
 				s.logger.Error().Log("error", "error registering node")

@@ -31,6 +31,7 @@ func New(logger levels.Levels, cm root.ContextManager, registryDriver root.Regis
 func (c *webServiceClient) getDataURL(ctx context.Context) (string, error) {
 	u, ok := c.cache.Get("url")
 	if ok {
+		c.logger.Info().Log("msg", "data-node chosen from cache", "data-node-url", u.(string))
 		return u.(string), nil
 	}
 
@@ -50,7 +51,7 @@ func (c *webServiceClient) getDataURL(ctx context.Context) (string, error) {
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "data-node chosen", "data-node-url", chosenNode.URL())
 	chosenURL := chosenNode.URL() + "/data"
-	c.cache.Set("url", chosenURL, cache.NoExpiration)
+	c.cache.Set("url", chosenURL, cache.DefaultExpiration)
 	return chosenURL, nil
 }
 func (c *webServiceClient) UploadFile(ctx context.Context, user root.User, path string, r io.ReadCloser, clientChecksum string) error {

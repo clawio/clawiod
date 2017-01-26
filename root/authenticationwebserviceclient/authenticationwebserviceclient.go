@@ -32,6 +32,7 @@ func New(logger levels.Levels, cm root.ContextManager, registryDriver root.Regis
 func (c *webServiceClient) getAuthenticationURL(ctx context.Context) (string, error) {
 	u, ok := c.cache.Get("url")
 	if ok {
+		c.logger.Info().Log("msg", "authentication-node chosen from cache", "authentication-node-url", u.(string))
 		return u.(string), nil
 	}
 
@@ -51,7 +52,7 @@ func (c *webServiceClient) getAuthenticationURL(ctx context.Context) (string, er
 	chosenNode := nodes[rand.Intn(len(nodes))]
 	c.logger.Info().Log("msg", "authentication-node chosen", "authentication-node-url", chosenNode.URL())
 	chosenURL := chosenNode.URL() + "/auth"
-	c.cache.Set("url", chosenURL, cache.NoExpiration)
+	c.cache.Set("url", chosenURL, cache.DefaultExpiration)
 	return chosenURL, nil
 }
 

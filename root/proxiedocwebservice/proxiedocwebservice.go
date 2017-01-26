@@ -31,6 +31,7 @@ func New(logger levels.Levels, registryDriver root.RegistryDriver) (root.WebServ
 func (s *service) getProxy(ctx context.Context) (*httputil.ReverseProxy, error) {
 	p, ok := s.cache.Get("proxy")
 	if ok {
+		s.logger.Info().Log("msg", "chosen proxy from cache")
 		return p.(*httputil.ReverseProxy), nil
 	}
 
@@ -54,7 +55,7 @@ func (s *service) getProxy(ctx context.Context) (*httputil.ReverseProxy, error) 
 		return nil, err
 	}
 	proxy := httputil.NewSingleHostReverseProxy(u)
-	s.cache.Set("proxy", proxy, cache.NoExpiration)
+	s.cache.Set("proxy", proxy, cache.DefaultExpiration)
 	return proxy, nil
 }
 
