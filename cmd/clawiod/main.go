@@ -108,7 +108,7 @@ func main() {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		logger.Error().Log("error", err)
+		mainLogger.Error().Log("error", err)
 		os.Exit(1)
 	}
 
