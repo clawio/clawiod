@@ -73,6 +73,7 @@ func stat(cmd *cobra.Command, args []string) error {
 				logger.Error().Log("error", err)
 				os.Exit(1)
 			}
+			req.Close = true
 
 			req.SetBasicAuth(os.Getenv("CLAWIOBENCH_USERNAME"), os.Getenv("CLAWIOBENCH_PASSWORD"))
 			req.Header.Set("Depth", "1")

@@ -277,6 +277,7 @@ func upload(cmd *cobra.Command, args []string) error {
 				errChan <- err
 				return
 			}
+			req.Close = true
 
 			req.Header.Add("Content-Type", "application/octet-stream")
 			req.SetBasicAuth(os.Getenv("CLAWIOBENCH_USERNAME"), os.Getenv("CLAWIOBENCH_PASSWORD"))
@@ -339,7 +340,7 @@ func upload(cmd *cobra.Command, args []string) error {
 	volume := numberRequests * countFlag * bsFlag / 1024 / 1024
 	throughput := float64(volume) / totalTime
 	data := [][]string{
-		{"number-of-requests", "concurrency", "time", "failed-requests", "frequency", "period", "data-volume", "data-throughput"},
+		{"number-of-requests", "concurrency", "time", "failed-requests", "frequency", "period", "data-volume(mb)", "data-throughput(mb)"},
 		{fmt.Sprintf("%d", numberRequests), fmt.Sprintf("%d", concurrency), fmt.Sprintf("%f", totalTime), fmt.Sprintf("%d", failedRequests), fmt.Sprintf("%f", frequency), fmt.Sprintf("%f", period), fmt.Sprintf("%d", volume), fmt.Sprintf("%f", throughput)},
 	}
 	w := csv.NewWriter(output)
