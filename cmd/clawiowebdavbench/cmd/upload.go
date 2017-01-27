@@ -339,11 +339,11 @@ func upload(cmd *cobra.Command, args []string) error {
 	volume := numberRequests * countFlag * bsFlag / 1024 / 1024
 	throughput := float64(volume) / totalTime
 	data := [][]string{
-		{"#NUMBER", "CONCURRENCY", "TIME", "FAILED", "FREQ", "PERIOD", "VOLUME", "THROUGHPUT"},
+		{"number-of-requests", "concurrency", "time", "failed-requests", "frequency", "period", "data-volume", "data-throughput"},
 		{fmt.Sprintf("%d", numberRequests), fmt.Sprintf("%d", concurrency), fmt.Sprintf("%f", totalTime), fmt.Sprintf("%d", failedRequests), fmt.Sprintf("%f", frequency), fmt.Sprintf("%f", period), fmt.Sprintf("%d", volume), fmt.Sprintf("%f", throughput)},
 	}
 	w := csv.NewWriter(output)
-	w.Comma = ' '
+	w.Comma = ','
 	for _, d := range data {
 		if err := w.Write(d); err != nil {
 			return err
