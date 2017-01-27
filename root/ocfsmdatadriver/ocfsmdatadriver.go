@@ -133,6 +133,7 @@ func (c *Driver) Init(ctx context.Context, user root.User) error {
 func (c *Driver) CreateFolder(ctx context.Context, user root.User, path string) error {
 	localPath := c.getLocalPath(user, path)
 	if err := os.Mkdir(localPath, 0755); err != nil {
+		c.logger.Error().Log("error", err)
 		return err
 	}
 	return c.SetDBMetaData(c.GetVirtualPath(user, path), "", c.GetVirtualPath(user, "/"))
