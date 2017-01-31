@@ -41,7 +41,13 @@ func stat(cmd *cobra.Command, args []string) error {
 	}
 
 	logger := getLogger()
-	client := http.DefaultClient
+
+        tr := &http.Transport{
+		MaxIdleConnsPerHost: concurrencyFlag,
+        }
+	client := &http.Client{
+		Transport: tr,
+	}
 
 	benchStart := time.Now()
 
