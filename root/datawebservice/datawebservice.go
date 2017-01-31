@@ -56,19 +56,6 @@ func (s *service) Endpoints() map[string]map[string]http.HandlerFunc {
 func (s *service) uploadEndpoint(w http.ResponseWriter, r *http.Request) {
 	logger := s.cm.MustGetLog(r.Context())
 
-	if r.Body == nil {
-		codeErr := badRequestError("body is <nil>")
-		jsonErr, err := s.wec.ErrorToJSON(codeErr)
-		if err != nil {
-			logger.Error().Log("error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(jsonErr)
-		return
-	}
-
 	req := &pathRequest{}
 	if err := json.Unmarshal([]byte(r.Header.Get("clawio-api-arg")), req); err != nil {
 		logger.Error().Log("error", err)

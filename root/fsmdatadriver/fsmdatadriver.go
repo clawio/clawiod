@@ -97,6 +97,8 @@ func (c *driver) ListFolder(ctx context.Context, user root.User, path string) ([
 		}
 		return nil, err
 	}
+	defer fd.Close()
+
 	c.logger.Info().Log("msg", "folder opened", "folder", localPath)
 	fsFileInfos, err := fd.Readdir(-1) // read all files inside the directory.
 	if err != nil {

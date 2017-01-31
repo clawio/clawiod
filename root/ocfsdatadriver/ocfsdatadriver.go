@@ -86,6 +86,7 @@ func (c *driver) Init(ctx context.Context, user root.User) error {
 // 3) Optional: if a client-checksum is provided, check if it matches with the server-checksum.
 // 4) Move the file from the temporary folder to user folder.
 func (c *driver) UploadFile(ctx context.Context, user root.User, path string, r io.ReadCloser, clientChecksum string) error {
+	defer r.Close()
 	// if the file is a chunk we handle it differently
 	isChunked, err := c.isChunkedUpload(path)
 	if err != nil {
@@ -103,7 +104,6 @@ func (c *driver) UploadFile(ctx context.Context, user root.User, path string, r 
 		c.logger.Error().Log("error", err)
 		return err
 	}
-	defer r.Close()
 
 	var computedChecksum string
 	// 2) Optional: calculate the checksum of the file.
@@ -263,6 +263,7 @@ func (c *driver) uploadChunk(ctx context.Context, user root.User, path string, r
 			c.logger.Error().Log("error", err)
 			return err
 		}
+		defer chunk.Close()
 
 		if _, err = io.Copy(assembledFile, chunk); err != nil {
 			c.logger.Error().Log("error", err)
@@ -338,10 +339,10 @@ func (c *driver) uploadChunk(ctx context.Context, user root.User, path string, r
 func (c *driver) saveToTempFile(r io.Reader) (string, error) {
 	temporaryFolder := fmt.Sprintf("/%s", c.temporaryFolder)
 	fd, err := ioutil.TempFile(temporaryFolder, "")
-	defer fd.Close()
 	if err != nil {
 		return "", err
 	}
+	defer fd.Close()
 
 	written, err := io.Copy(fd, r)
 	if err != nil {
@@ -368,10 +369,10 @@ func (c *driver) computeChecksum(fn string) (string, error) {
 		return "", errors.New(fmt.Sprintf("fsdatadriver: provided checksum %q not implemented", c.checksum))
 	}
 	fd, err := os.Open(fn)
-	defer fd.Close()
 	if err != nil {
 		return "", err
 	}
+	defer fd.Close()
 	if _, err := io.Copy(hash, fd); err != nil {
 		return "", err
 	}

@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"io/ioutil"
 )
 
 var childrenFlag bool
@@ -79,10 +80,11 @@ func stat(cmd *cobra.Command, args []string) error {
 			req.Header.Set("Depth", "1")
 			res, err := client.Do(req)
 			if err != nil {
-				logger.Error().Log("error", err)
 				errChan <- err
 				return
 			}
+			defer res.Body.Close()
+			ioutil.ReadAll(res.Body)
 
 			if res.StatusCode == http.StatusNotFound {
 				logger.Error().Log("error", err)

@@ -69,6 +69,7 @@ func (c *webServiceClient) Examine(ctx context.Context, user root.User, path str
 	if err != nil {
 		return nil, err
 	}
+
 	req, err := http.NewRequest("POST", url+"/examine", bytes.NewReader(jsonBody))
 	if err != nil {
 		c.logger.Error().Log("error", err)
@@ -82,14 +83,15 @@ func (c *webServiceClient) Examine(ctx context.Context, user root.User, path str
 		c.logger.Error().Log("error", err)
 		return nil, err
 	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		c.logger.Error().Log("error", err)
+		return nil, err
+	}
 
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated {
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			c.logger.Error().Log("error", err)
-			return nil, err
-		}
-		defer res.Body.Close()
 		fi := &fileInfo{}
 		err = json.Unmarshal(body, fi)
 		return fi, err
@@ -132,14 +134,15 @@ func (c *webServiceClient) ListFolder(ctx context.Context, user root.User, path 
 		c.logger.Error().Log("error", err)
 		return nil, err
 	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		c.logger.Error().Log("error", err)
+		return nil, err
+	}
 
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated {
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			c.logger.Error().Log("error", err)
-			return nil, err
-		}
-		defer res.Body.Close()
 		finfos := []*fileInfo{}
 		err = json.Unmarshal(body, &finfos)
 		if err != nil {
@@ -152,6 +155,7 @@ func (c *webServiceClient) ListFolder(ctx context.Context, user root.User, path 
 		}
 		return fileInfos, nil
 	}
+
 	if res.StatusCode == http.StatusNotFound {
 		return nil, notFoundError("")
 	}
@@ -187,10 +191,13 @@ func (c *webServiceClient) Delete(ctx context.Context, user root.User, path stri
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	ioutil.ReadAll(res.Body)
 
 	if res.StatusCode == http.StatusNoContent {
 		return nil
 	}
+
 	if res.StatusCode == http.StatusNotFound {
 		return notFoundError("")
 	}
@@ -225,6 +232,8 @@ func (c *webServiceClient) Move(ctx context.Context, user root.User, sourcePath,
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	ioutil.ReadAll(res.Body)
 
 	if res.StatusCode == http.StatusOK {
 		return nil
@@ -264,6 +273,8 @@ func (c *webServiceClient) CreateFolder(ctx context.Context, user root.User, pat
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	ioutil.ReadAll(res.Body)
 
 	if res.StatusCode == http.StatusOK {
 		return nil

@@ -99,8 +99,9 @@ func New(logger levels.Levels, sqlLogger mysql.Logger, maxSQLIdleConnections, ma
 	}
 
 
+	logger.Info().Log("maxidle", maxSQLIdleConnections, "maxopen", maxSQLConcurrentConnections)
 	//db.SetLogger(sqlLogger)
-	db.LogMode(true)
+	db.LogMode(false)
 	db.DB().SetMaxIdleConns(maxSQLIdleConnections)
 	db.DB().SetMaxOpenConns(maxSQLConcurrentConnections)
 
@@ -179,6 +180,7 @@ func (c *Driver) ListFolder(ctx context.Context, user root.User, path string) ([
 		}
 		return nil, err
 	}
+	defer fd.Close()
 	osFileInfos, err := fd.Readdir(-1) // read all files inside the directory.
 	if err != nil {
 		return nil, err
@@ -250,19 +252,6 @@ func secureJoin(args ...string) string {
 	}
 	return filepath.Join(args...)
 }
-
-/*
-func (c *Driver) getMimeType(path string, otype entities.ObjectType) string {
-	if otype == entities.ObjectTypeTree {
-		return entities.ObjectTypeTreeMimeType
-	}
-	inferred := mime.TypeByExtension(filepath.Ext(path))
-	if inferred == "" {
-		inferred = entities.ObjectTypeBLOBMimeType
-	}
-	return inferred
-}
-*/
 
 func (c *Driver) getByVirtualPath(virtualPath string) (*record, error) {
 	r := &record{}

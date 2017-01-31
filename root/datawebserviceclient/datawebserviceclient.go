@@ -8,6 +8,7 @@ import (
 	"github.com/go-kit/kit/log/levels"
 	"github.com/patrickmn/go-cache"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"time"
@@ -82,6 +83,9 @@ func (c *webServiceClient) UploadFile(ctx context.Context, user root.User, path 
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	ioutil.ReadAll(res.Body)
+
 	if res.StatusCode == http.StatusCreated {
 		return nil
 	}
@@ -136,6 +140,8 @@ func (c *webServiceClient) DownloadFile(ctx context.Context, user root.User, pat
 	if err != nil {
 		return nil, err
 	}
+	// it is the responsability of the caller to close the ReadCloser
+	// so we don't close the the body here.
 
 	if res.StatusCode != http.StatusOK {
 		return nil, internalError(fmt.Sprintf("http status code: %d", res.StatusCode))

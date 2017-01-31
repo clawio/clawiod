@@ -713,7 +713,6 @@ func (s *service) propfindEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(207)
 	w.Write([]byte(fileInfosInXML))
-
 }
 
 func (s *service) isChunkedUpload(path string) (bool, error) {

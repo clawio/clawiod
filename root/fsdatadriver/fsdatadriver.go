@@ -28,7 +28,6 @@ type driver struct {
 
 // New returns an implementation of DataDriver.
 func New(logger levels.Levels, dataFolder, temporaryFolder, checksum string, verifyClientChecksum bool) (root.DataDriver, error) {
-	logger = logger.With("pkg", "fsdatadriver")
 	if err := os.MkdirAll(dataFolder, 755); err != nil {
 		return nil, err
 	}
@@ -127,10 +126,10 @@ func (c *driver) DownloadFile(ctx context.Context, user root.User, path string) 
 func (c *driver) saveToTempFile(r io.Reader) (string, error) {
 	temporaryFolder := fmt.Sprintf("/%s", c.temporaryFolder)
 	fd, err := ioutil.TempFile(temporaryFolder, "")
-	defer fd.Close()
 	if err != nil {
 		return "", err
 	}
+	defer fd.Close()
 
 	written, err := io.Copy(fd, r)
 	if err != nil {
@@ -157,10 +156,10 @@ func (c *driver) computeChecksum(fn string) (string, error) {
 		return "", errors.New(fmt.Sprintf("fsdatadriver: provided checksum %q not implemented", c.checksum))
 	}
 	fd, err := os.Open(fn)
-	defer fd.Close()
 	if err != nil {
 		return "", err
 	}
+	defer fd.Close()
 	if _, err := io.Copy(hash, fd); err != nil {
 		return "", err
 	}

@@ -80,13 +80,16 @@ func (c *webServiceClient) Token(ctx context.Context, username, password string)
 	if err != nil {
 		return "", err
 	}
+	defer res.Body.Close()
+
+	jsonRes, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+
 	if res.StatusCode == http.StatusCreated {
-		jsonRes, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return "", err
-		}
 		tokenRes := &tokenRes{}
-		err = json.Unmarshal(jsonRes, tokenRes)
+		err := json.Unmarshal(jsonRes, tokenRes)
 		if err != nil {
 			return "", err
 		}
@@ -123,6 +126,8 @@ func (c *webServiceClient) Ping(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	ioutil.ReadAll(res.Body)
 
 	if res.StatusCode == http.StatusOK {
 		return nil

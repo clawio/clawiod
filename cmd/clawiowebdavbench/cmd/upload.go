@@ -287,12 +287,8 @@ func upload(cmd *cobra.Command, args []string) error {
 				errChan <- err
 				return
 			}
-
-			err = res.Body.Close()
-			if err != nil {
-				errChan <- err
-				return
-			}
+			defer res.Body.Close()
+			ioutil.ReadAll(res.Body)
 
 			if res.StatusCode ==  http.StatusCreated || res.StatusCode == http.StatusNoContent {
 				doneChan <- true
