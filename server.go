@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/clawio/clawiod/root"
+	"github.com/clawio/lib"
 	"github.com/go-kit/kit/log/levels"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -17,13 +17,13 @@ import (
 type server struct {
 	logger         levels.Levels
 	router         http.Handler
-	config         root.Configuration
+	config         lib.Configuration
 	httpLogger     io.Writer
-	registryDriver root.RegistryDriver
-	webServices    map[string]root.WebService
+	registryDriver lib.RegistryDriver
+	webServices    map[string]lib.WebService
 }
 
-func newServer(config root.Configuration) (*server, error) {
+func newServer(config lib.Configuration) (*server, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err

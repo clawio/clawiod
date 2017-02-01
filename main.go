@@ -4,36 +4,37 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/clawio/clawiod/root"
-	"github.com/clawio/clawiod/root/authenticationmiddleware"
-	"github.com/clawio/clawiod/root/authenticationwebservice"
-	"github.com/clawio/clawiod/root/authenticationwebserviceclient"
-	"github.com/clawio/clawiod/root/basicauthmiddleware"
-	"github.com/clawio/clawiod/root/contextmanager"
-	"github.com/clawio/clawiod/root/corsmiddleware"
-	"github.com/clawio/clawiod/root/datawebservice"
-	"github.com/clawio/clawiod/root/datawebserviceclient"
-	"github.com/clawio/clawiod/root/etcdregistrydriver"
-	"github.com/clawio/clawiod/root/fileconfigurationsource"
-	"github.com/clawio/clawiod/root/fsdatadriver"
-	"github.com/clawio/clawiod/root/fsmdatadriver"
-	"github.com/clawio/clawiod/root/jwttokendriver"
-	"github.com/clawio/clawiod/root/ldapuserdriver"
-	"github.com/clawio/clawiod/root/loggermiddleware"
-	"github.com/clawio/clawiod/root/memuserdriver"
-	"github.com/clawio/clawiod/root/metadatawebservice"
-	"github.com/clawio/clawiod/root/metadatawebserviceclient"
-	"github.com/clawio/clawiod/root/mimeguesser"
-	"github.com/clawio/clawiod/root/ocfsdatadriver"
-	"github.com/clawio/clawiod/root/ocfsmdatadriver"
-	"github.com/clawio/clawiod/root/ocwebservice"
-	"github.com/clawio/clawiod/root/proxiedauthenticationwebservice"
-	"github.com/clawio/clawiod/root/proxieddatawebservice"
-	"github.com/clawio/clawiod/root/proxiedmetadatawebservice"
-	"github.com/clawio/clawiod/root/proxiedocwebservice"
-	"github.com/clawio/clawiod/root/remotebasicauthmiddleware"
-	"github.com/clawio/clawiod/root/remoteocwebservice"
-	"github.com/clawio/clawiod/root/weberrorconverter"
+	"github.com/clawio/lib"
+	"github.com/clawio/lib/authenticationmiddleware"
+	"github.com/clawio/lib/authenticationwebservice"
+	"github.com/clawio/lib/authenticationwebserviceclient"
+	"github.com/clawio/lib/basicauthmiddleware"
+	"github.com/clawio/lib/contextmanager"
+	"github.com/clawio/lib/corsmiddleware"
+	"github.com/clawio/lib/datawebservice"
+	"github.com/clawio/lib/datawebserviceclient"
+	"github.com/clawio/lib/etcdregistrydriver"
+	"github.com/clawio/lib/dummyregistrydriver"
+	"github.com/clawio/lib/fileconfigurationsource"
+	"github.com/clawio/lib/fsdatadriver"
+	"github.com/clawio/lib/fsmdatadriver"
+	"github.com/clawio/lib/jwttokendriver"
+	"github.com/clawio/lib/ldapuserdriver"
+	"github.com/clawio/lib/loggermiddleware"
+	"github.com/clawio/lib/memuserdriver"
+	"github.com/clawio/lib/metadatawebservice"
+	"github.com/clawio/lib/metadatawebserviceclient"
+	"github.com/clawio/lib/mimeguesser"
+	"github.com/clawio/lib/ocfsdatadriver"
+	"github.com/clawio/lib/ocfsmdatadriver"
+	"github.com/clawio/lib/ocwebservice"
+	"github.com/clawio/lib/proxiedauthenticationwebservice"
+	"github.com/clawio/lib/proxieddatawebservice"
+	"github.com/clawio/lib/proxiedmetadatawebservice"
+	"github.com/clawio/lib/proxiedocwebservice"
+	"github.com/clawio/lib/remotebasicauthmiddleware"
+	"github.com/clawio/lib/remoteocwebservice"
+	"github.com/clawio/lib/weberrorconverter"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/levels"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -137,7 +138,7 @@ func handleVersion() {
 	fmt.Printf("%s %s commit:%s dev-build\n", appName, gitNearestTag, gitCommit)
 	os.Exit(0)
 }
-func getUserDriver(config root.Configuration) (root.UserDriver, error) {
+func getUserDriver(config lib.Configuration) (lib.UserDriver, error) {
 	switch config.GetUserDriver() {
 	case "memuserdriver":
 		return memuserdriver.New(config.GetMemUserDriverUsers()), nil
@@ -158,7 +159,7 @@ func getUserDriver(config root.Configuration) (root.UserDriver, error) {
 	}
 }
 
-func getTokenDriver(config root.Configuration) (root.TokenDriver, error) {
+func getTokenDriver(config lib.Configuration) (lib.TokenDriver, error) {
 	switch config.GetTokenDriver() {
 	case "jwttokendriver":
 		cm, err := getContextManager(config)
@@ -176,7 +177,7 @@ func getTokenDriver(config root.Configuration) (root.TokenDriver, error) {
 
 }
 
-func getDataDriver(config root.Configuration) (root.DataDriver, error) {
+func getDataDriver(config lib.Configuration) (lib.DataDriver, error) {
 	switch config.GetDataDriver() {
 	case "fsdatadriver":
 		logger, err := getLogger(config)
@@ -212,7 +213,7 @@ func getDataDriver(config root.Configuration) (root.DataDriver, error) {
 
 }
 
-func getMetaDataDriver(config root.Configuration) (root.MetaDataDriver, error) {
+func getMetaDataDriver(config lib.Configuration) (lib.MetaDataDriver, error) {
 	switch config.GetMetaDataDriver() {
 	case "fsmdatadriver":
 		logger, err := getLogger(config)
@@ -240,16 +241,16 @@ func getMetaDataDriver(config root.Configuration) (root.MetaDataDriver, error) {
 	}
 }
 
-func getContextManager(config root.Configuration) (root.ContextManager, error) {
+func getContextManager(config lib.Configuration) (lib.ContextManager, error) {
 	// only one
 	return contextmanager.New(), nil
 }
 
-func getMimeGuesser(config root.Configuration) (root.MimeGuesser, error) {
+func getMimeGuesser(config lib.Configuration) (lib.MimeGuesser, error) {
 	return mimeguesser.New(), nil
 }
 
-func getAuthenticationMiddleware(config root.Configuration) (root.AuthenticationMiddleware, error) {
+func getAuthenticationMiddleware(config lib.Configuration) (lib.AuthenticationMiddleware, error) {
 	cm, err := getContextManager(config)
 	if err != nil {
 		return nil, err
@@ -261,7 +262,7 @@ func getAuthenticationMiddleware(config root.Configuration) (root.Authentication
 	return authenticationmiddleware.New(cm, tokenDriver), nil
 }
 
-func getBasicAuthMiddleware(config root.Configuration) (root.BasicAuthMiddleware, error) {
+func getBasicAuthMiddleware(config lib.Configuration) (lib.BasicAuthMiddleware, error) {
 	switch config.GetBasicAuthMiddleware() {
 	case "local":
 		cm, err := getContextManager(config)
@@ -296,7 +297,7 @@ func getBasicAuthMiddleware(config root.Configuration) (root.BasicAuthMiddleware
 	}
 }
 
-func getLogger(config root.Configuration) (levels.Levels, error) {
+func getLogger(config lib.Configuration) (levels.Levels, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return levels.Levels{}, err
@@ -322,7 +323,7 @@ func getLogger(config root.Configuration) (levels.Levels, error) {
 	return levels.New(l), nil
 }
 
-func getHTTPLogger(config root.Configuration) (io.Writer, error) {
+func getHTTPLogger(config lib.Configuration) (io.Writer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -346,7 +347,7 @@ func getHTTPLogger(config root.Configuration) (io.Writer, error) {
 	return out, nil
 }
 
-func getLoggerMiddleware(config root.Configuration) (root.LoggerMiddleware, error) {
+func getLoggerMiddleware(config lib.Configuration) (lib.LoggerMiddleware, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err
@@ -358,7 +359,7 @@ func getLoggerMiddleware(config root.Configuration) (root.LoggerMiddleware, erro
 	return loggermiddleware.New(cm, logger), nil
 }
 
-func getAuthenticationWebService(config root.Configuration) (root.WebService, error) {
+func getAuthenticationWebService(config lib.Configuration) (lib.WebService, error) {
 	switch config.GetAuthenticationWebService() {
 	case "local":
 		logger, err := getLogger(config)
@@ -410,7 +411,7 @@ func getAuthenticationWebService(config root.Configuration) (root.WebService, er
 	}
 }
 
-func getDataWebService(config root.Configuration) (root.WebService, error) {
+func getDataWebService(config lib.Configuration) (lib.WebService, error) {
 	switch config.GetDataWebService() {
 	case "local":
 		logger, err := getLogger(config)
@@ -459,7 +460,7 @@ func getDataWebService(config root.Configuration) (root.WebService, error) {
 	}
 }
 
-func getMetaDataWebService(config root.Configuration) (root.WebService, error) {
+func getMetaDataWebService(config lib.Configuration) (lib.WebService, error) {
 	switch config.GetMetaDataWebService() {
 	case "local":
 		logger, err := getLogger(config)
@@ -506,7 +507,7 @@ func getMetaDataWebService(config root.Configuration) (root.WebService, error) {
 	}
 }
 
-func getOCWebService(config root.Configuration) (root.WebService, error) {
+func getOCWebService(config lib.Configuration) (lib.WebService, error) {
 	switch config.GetOCWebService() {
 	case "local":
 		logger, err := getLogger(config)
@@ -600,7 +601,7 @@ func getOCWebService(config root.Configuration) (root.WebService, error) {
 	}
 }
 
-func getDataWebServiceClient(config root.Configuration) (root.DataWebServiceClient, error) {
+func getDataWebServiceClient(config lib.Configuration) (lib.DataWebServiceClient, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err
@@ -616,7 +617,7 @@ func getDataWebServiceClient(config root.Configuration) (root.DataWebServiceClie
 	return datawebserviceclient.New(logger, cm, registryDriver), nil
 }
 
-func getMetaDataWebServiceClient(config root.Configuration) (root.MetaDataWebServiceClient, error) {
+func getMetaDataWebServiceClient(config lib.Configuration) (lib.MetaDataWebServiceClient, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err
@@ -633,7 +634,7 @@ func getMetaDataWebServiceClient(config root.Configuration) (root.MetaDataWebSer
 
 }
 
-func getAuthenticationWebServiceClient(config root.Configuration) (root.AuthenticationWebServiceClient, error) {
+func getAuthenticationWebServiceClient(config lib.Configuration) (lib.AuthenticationWebServiceClient, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err
@@ -648,7 +649,7 @@ func getAuthenticationWebServiceClient(config root.Configuration) (root.Authenti
 	}
 	return authenticationwebserviceclient.New(logger, cm, registryDriver), nil
 }
-func getConfigurationSource(source string) (root.ConfigurationSource, error) {
+func getConfigurationSource(source string) (lib.ConfigurationSource, error) {
 	var protocol string
 	var specific string
 	parts := strings.Split(source, ":")
@@ -674,7 +675,7 @@ func getConfigurationSource(source string) (root.ConfigurationSource, error) {
 
 }
 
-func getRegistryDriver(config root.Configuration) (root.RegistryDriver, error) {
+func getRegistryDriver(config lib.Configuration) (lib.RegistryDriver, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err
@@ -690,15 +691,16 @@ func getRegistryDriver(config root.Configuration) (root.RegistryDriver, error) {
 			config.GetETCDRegistryDriverUsername(),
 			config.GetETCDRegistryDriverPassword())
 	default:
-		return nil, fmt.Errorf("registry driver does not exist")
+		// use dummy implementation
+		return dummyregistrydriver.New(), nil
 	}
 }
 
-func getWebErrorConverter(config root.Configuration) (root.WebErrorConverter, error) {
+func getWebErrorConverter(config lib.Configuration) (lib.WebErrorConverter, error) {
 	return weberrorconverter.New(), nil
 }
 
-func getCORSMiddleware(config root.Configuration) (root.CorsMiddleware, error) {
+func getCORSMiddleware(config lib.Configuration) (lib.CorsMiddleware, error) {
 	logger, err := getLogger(config)
 	if err != nil {
 		return nil, err
@@ -720,9 +722,9 @@ func find(needle string, haystack []string) bool {
 	return false
 }
 
-func getWebServices(config root.Configuration) (map[string]root.WebService, error) {
+func getWebServices(config lib.Configuration) (map[string]lib.WebService, error) {
 	enabledWebServices := strings.Split(config.GetEnabledWebServices(), ",")
-	webServices := map[string]root.WebService{}
+	webServices := map[string]lib.WebService{}
 	if find("authentication", enabledWebServices) {
 		authenticationWebService, err := getAuthenticationWebService(config)
 		if err != nil {
