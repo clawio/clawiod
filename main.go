@@ -392,7 +392,7 @@ func getAuthenticationWebService(config lib.Configuration) (lib.WebService, erro
 			tokenDriver,
 			authenticationMiddleware,
 			webErrorConverter,
-			false), nil
+			config.GetAuthenticationWebServiceMethodAgnostic()), nil
 	case "proxied":
 		logger, err := getLogger(config)
 		if err != nil {
