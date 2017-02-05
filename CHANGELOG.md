@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.3] - 2017-02-05
+### Added
+- Move library to [clawio/lib](https://github.com/clawio/lib)
+
 ## [1.2.2] - 2017-01-26
 ### Fixed
 - Cache all nodes instead the chosen one from registry 
